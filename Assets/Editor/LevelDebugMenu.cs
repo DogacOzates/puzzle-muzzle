@@ -8,7 +8,7 @@ public static class LevelDebugMenu
     [MenuItem("Debug/Unlock All Levels")]
     private static void UnlockAllLevels()
     {
-        int lastIndex = LevelData.TotalLevels - 1;
+        int lastIndex = LevelDatabase.TotalLevels - 1;
         PlayerPrefs.SetInt(SavedLevelIndexKey, lastIndex);
         PlayerPrefs.Save();
         Debug.Log($"[LevelDebug] Unlocked all levels. SavedLevelIndex set to {lastIndex} (Level {LevelData.TotalLevels}).");
