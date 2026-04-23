@@ -11,7 +11,7 @@ public static class LevelDebugMenu
         int lastIndex = LevelDatabase.TotalLevels - 1;
         PlayerPrefs.SetInt(SavedLevelIndexKey, lastIndex);
         PlayerPrefs.Save();
-        Debug.Log($"[LevelDebug] Unlocked all levels. SavedLevelIndex set to {lastIndex} (Level {LevelData.TotalLevels}).");
+        Debug.Log($"[LevelDebug] Unlocked all levels. SavedLevelIndex set to {lastIndex} (Level {LevelDatabase.TotalLevels}).");
     }
 
     [MenuItem("Debug/Reset Progress")]
