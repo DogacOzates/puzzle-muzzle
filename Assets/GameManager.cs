@@ -107,12 +107,12 @@ public class GameManager : MonoBehaviour
         float botBarFrac = (160f * canvasScale) / Screen.height;
 
         // Available fraction of screen height after all UI and breathing-room margins
-        const float marginFrac = 0.05f; // visual breathing room above and below the grid
+        const float marginFrac = 0.08f; // visual breathing room above and below the grid
         float uiFrac = topInsetFrac + botInsetFrac + topBarFrac + botBarFrac;
-        float gameAreaFrac = Mathf.Max(1f - uiFrac - 2f * marginFrac, 0.45f);
+        float gameAreaFrac = Mathf.Max(1f - uiFrac - 2f * marginFrac, 0.40f);
 
         // Horizontal margin fraction on each side
-        const float horzMarginFrac = 0.05f;
+        const float horzMarginFrac = 0.08f;
 
         // Camera orthoSize: take the more restrictive of height and width constraints
         float orthoFromH = gridH / (2f * gameAreaFrac);
