@@ -89,46 +89,26 @@ public class GameManager : MonoBehaviour
         float gridW = (gridManager.GridWidth - 1) * gridManager.CellSpacing + gridManager.CellVisualSize;
         float gridH = (gridManager.GridHeight - 1) * gridManager.CellSpacing + gridManager.CellVisualSize;
 
-        float aspect = (float)Screen.width / Screen.height;
         Rect safe = Screen.safeArea;
+        float screenH = Screen.height;
+        float topInsetFrac = (screenH - safe.yMax) / screenH;
+        float botInsetFrac = safe.yMin / screenH;
 
-        // Safe area insets as fractions of total screen height (notch, Dynamic Island, home bar)
-        float topInsetFrac = (Screen.height - safe.yMax) / (float)Screen.height;
-        float botInsetFrac = safe.yMin / (float)Screen.height;
+        float paddingH = 1.2f;
+        float paddingTop = 2.0f + topInsetFrac * 4f;
+        float paddingBottom = 4.5f + botInsetFrac * 2f;
 
-        // Derive canvas scale from CanvasScaler settings (Scale With Screen Size, ref=1080×1920, match=0.5)
-        // This lets us convert UI bar heights (in canvas units) to screen-height fractions
-        float scaleW = safe.width / 1080f;
-        float scaleH = safe.height / 1920f;
-        float canvasScale = Mathf.Lerp(scaleW, scaleH, 0.5f);
+        float neededWidth = gridW + paddingH * 2;
+        float neededHeight = gridH + paddingTop + paddingBottom;
 
-        // Top bar = 140 canvas units, bottom bar = 160 canvas units → as fractions of screen height
-        float topBarFrac = (140f * canvasScale) / Screen.height;
-        float botBarFrac = (160f * canvasScale) / Screen.height;
+        float aspect = (float)Screen.width / Screen.height;
 
-        // Available fraction of screen height after all UI and breathing-room margins
-        const float marginFrac = 0.12f; // visual breathing room above and below the grid
-        float uiFrac = topInsetFrac + botInsetFrac + topBarFrac + botBarFrac;
-        float gameAreaFrac = Mathf.Max(1f - uiFrac - 2f * marginFrac, 0.35f);
+        float orthoH = neededHeight / 2f;
+        float orthoW = neededWidth / (2f * aspect);
+        cam.orthographicSize = Mathf.Max(orthoH, orthoW);
 
-        // Horizontal margin fraction on each side
-        const float horzMarginFrac = 0.12f;
-
-        // Camera orthoSize: take the more restrictive of height and width constraints
-        float orthoFromH = gridH / (2f * gameAreaFrac);
-        float orthoFromW = gridW / (2f * (1f - 2f * horzMarginFrac) * aspect);
-        float orthoSize = Mathf.Max(orthoFromH, orthoFromW);
-
-        cam.orthographicSize = orthoSize;
-
-        // Position camera so the grid is vertically centred in the play area (between the two bars)
-        float totalWorldH = orthoSize * 2f;
-        float topWorldOccupied = totalWorldH * (topInsetFrac + topBarFrac + marginFrac);
-        float botWorldOccupied = totalWorldH * (botInsetFrac + botBarFrac + marginFrac);
-
-        float gridCenterY = gridManager.GridOrigin.y
-            - (gridManager.GridHeight - 1) * gridManager.CellSpacing / 2f;
-        float cameraY = gridCenterY - (botWorldOccupied - topWorldOccupied) / 2f;
+        float gridCenterY = gridManager.GridOrigin.y - (gridManager.GridHeight - 1) * gridManager.CellSpacing / 2f;
+        float cameraY = gridCenterY - (paddingBottom - paddingTop) / 2f;
         cam.transform.position = new Vector3(0, cameraY, -10f);
     }
 
