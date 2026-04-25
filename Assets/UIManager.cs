@@ -894,39 +894,6 @@ public class UIManager : MonoBehaviour
         msgTxt.alignment = TextAnchor.MiddleLeft;
         msgTxt.color = Color.white;
 
-        // Close button
-        var closeObj = new GameObject("CloseBanner");
-        closeObj.transform.SetParent(rowObj.transform, false);
-        var closeRect = closeObj.AddComponent<RectTransform>();
-        closeRect.anchorMin = new Vector2(1f, 0f);
-        closeRect.anchorMax = new Vector2(1f, 1f);
-        closeRect.pivot = new Vector2(1f, 0.5f);
-        closeRect.sizeDelta = new Vector2(80f, 0f);
-        closeRect.anchoredPosition = Vector2.zero;
-        var closeImg = closeObj.AddComponent<Image>();
-        closeImg.color = new Color(1f, 1f, 1f, 0.06f);
-        var closeBtn = closeObj.AddComponent<Button>();
-        closeBtn.targetGraphic = closeImg;
-        closeBtn.onClick.AddListener(() =>
-        {
-            if (bannerCoroutine != null) StopCoroutine(bannerCoroutine);
-            promoTopBanner.SetActive(false);
-        });
-        var closeTxtObj = new GameObject("BannerX");
-        closeTxtObj.transform.SetParent(closeObj.transform, false);
-        var closeTxtRect = closeTxtObj.AddComponent<RectTransform>();
-        closeTxtRect.anchorMin = Vector2.zero;
-        closeTxtRect.anchorMax = Vector2.one;
-        closeTxtRect.offsetMin = Vector2.zero;
-        closeTxtRect.offsetMax = Vector2.zero;
-        var closeTxt = closeTxtObj.AddComponent<Text>();
-        closeTxt.font = defaultFont;
-        closeTxt.text = "✕";
-        closeTxt.fontSize = 30;
-        closeTxt.fontStyle = FontStyle.Bold;
-        closeTxt.alignment = TextAnchor.MiddleCenter;
-        closeTxt.color = new Color(1f, 1f, 1f, 0.55f);
-
         bannerObj.SetActive(false);
         return bannerObj;
     }
