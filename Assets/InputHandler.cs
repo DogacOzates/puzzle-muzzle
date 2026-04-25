@@ -6,6 +6,8 @@ public class InputHandler : MonoBehaviour
     private GridManager gridManager;
     private GameManager gameManager;
 
+    private Cell _lastDragCell;
+
     public void Initialize(GridManager grid, GameManager game)
     {
         gridManager = grid;
@@ -25,7 +27,18 @@ public class InputHandler : MonoBehaviour
             return;
 
         if (pointer.press.wasPressedThisFrame)
+        {
+            _lastDragCell = null;
             OnTap();
+        }
+        else if (pointer.press.isPressed)
+        {
+            OnDrag();
+        }
+        else if (pointer.press.wasReleasedThisFrame)
+        {
+            _lastDragCell = null;
+        }
     }
 
     private Vector3 GetWorldPos()
@@ -47,11 +60,48 @@ public class InputHandler : MonoBehaviour
 
         Cell cell = gridManager.GetCell(gridPos.x, gridPos.y);
         if (cell == null) return;
+        if (cell.IsBlocked) return;
+
+        _lastDragCell = cell;
 
         if (gridManager.HasActiveSelection)
             HandleSelectionTap(cell);
         else
             HandleIdleTap(cell);
+    }
+
+    private void OnDrag()
+    {
+        Vector3 worldPos = GetWorldPos();
+        Vector2Int gridPos = gridManager.WorldToGrid(worldPos);
+
+        if (!gridManager.IsValidGridPos(gridPos.x, gridPos.y)) return;
+
+        Cell cell = gridManager.GetCell(gridPos.x, gridPos.y);
+        if (cell == null || cell == _lastDragCell) return;
+        if (cell.IsBlocked) return;
+
+        _lastDragCell = cell;
+
+        if (!gridManager.HasActiveSelection) return;
+
+        // Drag back to second-to-last cell undoes the last step
+        if (gridManager.IsSecondToLastInChain(cell))
+        {
+            gridManager.UndoLastStep();
+            return;
+        }
+
+        // Try to extend chain to the new cell
+        if (cell.State == CellState.Empty || cell.State == CellState.NumberTarget)
+        {
+            if (gridManager.TryExtendSelection(cell))
+            {
+                AudioManager.Instance?.OnCellCollected();
+                if (gridManager.IsLevelComplete())
+                    gameManager.OnLevelComplete();
+            }
+        }
     }
 
     private void HandleIdleTap(Cell cell)
@@ -60,13 +110,16 @@ public class InputHandler : MonoBehaviour
         {
             case CellState.Empty:
                 // Start a new chain from this empty cell
+                AudioManager.Instance?.OnChainStarted();
                 gridManager.TryStartFromEmpty(cell);
+                AudioManager.Instance?.OnCellCollected();
                 break;
 
             case CellState.NumberTarget:
                 // If target number is 1, auto-complete immediately
                 if (cell.TargetNumber == 1)
                 {
+                    AudioManager.Instance?.OnChainStarted();
                     gridManager.TryCompleteTarget1(cell);
                     if (gridManager.IsLevelComplete())
                         gameManager.OnLevelComplete();
@@ -94,6 +147,7 @@ public class InputHandler : MonoBehaviour
         {
             if (gridManager.TryExtendSelection(cell))
             {
+                AudioManager.Instance?.OnCellCollected();
                 if (gridManager.IsLevelComplete())
                     gameManager.OnLevelComplete();
                 return;
@@ -104,7 +158,9 @@ public class InputHandler : MonoBehaviour
             if (cell.State == CellState.Empty)
             {
                 gridManager.CancelSelection();
+                AudioManager.Instance?.OnChainStarted();
                 gridManager.TryStartFromEmpty(cell);
+                AudioManager.Instance?.OnCellCollected();
                 return;
             }
         }
@@ -113,6 +169,7 @@ public class InputHandler : MonoBehaviour
         if (cell.State == CellState.Completed)
         {
             gridManager.CancelSelection();
+            AudioManager.Instance?.OnChainReset();
             gridManager.TryRemoveBlock(cell);
             return;
         }

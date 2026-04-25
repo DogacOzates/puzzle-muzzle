@@ -37,6 +37,10 @@ public class GameManager : MonoBehaviour
     {
         SetupCamera();
 
+        var audioObj = new GameObject("AudioManager");
+        audioObj.transform.SetParent(transform);
+        audioObj.AddComponent<AudioManager>();
+
         var gridObj = new GameObject("GridManager");
         gridObj.transform.SetParent(transform);
         gridManager = gridObj.AddComponent<GridManager>();
@@ -123,6 +127,8 @@ public class GameManager : MonoBehaviour
         IsLevelComplete = false;
         currentLevelIndex = index;
         hintPressedThisLevel = 0;
+
+        AudioManager.Instance?.OnChainReset();
 
         LevelData level = LevelDatabase.Levels[index];
         gridManager.Initialize(level);
