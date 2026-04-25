@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 /// <summary>
@@ -57,14 +58,23 @@ public class AudioManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Plays the longer collect sound at the current pitch — same chirp, longer ring-out.
+    /// Plays the collect sound twice in quick succession — "pip-pip".
     /// </summary>
     public void OnSegmentComplete()
     {
-        audioSource.pitch = Mathf.Min(currentPitch, MaxPitch);
-        audioSource.PlayOneShot(collectLongClip, 1.0f);
+        StartCoroutine(PlayDoublePip(currentPitch));
         currentPitch = BasePitch;
         chainLength  = 0;
+    }
+
+    private IEnumerator PlayDoublePip(float pitch)
+    {
+        float p = Mathf.Min(pitch, MaxPitch);
+        audioSource.pitch = p;
+        audioSource.PlayOneShot(collectClip, 0.9f);
+        yield return new WaitForSeconds(0.07f);
+        audioSource.pitch = Mathf.Min(p + 0.15f, MaxPitch);
+        audioSource.PlayOneShot(collectClip, 1.0f);
     }
 
     /// <summary>Call when the player undoes a step.</summary>
