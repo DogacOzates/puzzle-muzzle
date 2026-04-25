@@ -56,7 +56,9 @@ public class AudioManager : MonoBehaviour
     /// <summary>Call when a full segment is successfully completed.</summary>
     public void OnSegmentComplete()
     {
-        audioSource.pitch = 1f;
+        // Play at the pitch we left off at so the sound continues naturally
+        // from the rising collect sequence, then the descending sweep resolves it.
+        audioSource.pitch = Mathf.Min(currentPitch, MaxPitch);
         audioSource.PlayOneShot(segmentCompleteClip, 0.85f);
         currentPitch = BasePitch;
     }
@@ -104,15 +106,40 @@ public class AudioManager : MonoBehaviour
 
     private AudioClip GenerateSegmentCompleteClip()
     {
-        // Three rapid chirps in the same style as the collect sound,
-        // each a step higher — same timbre family, feels like a satisfying resolution.
+        // Fast downward sweep (landing) + overlapping bell ding (resolution).
+        // Played at currentPitch so it continues naturally from the collect sequence.
         int sr = 44100;
-        int total = (int)(0.36f * sr);
+        int total = (int)(0.30f * sr);
         float[] buf = new float[total];
-        AddChirp(buf, sr, 480f, 720f, 0.00f, 0.13f, 22f, 0.85f);
-        AddChirp(buf, sr, 540f, 810f, 0.09f, 0.13f, 22f, 0.85f);
-        AddChirp(buf, sr, 600f, 960f, 0.19f, 0.17f, 14f, 0.95f, extraHarmonics: true);
-        return MakeClip("segment_complete", NormBuf(buf, 0.92f), sr);
+
+        // Part 1: downward sweep 800→480 Hz, 70ms
+        int n1 = (int)(0.07f * sr);
+        float f0s = 800f, f1s = 480f, ks = (f1s - f0s) / (n1 / (float)sr);
+        int atk1 = (int)(0.003f * sr);
+        for (int i = 0; i < n1; i++)
+        {
+            float t = i / (float)sr;
+            float ph = 2f * Mathf.PI * (f0s * t + .5f * ks * t * t);
+            float s = Mathf.Sin(ph) + 0.15f * Mathf.Sin(2f * ph);
+            float env = Mathf.Exp(-t * 8f) * (i < atk1 ? (float)i / atk1 : 1f);
+            buf[i] += s * env * 0.7f;
+        }
+
+        // Part 2: bell tone at 520 Hz starting at 40ms
+        int n2 = (int)(0.25f * sr), start2 = (int)(0.04f * sr);
+        int atk2 = (int)(0.003f * sr);
+        for (int i = 0; i < n2; i++)
+        {
+            int idx = start2 + i;
+            if (idx >= total) break;
+            float t = i / (float)sr;
+            float ph = 2f * Mathf.PI * 520f * t;
+            float s = Mathf.Sin(ph) + 0.4f * Mathf.Sin(2f * ph) + 0.1f * Mathf.Sin(3f * ph);
+            float env = Mathf.Exp(-t * 9f) * (i < atk2 ? (float)i / atk2 : 1f);
+            buf[idx] += s * env * 0.85f;
+        }
+
+        return MakeClip("segment_complete", NormBuf(buf, 0.90f), sr);
     }
 
     private AudioClip GenerateUndoClip()
