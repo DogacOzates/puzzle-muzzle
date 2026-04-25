@@ -104,12 +104,15 @@ public class AudioManager : MonoBehaviour
 
     private AudioClip GenerateSegmentCompleteClip()
     {
-        int sr = 44100; int total = (int)(0.38f * sr);
+        // Three rapid chirps in the same style as the collect sound,
+        // each a step higher — same timbre family, feels like a satisfying resolution.
+        int sr = 44100;
+        int total = (int)(0.36f * sr);
         float[] buf = new float[total];
-        AddTone(buf, sr, 523.25f, 0,               0.14f);
-        AddTone(buf, sr, 659.25f, (int)(.08f * sr), 0.14f);
-        AddTone(buf, sr, 783.99f, (int)(.16f * sr), 0.20f);
-        return MakeClip("segment_complete", NormBuf(buf, 0.85f), sr);
+        AddChirp(buf, sr, 480f, 720f, 0.00f, 0.13f, 22f, 0.85f);
+        AddChirp(buf, sr, 540f, 810f, 0.09f, 0.13f, 22f, 0.85f);
+        AddChirp(buf, sr, 600f, 960f, 0.19f, 0.17f, 14f, 0.95f, extraHarmonics: true);
+        return MakeClip("segment_complete", NormBuf(buf, 0.92f), sr);
     }
 
     private AudioClip GenerateUndoClip()
@@ -139,6 +142,26 @@ public class AudioManager : MonoBehaviour
         AddTone(buf, sr,  659.25f, (int)(.36f * sr), 0.28f, 0.35f);
         AddTone(buf, sr,  783.99f, (int)(.36f * sr), 0.28f, 0.25f);
         return MakeClip("level_complete", NormBuf(buf, 0.92f), sr);
+    }
+
+    private static void AddChirp(float[] buf, int sr, float f0, float f1, float startSec, float dur,
+                                   float decay, float vol, bool extraHarmonics = false)
+    {
+        int n = (int)(dur * sr);
+        int start = (int)(startSec * sr);
+        float k = (f1 - f0) / dur;
+        int atk = (int)(0.005f * sr);
+        for (int i = 0; i < n; i++)
+        {
+            int idx = start + i;
+            if (idx >= buf.Length) break;
+            float t = i / (float)sr;
+            float ph = 2f * Mathf.PI * (f0 * t + .5f * k * t * t);
+            float s = Mathf.Sin(ph) + 0.2f * Mathf.Sin(2f * ph);
+            if (extraHarmonics) s += 0.08f * Mathf.Sin(3f * ph);
+            float env = Mathf.Exp(-t * decay) * (i < atk ? (float)i / atk : 1f);
+            buf[idx] += s * env * vol;
+        }
     }
 
     private static void AddTone(float[] buf, int sr, float freq, int startSample, float dur, float vol = 0.85f)
