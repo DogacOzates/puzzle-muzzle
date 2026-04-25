@@ -18,6 +18,7 @@ public class AudioManager : MonoBehaviour
     private const float MaxPitch = 2.2f;
 
     private float currentPitch = BasePitch;
+    private int   chainLength  = 0;
 
     private static AudioManager _instance;
     public static AudioManager Instance => _instance;
@@ -42,6 +43,7 @@ public class AudioManager : MonoBehaviour
     public void OnChainStarted()
     {
         currentPitch = BasePitch;
+        chainLength  = 0;
     }
 
     /// <summary>Call when a cell is added to the chain (pitch rises).</summary>
@@ -50,32 +52,33 @@ public class AudioManager : MonoBehaviour
         audioSource.pitch = Mathf.Min(currentPitch, MaxPitch);
         audioSource.PlayOneShot(collectClip);
         currentPitch = Mathf.Min(currentPitch + PitchStep, MaxPitch);
+        chainLength++;
     }
 
     /// <summary>
-    /// Call when a full segment is completed.
-    /// Plays the collect clip 3 times rapidly — pip · pip · PIP! —
-    /// so the completion sound is the same family as the collect sounds.
+    /// Replays the collect sound exactly N times at full speed where N = cells collected.
+    /// 3 cells → pip·pip·pip, 5 cells → pip·pip·pip·pip·pip — same pitches, faster tempo.
     /// </summary>
     public void OnSegmentComplete()
     {
-        StartCoroutine(PlayCompletionBurst(currentPitch));
+        StartCoroutine(PlayCompletionBurst(chainLength));
         currentPitch = BasePitch;
+        chainLength  = 0;
     }
 
-    private IEnumerator PlayCompletionBurst(float fromPitch)
+    private IEnumerator PlayCompletionBurst(int count)
     {
-        float p = Mathf.Min(fromPitch, MaxPitch);
-        audioSource.pitch = p;
-        audioSource.PlayOneShot(collectClip, 0.90f);
-
-        yield return new WaitForSeconds(0.055f);
-        audioSource.pitch = Mathf.Min(p + 0.12f, MaxPitch);
-        audioSource.PlayOneShot(collectClip, 0.95f);
-
-        yield return new WaitForSeconds(0.055f);
-        audioSource.pitch = Mathf.Min(p + 0.28f, MaxPitch);
-        audioSource.PlayOneShot(collectClip, 1.00f);
+        int n = Mathf.Max(1, count);
+        for (int i = 0; i < n; i++)
+        {
+            float p = Mathf.Min(BasePitch + i * PitchStep, MaxPitch);
+            // Last note slightly louder for emphasis
+            float vol = (i == n - 1) ? 1.0f : 0.85f;
+            audioSource.pitch = p;
+            audioSource.PlayOneShot(collectClip, vol);
+            if (i < n - 1)
+                yield return new WaitForSeconds(0.040f);
+        }
     }
 
     /// <summary>Call when the player undoes a step.</summary>
@@ -99,6 +102,7 @@ public class AudioManager : MonoBehaviour
     public void OnChainReset()
     {
         currentPitch = BasePitch;
+        chainLength  = 0;
     }
 
     // ── Procedural fallback clip generation ────────────────────────────────
