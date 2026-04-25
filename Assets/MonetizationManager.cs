@@ -5,7 +5,7 @@ public class MonetizationManager : MonoBehaviour
 {
     public const string NoAdsProductId = "com.dogac.puzzlemuzzle.noads";
 
-    private const bool NoAdsPurchasesEnabled = false;
+    private const bool NoAdsPurchasesEnabled = true;
     private const string NoAdsPurchasedKey = "monetization.noads.purchased";
     private const int AdFreeLevels = 10;
     private const string DefaultNoAdsPrice = "$4.99";
