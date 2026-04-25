@@ -51,6 +51,10 @@ public static class LevelGenerator
         var recentSignatures = new Queue<string>();
         var usedSignatures = new Dictionary<string, int>();
         var allFingerprints = new HashSet<string>();
+        // Tier-local value-set balancing: prevents same number combos dominating a tier
+        var usedValueSetsByTier = new Dictionary<string, Dictionary<string, int>>();
+        // Recent region fingerprints: prevents endpoints always clustering in same bands
+        var recentRegionSets = new Queue<string>();
 
         for (int levelNum = 1; levelNum <= generatedLevelCount; levelNum++)
         {
@@ -74,7 +78,7 @@ public static class LevelGenerator
                 var blockedList = new List<Vector2Int>(candidateBlocked);
                 string signature = BuildSignature(config, segments);
                 string contentFingerprint = BuildContentFingerprint(config, segments, blockedList);
-                float score = ScoreCandidate(path, segments, config, signature, contentFingerprint, recentSignatures, usedSignatures, allFingerprints);
+                float score = ScoreCandidate(path, segments, config, signature, contentFingerprint, recentSignatures, usedSignatures, allFingerprints, usedValueSetsByTier, recentRegionSets);
 
                 if (bestCandidate == null || score > bestCandidate.score)
                 {
@@ -144,12 +148,26 @@ public static class LevelGenerator
             levels[levelNum - 1] = BuildLevelData(config, bestCandidate.segments, bestCandidate.blocked);
 
             recentSignatures.Enqueue(bestCandidate.signature);
-            while (recentSignatures.Count > 8)
+            while (recentSignatures.Count > 15)
                 recentSignatures.Dequeue();
 
             if (!usedSignatures.ContainsKey(bestCandidate.signature))
                 usedSignatures[bestCandidate.signature] = 0;
             usedSignatures[bestCandidate.signature]++;
+
+            // Track tier-local value-set usage
+            string chosenValueSet = BuildValueSetFingerprint(bestCandidate.segments);
+            if (!usedValueSetsByTier.ContainsKey(config.tierName))
+                usedValueSetsByTier[config.tierName] = new Dictionary<string, int>();
+            if (!usedValueSetsByTier[config.tierName].ContainsKey(chosenValueSet))
+                usedValueSetsByTier[config.tierName][chosenValueSet] = 0;
+            usedValueSetsByTier[config.tierName][chosenValueSet]++;
+
+            // Track recent region fingerprint
+            string chosenRegion = BuildRegionFingerprint(bestCandidate.segments, config);
+            recentRegionSets.Enqueue(chosenRegion);
+            while (recentRegionSets.Count > 10)
+                recentRegionSets.Dequeue();
 
             allFingerprints.Add(bestCandidate.contentFingerprint);
         }
@@ -202,7 +220,7 @@ public static class LevelGenerator
         {
             config.width = 4; config.height = 4;
             config.minSegment = 3; config.maxSegment = 5;
-            config.candidateCount = 12;
+            config.candidateCount = 22;
             config.tierName = "Easy";
             config.rectanglePenalty = 3.2f; config.densePenalty = 2.4f;
             config.straightPenalty = 1.8f; config.turnWeight = 1.15f;
@@ -212,8 +230,8 @@ public static class LevelGenerator
         else if (generatedLevelIndex <= 32)
         {
             SetRectangularBoard(ref config, 4, 5);
-            config.minSegment = 3; config.maxSegment = 6;
-            config.candidateCount = 14;
+            config.minSegment = 3; config.maxSegment = 7;
+            config.candidateCount = 26;
             config.tierName = "Easy";
             config.rectanglePenalty = 3.0f; config.densePenalty = 2.2f;
             config.straightPenalty = 1.7f; config.turnWeight = 1.1f;
@@ -223,8 +241,8 @@ public static class LevelGenerator
         else if (generatedLevelIndex <= 55)
         {
             config.width = 5; config.height = 5;
-            config.minSegment = 3; config.maxSegment = 7;
-            config.candidateCount = 16;
+            config.minSegment = 3; config.maxSegment = 8;
+            config.candidateCount = 28;
             config.tierName = "Normal";
             config.rectanglePenalty = 2.7f; config.densePenalty = 2.0f;
             config.straightPenalty = 1.5f; config.turnWeight = 1.05f;
@@ -234,8 +252,8 @@ public static class LevelGenerator
         else if (generatedLevelIndex <= 85)
         {
             SetRectangularBoard(ref config, 5, 6);
-            config.minSegment = 3; config.maxSegment = 8;
-            config.candidateCount = 16;
+            config.minSegment = 3; config.maxSegment = 9;
+            config.candidateCount = 28;
             config.tierName = "Normal";
             config.rectanglePenalty = 2.3f; config.densePenalty = 1.8f;
             config.straightPenalty = 1.35f; config.turnWeight = 1.0f;
@@ -247,7 +265,7 @@ public static class LevelGenerator
             // No blocked cells yet — transition to full 6x6 before introducing obstacles
             config.width = 6; config.height = 6;
             config.minSegment = 4; config.maxSegment = 9;
-            config.candidateCount = 18;
+            config.candidateCount = 26;
             config.tierName = "Hard";
             config.rectanglePenalty = 2.0f; config.densePenalty = 1.55f;
             config.straightPenalty = 1.2f; config.turnWeight = 0.95f;
@@ -259,7 +277,7 @@ public static class LevelGenerator
             // Blocked cells introduced from level 100 onwards (max 2)
             config.width = 6; config.height = 6;
             config.minSegment = 4; config.maxSegment = 9;
-            config.candidateCount = 20;
+            config.candidateCount = 28;
             config.tierName = "Hard";
             config.rectanglePenalty = 1.8f; config.densePenalty = 1.4f;
             config.straightPenalty = 1.1f; config.turnWeight = 0.92f;
@@ -270,7 +288,7 @@ public static class LevelGenerator
         {
             SetRectangularBoard(ref config, 6, 7);
             config.minSegment = 4; config.maxSegment = 10;
-            config.candidateCount = 20;
+            config.candidateCount = 26;
             config.tierName = "Advanced";
             config.rectanglePenalty = 1.5f; config.densePenalty = 1.2f;
             config.straightPenalty = 1.0f; config.turnWeight = 0.88f;
@@ -281,7 +299,7 @@ public static class LevelGenerator
         {
             SetRectangularBoard(ref config, 6, 8);
             config.minSegment = 4; config.maxSegment = 10;
-            config.candidateCount = 22;
+            config.candidateCount = 28;
             config.tierName = "Expert";
             config.rectanglePenalty = 1.2f; config.densePenalty = 0.95f;
             config.straightPenalty = 0.9f; config.turnWeight = 0.82f;
@@ -292,7 +310,7 @@ public static class LevelGenerator
         {
             SetRectangularBoard(ref config, 6, 9);
             config.minSegment = 5; config.maxSegment = 10;
-            config.candidateCount = 24;
+            config.candidateCount = 30;
             config.tierName = "Master";
             config.rectanglePenalty = 0.9f; config.densePenalty = 0.7f;
             config.straightPenalty = 0.8f; config.turnWeight = 0.72f;
@@ -478,11 +496,11 @@ public static class LevelGenerator
         while (index < path.Count)
         {
             int remaining = path.Count - index;
-            int bestLength = -1;
-            float bestScore = float.NegativeInfinity;
-            string bestShape = string.Empty;
 
+            // Collect all valid (length, score, shape) candidates
             int maxLength = Mathf.Min(config.maxSegment, remaining);
+            var choices = new List<(int length, float score, string shape)>();
+
             for (int length = config.minSegment; length <= maxLength; length++)
             {
                 int rest = remaining - length;
@@ -499,24 +517,28 @@ public static class LevelGenerator
                     score -= 0.55f;
 
                 score += Mathf.Min(2, CountTurns(segment)) * 0.15f;
-                score += (float)rng.NextDouble() * 0.35f;
+                // Increased randomness so diverse lengths can win
+                score += (float)rng.NextDouble() * 0.55f;
 
-                if (score > bestScore)
-                {
-                    bestScore = score;
-                    bestLength = length;
-                    bestShape = shapeType;
-                }
+                choices.Add((length, score, shapeType));
             }
 
-            if (bestLength < 0)
+            if (choices.Count == 0)
                 return null;
 
-            List<Vector2Int> chosen = path.GetRange(index, bestLength);
+            // Sort descending by score, then sample from top 3 probabilistically
+            choices.Sort((a, b) => b.score.CompareTo(a.score));
+            double sel = rng.NextDouble();
+            int pick = 0;
+            if (choices.Count >= 2 && sel > 0.60) pick = 1;
+            if (choices.Count >= 3 && sel > 0.85) pick = 2;
+
+            var chosen_item = choices[pick];
+            List<Vector2Int> chosen = path.GetRange(index, chosen_item.length);
             segments.Add(chosen);
-            previousLength = bestLength;
-            previousShape = bestShape;
-            index += bestLength;
+            previousLength = chosen_item.length;
+            previousShape = chosen_item.shape;
+            index += chosen_item.length;
         }
 
         return segments;
@@ -540,7 +562,9 @@ public static class LevelGenerator
         string contentFingerprint,
         Queue<string> recentSignatures,
         Dictionary<string, int> usedSignatures,
-        HashSet<string> allFingerprints)
+        HashSet<string> allFingerprints,
+        Dictionary<string, Dictionary<string, int>> usedValueSetsByTier,
+        Queue<string> recentRegionSets)
     {
         float score = 0f;
         var lengthCounts = new Dictionary<int, int>();
@@ -591,6 +615,22 @@ public static class LevelGenerator
         // Hard penalty for exact duplicate puzzles (same number positions + values)
         if (allFingerprints.Contains(contentFingerprint))
             score -= 20f;
+
+        // Tier-local value-set balancing: penalize overused number combinations within this tier
+        string myValueSet = BuildValueSetFingerprint(segments);
+        if (usedValueSetsByTier.TryGetValue(config.tierName, out var tierSets) &&
+            tierSets.TryGetValue(myValueSet, out int vsCount))
+            score -= (vsCount + 1) * 3.0f;
+
+        // Region diversity: penalize if endpoints cluster in same bands as recent levels
+        string myRegion = BuildRegionFingerprint(segments, config);
+        int regionMatches = 0;
+        foreach (string rrs in recentRegionSets)
+            if (rrs == myRegion) regionMatches++;
+        score -= regionMatches * 2.0f;
+
+        // Spatial spread bonus: reward levels where number cells are far apart
+        score += ComputeSpreadScore(segments, config) * 2.0f;
 
         return score;
     }
@@ -899,6 +939,56 @@ public static class LevelGenerator
         if (stats.fillRatio > 0.8f)
             return "B";
         return "C";
+    }
+
+    private static string BuildValueSetFingerprint(List<List<Vector2Int>> segments)
+    {
+        var sizes = new List<int>(segments.Count);
+        foreach (var seg in segments) sizes.Add(seg.Count);
+        sizes.Sort();
+        return string.Join(",", sizes);
+    }
+
+    // Divide the grid into 3×2 bands (left/center/right × bottom/top)
+    private static string BuildRegionFingerprint(List<List<Vector2Int>> segments, CampaignConfig config)
+    {
+        var bands = new List<string>(segments.Count);
+        foreach (var seg in segments)
+        {
+            var ep = seg[seg.Count - 1];
+            string bx = ep.x < config.width / 3f ? "L" : (ep.x < 2f * config.width / 3f ? "C" : "R");
+            string by = ep.y < config.height / 2f ? "B" : "T";
+            bands.Add(bx + by);
+        }
+        bands.Sort();
+        return string.Join(",", bands);
+    }
+
+    // Reward levels where number-cell endpoints are spread far apart
+    private static float ComputeSpreadScore(List<List<Vector2Int>> segments, CampaignConfig config)
+    {
+        if (segments.Count <= 1) return 0f;
+
+        var endpoints = new List<Vector2Int>(segments.Count);
+        foreach (var seg in segments) endpoints.Add(seg[seg.Count - 1]);
+
+        float totalDist = 0f;
+        int pairs = 0;
+        float minDist = float.MaxValue;
+        for (int i = 0; i < endpoints.Count; i++)
+            for (int j = i + 1; j < endpoints.Count; j++)
+            {
+                float d = Mathf.Abs(endpoints[i].x - endpoints[j].x)
+                        + Mathf.Abs(endpoints[i].y - endpoints[j].y);
+                totalDist += d;
+                pairs++;
+                if (d < minDist) minDist = d;
+            }
+
+        float avgDist = pairs > 0 ? totalDist / pairs : 0f;
+        float maxPossible = config.width + config.height - 2f;
+        // Weight both average distance and minimum (to avoid all-corners vs. all-center)
+        return (avgDist / (maxPossible + 0.01f)) * 0.7f + (minDist / (maxPossible + 0.01f)) * 0.3f;
     }
 
     private static List<Vector2Int> Neighbors(int x, int y, int width, int height, bool[,] visited)
