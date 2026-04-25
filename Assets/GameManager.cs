@@ -157,6 +157,7 @@ public class GameManager : MonoBehaviour
             return;
 
         IsLevelComplete = true;
+        AudioManager.Instance?.OnLevelComplete();
         SaveProgressForNextLevel();
         uiManager.HideLevelComplete();
         NextLevel();

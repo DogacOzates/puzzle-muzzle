@@ -2,18 +2,19 @@ using UnityEngine;
 
 /// <summary>
 /// Plays the cell-collect sound with progressively rising pitch
-/// as the player extends the selection chain.
+/// as the player extends the selection chain, plus segment-complete,
+/// undo, and level-complete sounds.
 /// </summary>
 public class AudioManager : MonoBehaviour
 {
     private AudioSource audioSource;
     private AudioClip collectClip;
+    private AudioClip segmentCompleteClip;
+    private AudioClip undoClip;
+    private AudioClip levelCompleteClip;
 
-    // Pitch resets to this when a new chain starts
     private const float BasePitch = 1.0f;
-    // Each new cell added to the chain increases pitch by this amount
     private const float PitchStep = 0.07f;
-    // Maximum pitch (prevents it from getting unbearably high)
     private const float MaxPitch = 2.2f;
 
     private float currentPitch = BasePitch;
@@ -28,19 +29,15 @@ public class AudioManager : MonoBehaviour
 
         audioSource = gameObject.AddComponent<AudioSource>();
         audioSource.playOnAwake = false;
-        audioSource.spatialBlend = 0f; // 2D sound
+        audioSource.spatialBlend = 0f;
 
-        LoadClip();
+        collectClip         = Resources.Load<AudioClip>("cell_collect")      ?? GenerateCollectClip();
+        segmentCompleteClip = Resources.Load<AudioClip>("segment_complete")  ?? GenerateSegmentCompleteClip();
+        undoClip            = Resources.Load<AudioClip>("undo")              ?? GenerateUndoClip();
+        levelCompleteClip   = Resources.Load<AudioClip>("level_complete")    ?? GenerateLevelCompleteClip();
     }
 
-    private void LoadClip()
-    {
-        // Load from Resources folder if available, otherwise use procedural
-        collectClip = Resources.Load<AudioClip>("cell_collect");
-        if (collectClip == null)
-            collectClip = GenerateCollectClip();
-        audioSource.clip = collectClip;
-    }
+    // ── Public API ──────────────────────────────────────────────────────────
 
     /// <summary>Call when a new chain is started (pitch resets).</summary>
     public void OnChainStarted()
@@ -56,35 +53,122 @@ public class AudioManager : MonoBehaviour
         currentPitch = Mathf.Min(currentPitch + PitchStep, MaxPitch);
     }
 
-    /// <summary>Call when chain is cancelled or completed.</summary>
+    /// <summary>Call when a full segment is successfully completed.</summary>
+    public void OnSegmentComplete()
+    {
+        audioSource.pitch = 1f;
+        audioSource.PlayOneShot(segmentCompleteClip, 0.85f);
+        currentPitch = BasePitch;
+    }
+
+    /// <summary>Call when the player undoes a step.</summary>
+    public void OnUndo()
+    {
+        audioSource.pitch = 1f;
+        audioSource.PlayOneShot(undoClip, 0.7f);
+        if (currentPitch > BasePitch)
+            currentPitch = Mathf.Max(BasePitch, currentPitch - PitchStep);
+    }
+
+    /// <summary>Call when the level is completed.</summary>
+    public void OnLevelComplete()
+    {
+        audioSource.pitch = 1f;
+        audioSource.PlayOneShot(levelCompleteClip, 1.0f);
+        currentPitch = BasePitch;
+    }
+
+    /// <summary>Call when chain is cancelled or level reloads.</summary>
     public void OnChainReset()
     {
         currentPitch = BasePitch;
     }
 
-    // Procedural fallback: generates a short upward chirp at runtime
+    // ── Procedural fallback clip generation ────────────────────────────────
+
     private AudioClip GenerateCollectClip()
     {
-        int sampleRate = 44100;
-        float duration = 0.13f;
-        int n = (int)(sampleRate * duration);
-        float[] data = new float[n];
-
-        float f0 = 480f, f1 = 720f;
-        float k = (f1 - f0) / duration;
-        int attackN = (int)(0.005f * sampleRate);
-
+        int sr = 44100; float dur = 0.13f; int n = (int)(sr * dur);
+        float[] d = new float[n];
+        float f0 = 480f, f1 = 720f, k = (f1 - f0) / dur;
+        int atk = (int)(0.005f * sr);
         for (int i = 0; i < n; i++)
         {
-            float t = i / (float)sampleRate;
-            float phase = 2f * Mathf.PI * (f0 * t + 0.5f * k * t * t);
-            float sine = Mathf.Sin(phase) + 0.25f * Mathf.Sin(2f * phase);
-            float env = Mathf.Exp(-t * 28f);
-            if (i < attackN) env *= (float)i / attackN;
-            data[i] = sine * env * 0.9f;
+            float t = i / (float)sr;
+            float ph = 2f * Mathf.PI * (f0 * t + .5f * k * t * t);
+            float env = Mathf.Exp(-t * 28f) * (i < atk ? (float)i / atk : 1f);
+            d[i] = (Mathf.Sin(ph) + .25f * Mathf.Sin(2f * ph)) * env * .9f;
         }
+        return MakeClip("cell_collect", d, sr);
+    }
 
-        var clip = AudioClip.Create("cell_collect", n, 1, sampleRate, false);
+    private AudioClip GenerateSegmentCompleteClip()
+    {
+        int sr = 44100; int total = (int)(0.38f * sr);
+        float[] buf = new float[total];
+        AddTone(buf, sr, 523.25f, 0,               0.14f);
+        AddTone(buf, sr, 659.25f, (int)(.08f * sr), 0.14f);
+        AddTone(buf, sr, 783.99f, (int)(.16f * sr), 0.20f);
+        return MakeClip("segment_complete", NormBuf(buf, 0.85f), sr);
+    }
+
+    private AudioClip GenerateUndoClip()
+    {
+        int sr = 44100; float dur = 0.13f; int n = (int)(sr * dur);
+        float[] d = new float[n];
+        float f0 = 460f, f1 = 260f, k = (f1 - f0) / dur;
+        int atk = (int)(0.004f * sr);
+        for (int i = 0; i < n; i++)
+        {
+            float t = i / (float)sr;
+            float ph = 2f * Mathf.PI * (f0 * t + .5f * k * t * t);
+            float env = Mathf.Exp(-t * 16f) * (i < atk ? (float)i / atk : 1f);
+            d[i] = Mathf.Sin(ph) * env * .85f;
+        }
+        return MakeClip("undo", d, sr);
+    }
+
+    private AudioClip GenerateLevelCompleteClip()
+    {
+        int sr = 44100; int total = (int)(0.65f * sr);
+        float[] buf = new float[total];
+        AddTone(buf, sr, 523.25f,  0,               0.18f);
+        AddTone(buf, sr, 659.25f,  (int)(.12f * sr), 0.18f);
+        AddTone(buf, sr, 783.99f,  (int)(.24f * sr), 0.18f);
+        AddTone(buf, sr, 1046.50f, (int)(.36f * sr), 0.28f, 1.0f);
+        AddTone(buf, sr,  659.25f, (int)(.36f * sr), 0.28f, 0.35f);
+        AddTone(buf, sr,  783.99f, (int)(.36f * sr), 0.28f, 0.25f);
+        return MakeClip("level_complete", NormBuf(buf, 0.92f), sr);
+    }
+
+    private static void AddTone(float[] buf, int sr, float freq, int startSample, float dur, float vol = 0.85f)
+    {
+        int n = (int)(dur * sr);
+        int atk = (int)(0.005f * sr);
+        for (int i = 0; i < n; i++)
+        {
+            int idx = startSample + i;
+            if (idx >= buf.Length) break;
+            float t = i / (float)sr;
+            float env = Mathf.Exp(-t * 18f) * (i < atk ? (float)i / atk : 1f);
+            buf[idx] += (Mathf.Sin(2f * Mathf.PI * freq * t)
+                        + 0.2f * Mathf.Sin(4f * Mathf.PI * freq * t)) * env * vol;
+        }
+    }
+
+    private static float[] NormBuf(float[] buf, float target)
+    {
+        float peak = 0f;
+        foreach (float v in buf) if (Mathf.Abs(v) > peak) peak = Mathf.Abs(v);
+        if (peak < 0.001f) return buf;
+        float scale = target / peak;
+        for (int i = 0; i < buf.Length; i++) buf[i] *= scale;
+        return buf;
+    }
+
+    private static AudioClip MakeClip(string name, float[] data, int sr)
+    {
+        var clip = AudioClip.Create(name, data.Length, 1, sr, false);
         clip.SetData(data, 0);
         return clip;
     }

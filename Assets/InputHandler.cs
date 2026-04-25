@@ -89,6 +89,7 @@ public class InputHandler : MonoBehaviour
         if (gridManager.IsSecondToLastInChain(cell))
         {
             gridManager.UndoLastStep();
+            AudioManager.Instance?.OnUndo();
             return;
         }
 
@@ -97,7 +98,11 @@ public class InputHandler : MonoBehaviour
         {
             if (gridManager.TryExtendSelection(cell))
             {
-                AudioManager.Instance?.OnCellCollected();
+                if (!gridManager.HasActiveSelection)
+                    AudioManager.Instance?.OnSegmentComplete();
+                else
+                    AudioManager.Instance?.OnCellCollected();
+
                 if (gridManager.IsLevelComplete())
                     gameManager.OnLevelComplete();
             }
@@ -121,6 +126,7 @@ public class InputHandler : MonoBehaviour
                 {
                     AudioManager.Instance?.OnChainStarted();
                     gridManager.TryCompleteTarget1(cell);
+                    AudioManager.Instance?.OnSegmentComplete();
                     if (gridManager.IsLevelComplete())
                         gameManager.OnLevelComplete();
                 }
@@ -139,6 +145,7 @@ public class InputHandler : MonoBehaviour
         if (cell.State == CellState.Selecting && gridManager.IsLastInChain(cell))
         {
             gridManager.UndoLastStep();
+            AudioManager.Instance?.OnUndo();
             return;
         }
 
@@ -147,7 +154,11 @@ public class InputHandler : MonoBehaviour
         {
             if (gridManager.TryExtendSelection(cell))
             {
-                AudioManager.Instance?.OnCellCollected();
+                if (!gridManager.HasActiveSelection)
+                    AudioManager.Instance?.OnSegmentComplete();
+                else
+                    AudioManager.Instance?.OnCellCollected();
+
                 if (gridManager.IsLevelComplete())
                     gameManager.OnLevelComplete();
                 return;
