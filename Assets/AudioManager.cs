@@ -1,4 +1,3 @@
-using System.Collections;
 using UnityEngine;
 
 /// <summary>
@@ -10,6 +9,7 @@ public class AudioManager : MonoBehaviour
 {
     private AudioSource audioSource;
     private AudioClip collectClip;
+    private AudioClip collectLongClip;
     private AudioClip undoClip;
     private AudioClip levelCompleteClip;
 
@@ -32,8 +32,9 @@ public class AudioManager : MonoBehaviour
         audioSource.playOnAwake = false;
         audioSource.spatialBlend = 0f;
 
-        collectClip      = Resources.Load<AudioClip>("cell_collect") ?? GenerateCollectClip();
-        undoClip         = Resources.Load<AudioClip>("undo")         ?? GenerateUndoClip();
+        collectClip      = Resources.Load<AudioClip>("cell_collect")   ?? GenerateCollectClip(false);
+        collectLongClip  = Resources.Load<AudioClip>("collect_long")   ?? GenerateCollectClip(true);
+        undoClip         = Resources.Load<AudioClip>("undo")           ?? GenerateUndoClip();
         levelCompleteClip = Resources.Load<AudioClip>("level_complete") ?? GenerateLevelCompleteClip();
     }
 
@@ -56,29 +57,14 @@ public class AudioManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Replays the collect sound exactly N times at full speed where N = cells collected.
-    /// 3 cells → pip·pip·pip, 5 cells → pip·pip·pip·pip·pip — same pitches, faster tempo.
+    /// Plays the longer collect sound at the current pitch — same chirp, longer ring-out.
     /// </summary>
     public void OnSegmentComplete()
     {
-        StartCoroutine(PlayCompletionBurst(chainLength));
+        audioSource.pitch = Mathf.Min(currentPitch, MaxPitch);
+        audioSource.PlayOneShot(collectLongClip, 1.0f);
         currentPitch = BasePitch;
         chainLength  = 0;
-    }
-
-    private IEnumerator PlayCompletionBurst(int count)
-    {
-        int n = Mathf.Max(1, count);
-        for (int i = 0; i < n; i++)
-        {
-            float p = Mathf.Min(BasePitch + i * PitchStep, MaxPitch);
-            // Last note slightly louder for emphasis
-            float vol = (i == n - 1) ? 1.0f : 0.85f;
-            audioSource.pitch = p;
-            audioSource.PlayOneShot(collectClip, vol);
-            if (i < n - 1)
-                yield return new WaitForSeconds(0.040f);
-        }
     }
 
     /// <summary>Call when the player undoes a step.</summary>
@@ -107,20 +93,24 @@ public class AudioManager : MonoBehaviour
 
     // ── Procedural fallback clip generation ────────────────────────────────
 
-    private AudioClip GenerateCollectClip()
+    private AudioClip GenerateCollectClip(bool longVersion)
     {
-        int sr = 44100; float dur = 0.13f; int n = (int)(sr * dur);
+        int sr = 44100;
+        float dur = longVersion ? 0.45f : 0.13f;
+        int n = (int)(sr * dur);
         float[] d = new float[n];
-        float f0 = 480f, f1 = 720f, k = (f1 - f0) / dur;
+        float f0 = 480f, f1 = 720f, k = (f1 - f0) / 0.13f;
+        float decay = longVersion ? 7f : 28f;
         int atk = (int)(0.005f * sr);
         for (int i = 0; i < n; i++)
         {
             float t = i / (float)sr;
-            float ph = 2f * Mathf.PI * (f0 * t + .5f * k * t * t);
-            float env = Mathf.Exp(-t * 28f) * (i < atk ? (float)i / atk : 1f);
+            float ts = Mathf.Min(t, 0.13f);
+            float ph = 2f * Mathf.PI * (f0 * ts + .5f * k * ts * ts + 720f * Mathf.Max(0f, t - 0.13f));
+            float env = Mathf.Exp(-t * decay) * (i < atk ? (float)i / atk : 1f);
             d[i] = (Mathf.Sin(ph) + .25f * Mathf.Sin(2f * ph)) * env * .9f;
         }
-        return MakeClip("cell_collect", d, sr);
+        return MakeClip(longVersion ? "collect_long" : "cell_collect", d, sr);
     }
 
     private AudioClip GenerateUndoClip()
