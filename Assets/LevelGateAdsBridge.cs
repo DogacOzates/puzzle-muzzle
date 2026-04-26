@@ -12,9 +12,12 @@ public class LevelGateAdsBridge
     //   1. Interstitial  → copy its ID below as IosInterstitialAdUnitId
     //   2. Rewarded      → copy its ID below as IosRewardedAdUnitId
     private const string AndroidInterstitialAdUnitId = "ca-app-pub-3940256099942544/1033173712"; // Android test ID — replace if targeting Android
-    private const string IosInterstitialAdUnitId     = "ca-app-pub-2933494287812005/4279957716";
+    // SCREENSHOT/TEST MODE: using Google test IDs — switch to real IDs for release build:
+    // private const string IosInterstitialAdUnitId = "ca-app-pub-2933494287812005/4279957716";
+    // private const string IosRewardedAdUnitId     = "ca-app-pub-2933494287812005/7161258613";
+    private const string IosInterstitialAdUnitId     = "ca-app-pub-3940256099942544/4411468910";
     private const string AndroidRewardedAdUnitId     = "ca-app-pub-3940256099942544/5224354917"; // Android test ID — replace if targeting Android
-    private const string IosRewardedAdUnitId         = "ca-app-pub-2933494287812005/7161258613";
+    private const string IosRewardedAdUnitId         = "ca-app-pub-3940256099942544/1712485313";
 
 #if GOOGLE_MOBILE_ADS
     private InterstitialAd interstitialAd;
