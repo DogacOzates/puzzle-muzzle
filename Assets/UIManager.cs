@@ -1189,4 +1189,15 @@ public class UIManager : MonoBehaviour
         if (hintButtonIcon != null)
             hintButtonIcon.color = isAvailable ? Color.white : new Color(0.72f, 0.72f, 0.72f, 0.7f);
     }
+
+    /// <summary>
+    /// Disables all interactive buttons during tutorial so accidental taps don't trigger actions.
+    /// </summary>
+    public void SetTutorialMode(bool isTutorial)
+    {
+        if (hintButton != null)           hintButton.interactable           = !isTutorial;
+        if (noAdsButton != null)          noAdsButton.interactable          = !isTutorial;
+        if (restartButton != null)        restartButton.interactable        = !isTutorial;
+        if (levelSelectToggleButton != null) levelSelectToggleButton.interactable = !isTutorial;
+    }
 }

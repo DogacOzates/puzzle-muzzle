@@ -148,7 +148,13 @@ public class GameManager : MonoBehaviour
         var obj = new GameObject("TutorialController");
         obj.transform.SetParent(transform);
         tutorialController = obj.AddComponent<TutorialController>();
+        uiManager.SetTutorialMode(true);
         tutorialController.Run(gridManager, this);
+    }
+
+    public void OnTutorialComplete()
+    {
+        uiManager.SetTutorialMode(false);
     }
 
     public void OnLevelComplete()

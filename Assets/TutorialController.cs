@@ -66,36 +66,16 @@ public class TutorialController : MonoBehaviour
 
     private Sprite LoadPointerSprite()
     {
-        // Try Resources folder first (for builds — copy pointer.png to Assets/Resources/)
-        var tex = Resources.Load<Texture2D>("pointer");
-
-        // Fallback: load from file (works in Editor)
-        if (tex == null)
-        {
-            string path = Application.dataPath + "/icons/pointer.png";
-            if (System.IO.File.Exists(path))
-            {
-                tex = new Texture2D(2, 2);
-                tex.LoadImage(System.IO.File.ReadAllBytes(path));
-                tex.filterMode = FilterMode.Bilinear;
-            }
-        }
-
-        if (tex == null)
-        {
-            // Ultimate fallback: use rounded rect
+        Sprite pointerSprite = ResourceSpriteLoader.LoadSprite("icons/pointer", new Vector2(0.38f, 0.9f));
+        if (pointerSprite == null)
             return SpriteGenerator.RoundedRect;
-        }
 
-        // Pivot at fingertip (top-left area where index finger tip is)
-        return Sprite.Create(tex,
-            new Rect(0, 0, tex.width, tex.height),
-            new Vector2(0.38f, 0.9f), 100f);
+        return pointerSprite;
     }
 
     private void CreateHintText()
     {
-        var canvas = FindFirstObjectByType<Canvas>();
+        var canvas = FindAnyObjectByType<Canvas>();
         if (canvas == null) return;
 
         hintTextObj = new GameObject("TutorialHint");
@@ -211,6 +191,7 @@ public class TutorialController : MonoBehaviour
         if (hintTextObj != null) Destroy(hintTextObj);
         handObj.SetActive(false);
         IsRunning = false;
+        gameManager.OnTutorialComplete();
         yield return new WaitForSeconds(0.3f);
         gameManager.NextLevel();
     }
@@ -267,7 +248,9 @@ public class TutorialController : MonoBehaviour
     private IEnumerator ShowButtonExplanations()
     {
         var hintBtn = GameObject.Find("HintBtn");
+        var menuBtn = GameObject.Find("LevelSelectBtn");
         var restartBtn = GameObject.Find("RestartBtn");
+        var noAdsBtn = GameObject.Find("NoAdsBtn");
 
         var handVisual = handObj.transform.Find("HandVisual");
         Vector3 origScale = handVisual.localScale;
@@ -290,6 +273,22 @@ public class TutorialController : MonoBehaviour
 
         yield return new WaitForSeconds(0.3f);
 
+        // Explain level text (top center): hand from lower-right, finger points up-left
+        if (menuBtn != null)
+        {
+            handVisual.localScale = origScale;
+            handVisual.localRotation = Quaternion.Euler(0, 0, 0f);
+            Vector3 offset = new Vector3(0.48f, -0.52f, 0f);
+            buttonNudgeDir = -offset.normalized;
+
+            SetHintText("Want to replay an earlier level?\nTap the level text to open the level menu!");
+            Vector3 btnWorld = ScreenToWorld(menuBtn.GetComponent<RectTransform>());
+            yield return StartCoroutine(MoveHand(btnWorld + offset));
+            yield return StartCoroutine(WaitForAnyTap());
+        }
+
+        yield return new WaitForSeconds(0.3f);
+
         // Explain Restart button (right): hand from upper-left, finger points down-right (mirrored)
         if (restartBtn != null)
         {
@@ -300,6 +299,22 @@ public class TutorialController : MonoBehaviour
 
             SetHintText("Made a mistake?\nTap this to restart!");
             Vector3 btnWorld = ScreenToWorld(restartBtn.GetComponent<RectTransform>());
+            yield return StartCoroutine(MoveHand(btnWorld + offset));
+            yield return StartCoroutine(WaitForAnyTap());
+        }
+
+        yield return new WaitForSeconds(0.3f);
+
+        // Explain No Ads button (bottom-center): hand from upper-right, finger points down-left
+        if (noAdsBtn != null)
+        {
+            handVisual.localScale = new Vector3(origScale.x, -origScale.y, origScale.z);
+            handVisual.localRotation = Quaternion.Euler(0, 0, -24f);
+            Vector3 offset = new Vector3(0.42f, 0.58f, 0f);
+            buttonNudgeDir = -offset.normalized;
+
+            SetHintText("Want to remove ads forever?\nTap this to buy No Ads!");
+            Vector3 btnWorld = ScreenToWorld(noAdsBtn.GetComponent<RectTransform>());
             yield return StartCoroutine(MoveHand(btnWorld + offset));
             yield return StartCoroutine(WaitForAnyTap());
         }
@@ -371,6 +386,7 @@ public class TutorialController : MonoBehaviour
     {
         StopAllCoroutines();
         IsRunning = false;
+        gameManager?.OnTutorialComplete();
         if (handObj != null) Destroy(handObj);
         if (hintTextObj != null) Destroy(hintTextObj);
     }
