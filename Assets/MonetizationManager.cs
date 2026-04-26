@@ -3,7 +3,7 @@ using UnityEngine;
 
 public class MonetizationManager : MonoBehaviour
 {
-    public const string NoAdsProductId = "com.dogac.puzzlemuzzle.noads";
+    public const string NoAdsProductId = "com.dogac.puzzlemuzzle.removeads";
 
     private const bool NoAdsPurchasesEnabled = true;
     private const string NoAdsPurchasedKey = "monetization.noads.purchased";

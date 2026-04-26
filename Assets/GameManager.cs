@@ -281,8 +281,6 @@ public class GameManager : MonoBehaviour
     private int GetHighestUnlockedLevelIndex()
     {
         int maxLevelIndex = LevelDatabase.Levels.Length - 1;
-        // SCREENSHOT MODE: unlock all levels — revert to false before release build
-        if (true) return maxLevelIndex;
         return Mathf.Clamp(Mathf.Max(currentLevelIndex, LoadSavedLevelIndex()), 0, maxLevelIndex);
     }
 
