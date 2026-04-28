@@ -22,6 +22,7 @@ public class UIManager : MonoBehaviour
     private GameObject hintPromoPopup;
     private GameObject promoTopBanner;
     private Coroutine bannerCoroutine;
+    private string noAdsPriceLabel = "$4.99";
     private GameObject levelSelectPanel;
     private ScrollRect levelSelectScrollRect;
     private Button[] levelSelectButtons;
@@ -815,10 +816,7 @@ public class UIManager : MonoBehaviour
         if (noAdsPurchasePopup != null)
             Destroy(noAdsPurchasePopup);
 
-        // Show Restore option only after the first time the popup has been opened
-        bool showRestore = PlayerPrefs.GetInt("noads.popupSeen", 0) == 1;
-        PlayerPrefs.SetInt("noads.popupSeen", 1);
-        PlayerPrefs.Save();
+        bool hasPreviousPurchase = KeychainHelper.GetBool("noads.purchased");
 
         noAdsPurchasePopup = new GameObject("NoAdsPurchasePopup");
         noAdsPurchasePopup.transform.SetParent(canvas.transform, false);
@@ -843,7 +841,7 @@ public class UIManager : MonoBehaviour
         shadowRect.anchorMin = new Vector2(0.5f, 0.5f);
         shadowRect.anchorMax = new Vector2(0.5f, 0.5f);
         shadowRect.pivot = new Vector2(0.5f, 0.5f);
-        shadowRect.sizeDelta = new Vector2(726f, showRestore ? 426f : 330f);
+        shadowRect.sizeDelta = new Vector2(726f, hasPreviousPurchase ? 360f : 330f);
         shadowRect.anchoredPosition = new Vector2(4f, -8f);
         var shadowImg = shadowObj.AddComponent<Image>();
         shadowImg.sprite = SpriteGenerator.RoundedRect;
@@ -856,42 +854,51 @@ public class UIManager : MonoBehaviour
         cardRect.anchorMin = new Vector2(0.5f, 0.5f);
         cardRect.anchorMax = new Vector2(0.5f, 0.5f);
         cardRect.pivot = new Vector2(0.5f, 0.5f);
-        cardRect.sizeDelta = new Vector2(700f, showRestore ? 400f : 300f);
+        cardRect.sizeDelta = new Vector2(700f, hasPreviousPurchase ? 335f : 300f);
         var cardImg = card.AddComponent<Image>();
         cardImg.sprite = SpriteGenerator.RoundedRect;
         cardImg.color = new Color(1f, 1f, 1f, 0.98f);
 
-        // Title
-        var title = MakeCardText("Title", card.transform, new Vector2(0, showRestore ? 135f : 85f), 46, FontStyle.Bold, TextDark);
-        title.text = "Remove Ads";
-
-        // Subtitle
-        var sub = MakeCardText("Subtitle", card.transform, new Vector2(0, showRestore ? 65f : 15f), 30, FontStyle.Normal, TextMuted);
-        sub.text = "Enjoy the full game, ad-free forever";
-        sub.GetComponent<RectTransform>().sizeDelta = new Vector2(560f, 60f);
-
-        // Buy button (golden)
-        var buyBtn = CreateCardButton("Remove Ads — $4.99", card.transform, new Vector2(0, showRestore ? -25f : -80f), new Color(0.92f, 0.68f, 0.08f));
-        var buyText = buyBtn.GetComponentInChildren<Text>();
-        if (buyText != null) buyText.fontSize = 28;
-        buyBtn.onClick.AddListener(() =>
+        if (hasPreviousPurchase)
         {
-            Destroy(noAdsPurchasePopup);
-            noAdsPurchasePopup = null;
-            FindAnyObjectByType<GameManager>().PurchaseNoAds();
-        });
+            // Returning user who reinstalled — show restore only
+            var title = MakeCardText("Title", card.transform, new Vector2(0, 110), 42, FontStyle.Bold, TextDark);
+            title.text = "Welcome Back!";
 
-        // Restore button — only shown after first visit
-        if (showRestore)
-        {
-            var restoreBtn = CreateCardButton("Restore Previous Purchase", card.transform, new Vector2(0, -120), new Color(0.52f, 0.48f, 0.62f));
+            var sub = MakeCardText("Subtitle", card.transform, new Vector2(0, 45), 28, FontStyle.Normal, TextMuted);
+            sub.text = $"You previously purchased\nRemove Ads for {noAdsPriceLabel}";
+            sub.GetComponent<RectTransform>().sizeDelta = new Vector2(580f, 80f);
+            sub.alignment = TextAnchor.MiddleCenter;
+            sub.lineSpacing = 1.2f;
+
+            var restoreBtn = CreateCardButton("Restore My Purchase", card.transform, new Vector2(0, -85), new Color(0.92f, 0.68f, 0.08f));
             var restoreText = restoreBtn.GetComponentInChildren<Text>();
-            if (restoreText != null) restoreText.fontSize = 26;
+            if (restoreText != null) restoreText.fontSize = 28;
             restoreBtn.onClick.AddListener(() =>
             {
                 Destroy(noAdsPurchasePopup);
                 noAdsPurchasePopup = null;
                 FindAnyObjectByType<GameManager>().RestoreNoAdsPurchases();
+            });
+        }
+        else
+        {
+            // New user — show buy only
+            var title = MakeCardText("Title", card.transform, new Vector2(0, 85), 46, FontStyle.Bold, TextDark);
+            title.text = "Remove Ads";
+
+            var sub = MakeCardText("Subtitle", card.transform, new Vector2(0, 15), 30, FontStyle.Normal, TextMuted);
+            sub.text = "Enjoy the full game, ad-free forever";
+            sub.GetComponent<RectTransform>().sizeDelta = new Vector2(560f, 60f);
+
+            var buyBtn = CreateCardButton($"Remove Ads — {noAdsPriceLabel}", card.transform, new Vector2(0, -80), new Color(0.92f, 0.68f, 0.08f));
+            var buyText = buyBtn.GetComponentInChildren<Text>();
+            if (buyText != null) buyText.fontSize = 28;
+            buyBtn.onClick.AddListener(() =>
+            {
+                Destroy(noAdsPurchasePopup);
+                noAdsPurchasePopup = null;
+                FindAnyObjectByType<GameManager>().PurchaseNoAds();
             });
         }
     }
@@ -1364,6 +1371,14 @@ public class UIManager : MonoBehaviour
     {
         if (noAdsButton == null)
             return;
+
+        // Extract price from "No Ads\n$4.99" label format
+        if (!string.IsNullOrEmpty(buttonLabel))
+        {
+            var parts = buttonLabel.Split('\n');
+            if (parts.Length > 1 && !string.IsNullOrEmpty(parts[1]))
+                noAdsPriceLabel = parts[1];
+        }
 
         noAdsButton.gameObject.SetActive(!isPurchased);
         noAdsButton.interactable = isAvailable && !isPurchased;

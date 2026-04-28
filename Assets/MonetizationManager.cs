@@ -115,6 +115,7 @@ public class MonetizationManager : MonoBehaviour
         IsNoAdsPurchased = true;
         PlayerPrefs.SetInt(NoAdsPurchasedKey, 1);
         PlayerPrefs.Save();
+        KeychainHelper.SetBool("noads.purchased", true);
         NoAdsStateChanged?.Invoke();
     }
 
