@@ -815,6 +815,11 @@ public class UIManager : MonoBehaviour
         if (noAdsPurchasePopup != null)
             Destroy(noAdsPurchasePopup);
 
+        // Show Restore option only after the first time the popup has been opened
+        bool showRestore = PlayerPrefs.GetInt("noads.popupSeen", 0) == 1;
+        PlayerPrefs.SetInt("noads.popupSeen", 1);
+        PlayerPrefs.Save();
+
         noAdsPurchasePopup = new GameObject("NoAdsPurchasePopup");
         noAdsPurchasePopup.transform.SetParent(canvas.transform, false);
         noAdsPurchasePopup.transform.SetAsLastSibling();
@@ -838,7 +843,7 @@ public class UIManager : MonoBehaviour
         shadowRect.anchorMin = new Vector2(0.5f, 0.5f);
         shadowRect.anchorMax = new Vector2(0.5f, 0.5f);
         shadowRect.pivot = new Vector2(0.5f, 0.5f);
-        shadowRect.sizeDelta = new Vector2(726f, 426f);
+        shadowRect.sizeDelta = new Vector2(726f, showRestore ? 426f : 330f);
         shadowRect.anchoredPosition = new Vector2(4f, -8f);
         var shadowImg = shadowObj.AddComponent<Image>();
         shadowImg.sprite = SpriteGenerator.RoundedRect;
@@ -851,22 +856,22 @@ public class UIManager : MonoBehaviour
         cardRect.anchorMin = new Vector2(0.5f, 0.5f);
         cardRect.anchorMax = new Vector2(0.5f, 0.5f);
         cardRect.pivot = new Vector2(0.5f, 0.5f);
-        cardRect.sizeDelta = new Vector2(700f, 400f);
+        cardRect.sizeDelta = new Vector2(700f, showRestore ? 400f : 300f);
         var cardImg = card.AddComponent<Image>();
         cardImg.sprite = SpriteGenerator.RoundedRect;
         cardImg.color = new Color(1f, 1f, 1f, 0.98f);
 
         // Title
-        var title = MakeCardText("Title", card.transform, new Vector2(0, 135), 46, FontStyle.Bold, TextDark);
+        var title = MakeCardText("Title", card.transform, new Vector2(0, showRestore ? 135f : 85f), 46, FontStyle.Bold, TextDark);
         title.text = "Remove Ads";
 
         // Subtitle
-        var sub = MakeCardText("Subtitle", card.transform, new Vector2(0, 65), 30, FontStyle.Normal, TextMuted);
+        var sub = MakeCardText("Subtitle", card.transform, new Vector2(0, showRestore ? 65f : 15f), 30, FontStyle.Normal, TextMuted);
         sub.text = "Enjoy the full game, ad-free forever";
         sub.GetComponent<RectTransform>().sizeDelta = new Vector2(560f, 60f);
 
         // Buy button (golden)
-        var buyBtn = CreateCardButton("Remove Ads — $4.99", card.transform, new Vector2(0, -25), new Color(0.92f, 0.68f, 0.08f));
+        var buyBtn = CreateCardButton("Remove Ads — $4.99", card.transform, new Vector2(0, showRestore ? -25f : -80f), new Color(0.92f, 0.68f, 0.08f));
         var buyText = buyBtn.GetComponentInChildren<Text>();
         if (buyText != null) buyText.fontSize = 28;
         buyBtn.onClick.AddListener(() =>
@@ -876,16 +881,19 @@ public class UIManager : MonoBehaviour
             FindAnyObjectByType<GameManager>().PurchaseNoAds();
         });
 
-        // Restore button (muted purple)
-        var restoreBtn = CreateCardButton("Restore Previous Purchase", card.transform, new Vector2(0, -120), new Color(0.52f, 0.48f, 0.62f));
-        var restoreText = restoreBtn.GetComponentInChildren<Text>();
-        if (restoreText != null) restoreText.fontSize = 26;
-        restoreBtn.onClick.AddListener(() =>
+        // Restore button — only shown after first visit
+        if (showRestore)
         {
-            Destroy(noAdsPurchasePopup);
-            noAdsPurchasePopup = null;
-            FindAnyObjectByType<GameManager>().RestoreNoAdsPurchases();
-        });
+            var restoreBtn = CreateCardButton("Restore Previous Purchase", card.transform, new Vector2(0, -120), new Color(0.52f, 0.48f, 0.62f));
+            var restoreText = restoreBtn.GetComponentInChildren<Text>();
+            if (restoreText != null) restoreText.fontSize = 26;
+            restoreBtn.onClick.AddListener(() =>
+            {
+                Destroy(noAdsPurchasePopup);
+                noAdsPurchasePopup = null;
+                FindAnyObjectByType<GameManager>().RestoreNoAdsPurchases();
+            });
+        }
     }
 
     // --- Store Unavailable Popup ---
