@@ -236,7 +236,7 @@ public class GameManager : MonoBehaviour
 
         if (!monetizationManager.IsStoreReady)
         {
-            uiManager?.ShowStoreUnavailablePopup();
+            uiManager?.ShowStoreUnavailablePopup(monetizationManager.LastIapError);
             return;
         }
 

@@ -16,6 +16,7 @@ public class MonetizationManager : MonoBehaviour
     public bool IsNoAdsAvailable => NoAdsPurchasesEnabled;
     public bool IsNoAdsPurchased { get; private set; }
     public bool IsStoreReady => iapBridge != null && iapBridge.IsStoreReady;
+    public string LastIapError => iapBridge?.LastInitError ?? "iapBridge is null";
     public string NoAdsPrice { get; private set; } = DefaultNoAdsPrice;
     public string NoAdsButtonLabel => "No Ads\n" + NoAdsPrice;
 

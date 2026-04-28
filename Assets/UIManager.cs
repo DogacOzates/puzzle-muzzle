@@ -809,7 +809,7 @@ public class UIManager : MonoBehaviour
 
     // --- Store Unavailable Popup ---
 
-    public void ShowStoreUnavailablePopup()
+    public void ShowStoreUnavailablePopup(string errorDetail = null)
     {
         var popup = new GameObject("StoreUnavailablePopup");
         popup.transform.SetParent(canvas.transform, false);
@@ -833,7 +833,7 @@ public class UIManager : MonoBehaviour
         cardRect.anchorMin = new Vector2(0.5f, 0.5f);
         cardRect.anchorMax = new Vector2(0.5f, 0.5f);
         cardRect.pivot = new Vector2(0.5f, 0.5f);
-        cardRect.sizeDelta = new Vector2(620f, 260f);
+        cardRect.sizeDelta = new Vector2(620f, string.IsNullOrEmpty(errorDetail) ? 260f : 320f);
         var cardImg = cardObj.AddComponent<Image>();
         cardImg.sprite = SpriteGenerator.RoundedRect;
         cardImg.color = new Color(0.13f, 0.10f, 0.20f, 1f);
@@ -847,10 +847,12 @@ public class UIManager : MonoBehaviour
         msgRect.offsetMax = new Vector2(-30f, -20f);
         var msgTxt = msgObj.AddComponent<Text>();
         msgTxt.font = defaultFont;
-        msgTxt.text = "Store is temporarily unavailable.\nPlease check your internet connection\nand try again.";
-        msgTxt.fontSize = 30;
+        string mainMsg = "Store is temporarily unavailable.\nPlease check your internet connection\nand try again.";
+        msgTxt.text = string.IsNullOrEmpty(errorDetail) ? mainMsg : mainMsg + "\n\n<color=#ff9944>(" + errorDetail + ")</color>";
+        msgTxt.fontSize = 28;
         msgTxt.alignment = TextAnchor.MiddleCenter;
         msgTxt.color = new Color(0.90f, 0.88f, 0.95f, 1f);
+        msgTxt.supportRichText = true;
 
         var closeBtn = CreateCardButton("OK", cardObj.transform, new Vector2(0, -70), new Color(0.38f, 0.32f, 0.58f));
         closeBtn.onClick.AddListener(() => Destroy(popup));

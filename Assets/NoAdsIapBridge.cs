@@ -28,6 +28,7 @@ public class NoAdsIapBridge
     public void Initialize()
     {
 #if UNITY_PURCHASING
+        LastInitError = null;
         var builder = ConfigurationBuilder.Instance(StandardPurchasingModule.Instance());
         builder.AddProduct(productId, ProductType.NonConsumable);
         UnityPurchasing.Initialize(this, builder);
@@ -48,6 +49,8 @@ public class NoAdsIapBridge
 #endif
         }
     }
+
+    public string LastInitError { get; private set; } = "UNITY_PURCHASING not defined";
 
     public void Purchase()
     {
@@ -89,12 +92,14 @@ public class NoAdsIapBridge
 
     public void OnInitializeFailed(InitializationFailureReason error)
     {
+        LastInitError = error.ToString();
         Debug.LogWarning("Unity IAP initialization failed: " + error);
         onPriceUpdated?.Invoke("$4.99");
     }
 
     public void OnInitializeFailed(InitializationFailureReason error, string message)
     {
+        LastInitError = error + ": " + message;
         Debug.LogWarning("Unity IAP initialization failed: " + error + " - " + message);
         onPriceUpdated?.Invoke("$4.99");
     }
