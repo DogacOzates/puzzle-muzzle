@@ -161,7 +161,7 @@ public class UIManager : MonoBehaviour
         noAdsRect.pivot = new Vector2(0.5f, 0.5f);
         noAdsButton.onClick.AddListener(() => FindAnyObjectByType<GameManager>().PurchaseNoAds());
 
-        // Restore Purchases button — placed in safeArea above bottom bar, required by Apple guideline 3.1.1
+        // Restore Purchases button — matches game tile style, required by Apple guideline 3.1.1
         var restoreObj = new GameObject("RestoreBtn");
         restoreObj.transform.SetParent(safeAreaRect, false);
         var restoreRect = restoreObj.AddComponent<RectTransform>();
@@ -169,18 +169,35 @@ public class UIManager : MonoBehaviour
         restoreRect.anchorMax = new Vector2(0.5f, 0f);
         restoreRect.pivot = new Vector2(0.5f, 0.5f);
         restoreRect.anchoredPosition = new Vector2(0f, 170f);
-        restoreRect.sizeDelta = new Vector2(340f, 52f);
+        restoreRect.sizeDelta = new Vector2(320f, 54f);
+
+        // Shadow (like game tiles)
+        var restoreShadow = new GameObject("Shadow");
+        restoreShadow.transform.SetParent(restoreObj.transform, false);
+        restoreShadow.transform.SetAsFirstSibling();
+        var restoreShadowRect = restoreShadow.AddComponent<RectTransform>();
+        restoreShadowRect.anchorMin = Vector2.zero;
+        restoreShadowRect.anchorMax = Vector2.one;
+        restoreShadowRect.offsetMin = new Vector2(-3f, -7f);
+        restoreShadowRect.offsetMax = new Vector2(3f, 1f);
+        var restoreShadowImg = restoreShadow.AddComponent<Image>();
+        restoreShadowImg.sprite = SpriteGenerator.RoundedRect;
+        restoreShadowImg.color = new Color(0f, 0f, 0f, 0.14f);
+
+        // Button background — game purple tile color
         var restoreImg = restoreObj.AddComponent<Image>();
         restoreImg.sprite = SpriteGenerator.RoundedRect;
-        restoreImg.color = new Color(BtnTeal.r, BtnTeal.g, BtnTeal.b, 0.18f);
+        restoreImg.color = new Color(0.62f, 0.50f, 0.80f, 1f);
         restoreButton = restoreObj.AddComponent<Button>();
         restoreButton.targetGraphic = restoreImg;
         var restoreColors = restoreButton.colors;
         restoreColors.normalColor = Color.white;
-        restoreColors.highlightedColor = new Color(1f, 1f, 1f, 0.88f);
-        restoreColors.pressedColor = new Color(0.75f, 0.75f, 0.75f, 1f);
+        restoreColors.highlightedColor = new Color(1f, 1f, 1f, 0.85f);
+        restoreColors.pressedColor = new Color(0.80f, 0.80f, 0.80f, 1f);
         restoreButton.colors = restoreColors;
         restoreButton.onClick.AddListener(() => FindAnyObjectByType<GameManager>().RestoreNoAdsPurchases());
+
+        // Label
         var restoreTxt = new GameObject("Label").AddComponent<Text>();
         restoreTxt.transform.SetParent(restoreObj.transform, false);
         var restoreTxtRect = restoreTxt.GetComponent<RectTransform>();
@@ -189,11 +206,11 @@ public class UIManager : MonoBehaviour
         restoreTxtRect.offsetMin = Vector2.zero;
         restoreTxtRect.offsetMax = Vector2.zero;
         restoreTxt.font = defaultFont;
-        restoreTxt.text = "↩  Restore Purchases";
+        restoreTxt.text = "Restore Purchases";
         restoreTxt.fontSize = 26;
-        restoreTxt.fontStyle = FontStyle.Normal;
+        restoreTxt.fontStyle = FontStyle.Bold;
         restoreTxt.alignment = TextAnchor.MiddleCenter;
-        restoreTxt.color = BtnTeal;
+        restoreTxt.color = Color.white;
 
         // Two ping rings behind icon — expand outward on each glow pulse
         var ring1Obj = new GameObject("PingRing1");
