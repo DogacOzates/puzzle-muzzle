@@ -161,22 +161,22 @@ public class UIManager : MonoBehaviour
         noAdsRect.pivot = new Vector2(0.5f, 0.5f);
         noAdsButton.onClick.AddListener(() => FindAnyObjectByType<GameManager>().PurchaseNoAds());
 
-        // Restore Purchases text link — required by Apple guideline 3.1.1
+        // Restore Purchases button — placed in safeArea above bottom bar, required by Apple guideline 3.1.1
         var restoreObj = new GameObject("RestoreBtn");
-        restoreObj.transform.SetParent(bar.transform, false);
+        restoreObj.transform.SetParent(safeAreaRect, false);
         var restoreRect = restoreObj.AddComponent<RectTransform>();
         restoreRect.anchorMin = new Vector2(0.5f, 0f);
         restoreRect.anchorMax = new Vector2(0.5f, 0f);
         restoreRect.pivot = new Vector2(0.5f, 0.5f);
-        restoreRect.anchoredPosition = new Vector2(0f, 14f);
-        restoreRect.sizeDelta = new Vector2(300f, 36f);
+        restoreRect.anchoredPosition = new Vector2(0f, 170f);
+        restoreRect.sizeDelta = new Vector2(320f, 42f);
         var restoreImg = restoreObj.AddComponent<Image>();
-        restoreImg.color = new Color(0.22f, 0.18f, 0.35f, 0.85f);
+        restoreImg.color = new Color(0.22f, 0.18f, 0.35f, 0.90f);
         restoreImg.sprite = SpriteGenerator.RoundedRect;
         restoreButton = restoreObj.AddComponent<Button>();
         restoreButton.targetGraphic = restoreImg;
         var restoreColors = restoreButton.colors;
-        restoreColors.highlightedColor = new Color(0.32f, 0.26f, 0.50f, 1f);
+        restoreColors.highlightedColor = new Color(0.38f, 0.30f, 0.60f, 1f);
         restoreButton.colors = restoreColors;
         restoreButton.onClick.AddListener(() => FindAnyObjectByType<GameManager>().RestoreNoAdsPurchases());
         var restoreTxt = new GameObject("Label").AddComponent<Text>();
@@ -188,10 +188,10 @@ public class UIManager : MonoBehaviour
         restoreTxtRect.offsetMax = Vector2.zero;
         restoreTxt.font = defaultFont;
         restoreTxt.text = "Restore Purchases";
-        restoreTxt.fontSize = 22;
+        restoreTxt.fontSize = 24;
         restoreTxt.fontStyle = FontStyle.Bold;
         restoreTxt.alignment = TextAnchor.MiddleCenter;
-        restoreTxt.color = new Color(0.88f, 0.84f, 1f, 1f);
+        restoreTxt.color = new Color(0.90f, 0.86f, 1f, 1f);
 
         // Two ping rings behind icon — expand outward on each glow pulse
         var ring1Obj = new GameObject("PingRing1");
