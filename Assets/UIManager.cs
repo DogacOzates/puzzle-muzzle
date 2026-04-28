@@ -790,7 +790,7 @@ public class UIManager : MonoBehaviour
         });
 
         // Remove Ads button (golden)
-        var noAdsBuyBtn = CreateCardButton("No Ads Forever  —  $4.99", card.transform, new Vector2(0, -110), new Color(0.92f, 0.68f, 0.08f));
+        var noAdsBuyBtn = CreateCardButton($"No Ads Forever  —  {noAdsPriceLabel}", card.transform, new Vector2(0, -110), new Color(0.92f, 0.68f, 0.08f));
         var noAdsBuyText = noAdsBuyBtn.GetComponentInChildren<Text>();
         if (noAdsBuyText != null) noAdsBuyText.fontSize = 28;
         noAdsBuyBtn.onClick.AddListener(() =>
@@ -1084,7 +1084,7 @@ public class UIManager : MonoBehaviour
         msgRect.offsetMax = new Vector2(0f, 0f);
         var msgTxt = msgObj.AddComponent<Text>();
         msgTxt.font = defaultFont;
-        msgTxt.text = "Tired of Ads?  Get Ad Free for $4.99";
+        msgTxt.text = $"Tired of Ads?  Get Ad Free for {noAdsPriceLabel}";
         msgTxt.fontSize = 30;
         msgTxt.fontStyle = FontStyle.Bold;
         msgTxt.alignment = TextAnchor.MiddleLeft;
