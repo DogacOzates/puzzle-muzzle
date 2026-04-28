@@ -807,6 +807,55 @@ public class UIManager : MonoBehaviour
         }
     }
 
+    // --- Store Unavailable Popup ---
+
+    public void ShowStoreUnavailablePopup()
+    {
+        var popup = new GameObject("StoreUnavailablePopup");
+        popup.transform.SetParent(canvas.transform, false);
+        popup.transform.SetAsLastSibling();
+
+        var popupRect = popup.AddComponent<RectTransform>();
+        popupRect.anchorMin = Vector2.zero;
+        popupRect.anchorMax = Vector2.one;
+        popupRect.offsetMin = Vector2.zero;
+        popupRect.offsetMax = Vector2.zero;
+
+        var overlay = popup.AddComponent<Image>();
+        overlay.color = new Color(0.10f, 0.08f, 0.14f, 0.62f);
+        var overlayBtn = popup.AddComponent<Button>();
+        overlayBtn.targetGraphic = overlay;
+        overlayBtn.onClick.AddListener(() => Destroy(popup));
+
+        var cardObj = new GameObject("Card");
+        cardObj.transform.SetParent(popup.transform, false);
+        var cardRect = cardObj.AddComponent<RectTransform>();
+        cardRect.anchorMin = new Vector2(0.5f, 0.5f);
+        cardRect.anchorMax = new Vector2(0.5f, 0.5f);
+        cardRect.pivot = new Vector2(0.5f, 0.5f);
+        cardRect.sizeDelta = new Vector2(620f, 260f);
+        var cardImg = cardObj.AddComponent<Image>();
+        cardImg.sprite = SpriteGenerator.RoundedRect;
+        cardImg.color = new Color(0.13f, 0.10f, 0.20f, 1f);
+
+        var msgObj = new GameObject("Message");
+        msgObj.transform.SetParent(cardObj.transform, false);
+        var msgRect = msgObj.AddComponent<RectTransform>();
+        msgRect.anchorMin = new Vector2(0f, 0.35f);
+        msgRect.anchorMax = new Vector2(1f, 1f);
+        msgRect.offsetMin = new Vector2(30f, 0f);
+        msgRect.offsetMax = new Vector2(-30f, -20f);
+        var msgTxt = msgObj.AddComponent<Text>();
+        msgTxt.font = defaultFont;
+        msgTxt.text = "Store is temporarily unavailable.\nPlease check your internet connection\nand try again.";
+        msgTxt.fontSize = 30;
+        msgTxt.alignment = TextAnchor.MiddleCenter;
+        msgTxt.color = new Color(0.90f, 0.88f, 0.95f, 1f);
+
+        var closeBtn = CreateCardButton("OK", cardObj.transform, new Vector2(0, -70), new Color(0.38f, 0.32f, 0.58f));
+        closeBtn.onClick.AddListener(() => Destroy(popup));
+    }
+
     // --- Promo Top Banner ---
 
     public void ShowPromoTopBanner()

@@ -234,6 +234,12 @@ public class GameManager : MonoBehaviour
         if (monetizationManager == null)
             return;
 
+        if (!monetizationManager.IsStoreReady)
+        {
+            uiManager?.ShowStoreUnavailablePopup();
+            return;
+        }
+
         monetizationManager.PurchaseNoAds();
     }
 
