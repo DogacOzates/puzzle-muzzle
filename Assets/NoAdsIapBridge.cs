@@ -7,7 +7,7 @@ using UnityEngine.Purchasing;
 
 public class NoAdsIapBridge
 #if UNITY_PURCHASING
-    : IDetailedStoreListener
+    : IStoreListener
 #endif
 {
     private readonly string productId;
@@ -115,11 +115,6 @@ public class NoAdsIapBridge
     public void OnPurchaseFailed(Product product, PurchaseFailureReason failureReason)
     {
         Debug.LogWarning("Purchase failed: " + product.definition.id + " - " + failureReason);
-    }
-
-    public void OnPurchaseFailed(Product product, PurchaseFailureDescription failureDescription)
-    {
-        Debug.LogWarning("Purchase failed: " + product.definition.id + " - " + failureDescription.message);
     }
 #endif
 }
