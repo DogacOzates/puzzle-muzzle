@@ -13,6 +13,7 @@ public class UIManager : MonoBehaviour
     private Button restartButton;
     private Button hintButton;
     private Button noAdsButton;
+    private Button restoreButton;
     private Button levelSelectToggleButton;
     private Image hintButtonIcon;
     private Image noAdsButtonIcon;
@@ -159,6 +160,33 @@ public class UIManager : MonoBehaviour
         noAdsRect.anchorMax = new Vector2(0.5f, 0f);
         noAdsRect.pivot = new Vector2(0.5f, 0.5f);
         noAdsButton.onClick.AddListener(() => FindAnyObjectByType<GameManager>().PurchaseNoAds());
+
+        // Restore Purchases text link — required by Apple guideline 3.1.1
+        var restoreObj = new GameObject("RestoreBtn");
+        restoreObj.transform.SetParent(bar.transform, false);
+        var restoreRect = restoreObj.AddComponent<RectTransform>();
+        restoreRect.anchorMin = new Vector2(0.5f, 0f);
+        restoreRect.anchorMax = new Vector2(0.5f, 0f);
+        restoreRect.pivot = new Vector2(0.5f, 0.5f);
+        restoreRect.anchoredPosition = new Vector2(0f, 14f);
+        restoreRect.sizeDelta = new Vector2(280f, 28f);
+        var restoreImg = restoreObj.AddComponent<Image>();
+        restoreImg.color = new Color(0, 0, 0, 0);
+        restoreButton = restoreObj.AddComponent<Button>();
+        restoreButton.targetGraphic = restoreImg;
+        restoreButton.onClick.AddListener(() => FindAnyObjectByType<GameManager>().RestoreNoAdsPurchases());
+        var restoreTxt = new GameObject("Label").AddComponent<Text>();
+        restoreTxt.transform.SetParent(restoreObj.transform, false);
+        var restoreTxtRect = restoreTxt.GetComponent<RectTransform>();
+        restoreTxtRect.anchorMin = Vector2.zero;
+        restoreTxtRect.anchorMax = Vector2.one;
+        restoreTxtRect.offsetMin = Vector2.zero;
+        restoreTxtRect.offsetMax = Vector2.zero;
+        restoreTxt.font = defaultFont;
+        restoreTxt.text = "Restore Purchases";
+        restoreTxt.fontSize = 20;
+        restoreTxt.alignment = TextAnchor.MiddleCenter;
+        restoreTxt.color = new Color(0.75f, 0.72f, 0.85f, 0.70f);
 
         // Two ping rings behind icon — expand outward on each glow pulse
         var ring1Obj = new GameObject("PingRing1");
@@ -858,6 +886,55 @@ public class UIManager : MonoBehaviour
         closeBtn.onClick.AddListener(() => Destroy(popup));
     }
 
+    public void ShowRestoreResultPopup(bool success, string errorMsg = null)
+    {
+        var popup = new GameObject("RestoreResultPopup");
+        popup.transform.SetParent(canvas.transform, false);
+        popup.transform.SetAsLastSibling();
+
+        var popupRect = popup.AddComponent<RectTransform>();
+        popupRect.anchorMin = Vector2.zero;
+        popupRect.anchorMax = Vector2.one;
+        popupRect.offsetMin = Vector2.zero;
+        popupRect.offsetMax = Vector2.zero;
+
+        var overlay = popup.AddComponent<Image>();
+        overlay.color = new Color(0.10f, 0.08f, 0.14f, 0.62f);
+        var overlayBtn = popup.AddComponent<Button>();
+        overlayBtn.targetGraphic = overlay;
+        overlayBtn.onClick.AddListener(() => Destroy(popup));
+
+        var cardObj = new GameObject("Card");
+        cardObj.transform.SetParent(popup.transform, false);
+        var cardRect = cardObj.AddComponent<RectTransform>();
+        cardRect.anchorMin = new Vector2(0.5f, 0.5f);
+        cardRect.anchorMax = new Vector2(0.5f, 0.5f);
+        cardRect.pivot = new Vector2(0.5f, 0.5f);
+        cardRect.sizeDelta = new Vector2(620f, 240f);
+        var cardImg = cardObj.AddComponent<Image>();
+        cardImg.sprite = SpriteGenerator.RoundedRect;
+        cardImg.color = new Color(0.13f, 0.10f, 0.20f, 1f);
+
+        var msgObj = new GameObject("Message");
+        msgObj.transform.SetParent(cardObj.transform, false);
+        var msgRect = msgObj.AddComponent<RectTransform>();
+        msgRect.anchorMin = new Vector2(0f, 0.35f);
+        msgRect.anchorMax = new Vector2(1f, 1f);
+        msgRect.offsetMin = new Vector2(30f, 0f);
+        msgRect.offsetMax = new Vector2(-30f, -20f);
+        var msgTxt = msgObj.AddComponent<Text>();
+        msgTxt.font = defaultFont;
+        msgTxt.text = success
+            ? "Purchases restored successfully!"
+            : "No previous purchase found.\n" + (string.IsNullOrEmpty(errorMsg) ? "" : "(" + errorMsg + ")");
+        msgTxt.fontSize = 30;
+        msgTxt.alignment = TextAnchor.MiddleCenter;
+        msgTxt.color = new Color(0.90f, 0.88f, 0.95f, 1f);
+
+        var closeBtn = CreateCardButton("OK", cardObj.transform, new Vector2(0, -70), new Color(0.38f, 0.32f, 0.58f));
+        closeBtn.onClick.AddListener(() => Destroy(popup));
+    }
+
     // --- Promo Top Banner ---
 
     public void ShowPromoTopBanner()
@@ -1229,6 +1306,9 @@ public class UIManager : MonoBehaviour
 
         noAdsButton.gameObject.SetActive(!isPurchased);
         noAdsButton.interactable = isAvailable && !isPurchased;
+
+        if (restoreButton != null)
+            restoreButton.gameObject.SetActive(!isPurchased);
     }
 
     public void SetHintAvailable(bool isAvailable)
@@ -1250,5 +1330,6 @@ public class UIManager : MonoBehaviour
         if (noAdsButton != null)          noAdsButton.interactable          = !isTutorial;
         if (restartButton != null)        restartButton.interactable        = !isTutorial;
         if (levelSelectToggleButton != null) levelSelectToggleButton.interactable = !isTutorial;
+        if (restoreButton != null)        restoreButton.interactable        = !isTutorial;
     }
 }

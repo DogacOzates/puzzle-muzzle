@@ -243,6 +243,24 @@ public class GameManager : MonoBehaviour
         monetizationManager.PurchaseNoAds();
     }
 
+    public void RestoreNoAdsPurchases()
+    {
+        if (monetizationManager == null)
+            return;
+
+        if (!monetizationManager.IsStoreReady)
+        {
+            uiManager?.ShowStoreUnavailablePopup(monetizationManager.LastIapError);
+            return;
+        }
+
+        monetizationManager.RestorePurchases((success, error) =>
+        {
+            if (!success)
+                uiManager?.ShowRestoreResultPopup(false, error);
+        });
+    }
+
     private void RefreshMonetizationUI()
     {
         if (uiManager == null || monetizationManager == null)

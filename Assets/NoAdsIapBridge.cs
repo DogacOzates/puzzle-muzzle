@@ -16,6 +16,7 @@ public class NoAdsIapBridge
 
 #if UNITY_PURCHASING
     private IStoreController storeController;
+    private IExtensionProvider extensionProvider;
 #endif
 
     public NoAdsIapBridge(string productId, Action onPurchaseSucceeded, Action<string> onPriceUpdated)
@@ -78,6 +79,7 @@ public class NoAdsIapBridge
     public void OnInitialized(IStoreController controller, IExtensionProvider extensions)
     {
         storeController = controller;
+        extensionProvider = extensions;
 
         Product product = storeController.products.WithID(productId);
         if (product != null)
@@ -110,6 +112,21 @@ public class NoAdsIapBridge
             onPurchaseSucceeded?.Invoke();
 
         return PurchaseProcessingResult.Complete;
+    }
+
+    public void RestorePurchases(Action<bool, string> onComplete)
+    {
+#if UNITY_PURCHASING
+        if (extensionProvider == null)
+        {
+            onComplete?.Invoke(false, "Store not initialized");
+            return;
+        }
+        var apple = extensionProvider.GetExtension<IAppleExtensions>();
+        apple.RestoreTransactions((result, error) => onComplete?.Invoke(result, error));
+#else
+        onComplete?.Invoke(false, "IAP not available");
+#endif
     }
 
     public void OnPurchaseFailed(Product product, PurchaseFailureReason failureReason)

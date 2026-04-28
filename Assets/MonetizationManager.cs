@@ -86,6 +86,16 @@ public class MonetizationManager : MonoBehaviour
         iapBridge.Purchase();
     }
 
+    public void RestorePurchases(Action<bool, string> onComplete)
+    {
+        if (iapBridge == null)
+        {
+            onComplete?.Invoke(false, "Store not available");
+            return;
+        }
+        iapBridge.RestorePurchases(onComplete);
+    }
+
     public void ShowRewardedHintAdIfNeeded(Action onRewardEarned)
     {
         if (IsNoAdsPurchased)
