@@ -169,11 +169,15 @@ public class UIManager : MonoBehaviour
         restoreRect.anchorMax = new Vector2(0.5f, 0f);
         restoreRect.pivot = new Vector2(0.5f, 0.5f);
         restoreRect.anchoredPosition = new Vector2(0f, 14f);
-        restoreRect.sizeDelta = new Vector2(280f, 28f);
+        restoreRect.sizeDelta = new Vector2(300f, 36f);
         var restoreImg = restoreObj.AddComponent<Image>();
-        restoreImg.color = new Color(0, 0, 0, 0);
+        restoreImg.color = new Color(0.22f, 0.18f, 0.35f, 0.85f);
+        restoreImg.sprite = SpriteGenerator.RoundedRect;
         restoreButton = restoreObj.AddComponent<Button>();
         restoreButton.targetGraphic = restoreImg;
+        var restoreColors = restoreButton.colors;
+        restoreColors.highlightedColor = new Color(0.32f, 0.26f, 0.50f, 1f);
+        restoreButton.colors = restoreColors;
         restoreButton.onClick.AddListener(() => FindAnyObjectByType<GameManager>().RestoreNoAdsPurchases());
         var restoreTxt = new GameObject("Label").AddComponent<Text>();
         restoreTxt.transform.SetParent(restoreObj.transform, false);
@@ -184,9 +188,10 @@ public class UIManager : MonoBehaviour
         restoreTxtRect.offsetMax = Vector2.zero;
         restoreTxt.font = defaultFont;
         restoreTxt.text = "Restore Purchases";
-        restoreTxt.fontSize = 20;
+        restoreTxt.fontSize = 22;
+        restoreTxt.fontStyle = FontStyle.Bold;
         restoreTxt.alignment = TextAnchor.MiddleCenter;
-        restoreTxt.color = new Color(0.75f, 0.72f, 0.85f, 0.70f);
+        restoreTxt.color = new Color(0.88f, 0.84f, 1f, 1f);
 
         // Two ping rings behind icon — expand outward on each glow pulse
         var ring1Obj = new GameObject("PingRing1");
