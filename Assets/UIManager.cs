@@ -13,8 +13,8 @@ public class UIManager : MonoBehaviour
     private Button restartButton;
     private Button hintButton;
     private Button noAdsButton;
-    private Button restoreButton;
     private Button levelSelectToggleButton;
+    private GameObject noAdsPurchasePopup;
     private Image hintButtonIcon;
     private Image noAdsButtonIcon;
     private Image noAdsPingRing1;
@@ -159,58 +159,7 @@ public class UIManager : MonoBehaviour
         noAdsRect.anchorMin = new Vector2(0.5f, 0f);
         noAdsRect.anchorMax = new Vector2(0.5f, 0f);
         noAdsRect.pivot = new Vector2(0.5f, 0.5f);
-        noAdsButton.onClick.AddListener(() => FindAnyObjectByType<GameManager>().PurchaseNoAds());
-
-        // Restore Purchases button — matches game tile style, required by Apple guideline 3.1.1
-        var restoreObj = new GameObject("RestoreBtn");
-        restoreObj.transform.SetParent(safeAreaRect, false);
-        var restoreRect = restoreObj.AddComponent<RectTransform>();
-        restoreRect.anchorMin = new Vector2(0.5f, 0f);
-        restoreRect.anchorMax = new Vector2(0.5f, 0f);
-        restoreRect.pivot = new Vector2(0.5f, 0.5f);
-        restoreRect.anchoredPosition = new Vector2(0f, 170f);
-        restoreRect.sizeDelta = new Vector2(320f, 54f);
-
-        // Shadow (like game tiles)
-        var restoreShadow = new GameObject("Shadow");
-        restoreShadow.transform.SetParent(restoreObj.transform, false);
-        restoreShadow.transform.SetAsFirstSibling();
-        var restoreShadowRect = restoreShadow.AddComponent<RectTransform>();
-        restoreShadowRect.anchorMin = Vector2.zero;
-        restoreShadowRect.anchorMax = Vector2.one;
-        restoreShadowRect.offsetMin = new Vector2(-3f, -7f);
-        restoreShadowRect.offsetMax = new Vector2(3f, 1f);
-        var restoreShadowImg = restoreShadow.AddComponent<Image>();
-        restoreShadowImg.sprite = SpriteGenerator.RoundedRect;
-        restoreShadowImg.color = new Color(0f, 0f, 0f, 0.14f);
-
-        // Button background — game purple tile color
-        var restoreImg = restoreObj.AddComponent<Image>();
-        restoreImg.sprite = SpriteGenerator.RoundedRect;
-        restoreImg.color = new Color(0.62f, 0.50f, 0.80f, 1f);
-        restoreButton = restoreObj.AddComponent<Button>();
-        restoreButton.targetGraphic = restoreImg;
-        var restoreColors = restoreButton.colors;
-        restoreColors.normalColor = Color.white;
-        restoreColors.highlightedColor = new Color(1f, 1f, 1f, 0.85f);
-        restoreColors.pressedColor = new Color(0.80f, 0.80f, 0.80f, 1f);
-        restoreButton.colors = restoreColors;
-        restoreButton.onClick.AddListener(() => FindAnyObjectByType<GameManager>().RestoreNoAdsPurchases());
-
-        // Label
-        var restoreTxt = new GameObject("Label").AddComponent<Text>();
-        restoreTxt.transform.SetParent(restoreObj.transform, false);
-        var restoreTxtRect = restoreTxt.GetComponent<RectTransform>();
-        restoreTxtRect.anchorMin = Vector2.zero;
-        restoreTxtRect.anchorMax = Vector2.one;
-        restoreTxtRect.offsetMin = Vector2.zero;
-        restoreTxtRect.offsetMax = Vector2.zero;
-        restoreTxt.font = defaultFont;
-        restoreTxt.text = "Restore Purchases";
-        restoreTxt.fontSize = 26;
-        restoreTxt.fontStyle = FontStyle.Bold;
-        restoreTxt.alignment = TextAnchor.MiddleCenter;
-        restoreTxt.color = Color.white;
+        noAdsButton.onClick.AddListener(ShowNoAdsPurchasePopup);
 
         // Two ping rings behind icon — expand outward on each glow pulse
         var ring1Obj = new GameObject("PingRing1");
@@ -859,6 +808,86 @@ public class UIManager : MonoBehaviour
         }
     }
 
+    // --- No Ads Purchase Popup ---
+
+    private void ShowNoAdsPurchasePopup()
+    {
+        if (noAdsPurchasePopup != null)
+            Destroy(noAdsPurchasePopup);
+
+        noAdsPurchasePopup = new GameObject("NoAdsPurchasePopup");
+        noAdsPurchasePopup.transform.SetParent(canvas.transform, false);
+        noAdsPurchasePopup.transform.SetAsLastSibling();
+
+        var popupRect = noAdsPurchasePopup.AddComponent<RectTransform>();
+        popupRect.anchorMin = Vector2.zero;
+        popupRect.anchorMax = Vector2.one;
+        popupRect.offsetMin = Vector2.zero;
+        popupRect.offsetMax = Vector2.zero;
+
+        var overlay = noAdsPurchasePopup.AddComponent<Image>();
+        overlay.color = new Color(0.10f, 0.08f, 0.14f, 0.62f);
+        var overlayBtn = noAdsPurchasePopup.AddComponent<Button>();
+        overlayBtn.targetGraphic = overlay;
+        overlayBtn.onClick.AddListener(() => { Destroy(noAdsPurchasePopup); noAdsPurchasePopup = null; });
+
+        // Shadow
+        var shadowObj = new GameObject("Shadow");
+        shadowObj.transform.SetParent(noAdsPurchasePopup.transform, false);
+        var shadowRect = shadowObj.AddComponent<RectTransform>();
+        shadowRect.anchorMin = new Vector2(0.5f, 0.5f);
+        shadowRect.anchorMax = new Vector2(0.5f, 0.5f);
+        shadowRect.pivot = new Vector2(0.5f, 0.5f);
+        shadowRect.sizeDelta = new Vector2(726f, 426f);
+        shadowRect.anchoredPosition = new Vector2(4f, -8f);
+        var shadowImg = shadowObj.AddComponent<Image>();
+        shadowImg.sprite = SpriteGenerator.RoundedRect;
+        shadowImg.color = new Color(0f, 0f, 0f, 0.18f);
+
+        // Card
+        var card = new GameObject("Card");
+        card.transform.SetParent(noAdsPurchasePopup.transform, false);
+        var cardRect = card.AddComponent<RectTransform>();
+        cardRect.anchorMin = new Vector2(0.5f, 0.5f);
+        cardRect.anchorMax = new Vector2(0.5f, 0.5f);
+        cardRect.pivot = new Vector2(0.5f, 0.5f);
+        cardRect.sizeDelta = new Vector2(700f, 400f);
+        var cardImg = card.AddComponent<Image>();
+        cardImg.sprite = SpriteGenerator.RoundedRect;
+        cardImg.color = new Color(1f, 1f, 1f, 0.98f);
+
+        // Title
+        var title = MakeCardText("Title", card.transform, new Vector2(0, 135), 46, FontStyle.Bold, TextDark);
+        title.text = "Remove Ads";
+
+        // Subtitle
+        var sub = MakeCardText("Subtitle", card.transform, new Vector2(0, 65), 30, FontStyle.Normal, TextMuted);
+        sub.text = "Enjoy the full game, ad-free forever";
+        sub.GetComponent<RectTransform>().sizeDelta = new Vector2(560f, 60f);
+
+        // Buy button (golden)
+        var buyBtn = CreateCardButton("Remove Ads — $4.99", card.transform, new Vector2(0, -25), new Color(0.92f, 0.68f, 0.08f));
+        var buyText = buyBtn.GetComponentInChildren<Text>();
+        if (buyText != null) buyText.fontSize = 28;
+        buyBtn.onClick.AddListener(() =>
+        {
+            Destroy(noAdsPurchasePopup);
+            noAdsPurchasePopup = null;
+            FindAnyObjectByType<GameManager>().PurchaseNoAds();
+        });
+
+        // Restore button (muted purple)
+        var restoreBtn = CreateCardButton("Restore Previous Purchase", card.transform, new Vector2(0, -120), new Color(0.52f, 0.48f, 0.62f));
+        var restoreText = restoreBtn.GetComponentInChildren<Text>();
+        if (restoreText != null) restoreText.fontSize = 26;
+        restoreBtn.onClick.AddListener(() =>
+        {
+            Destroy(noAdsPurchasePopup);
+            noAdsPurchasePopup = null;
+            FindAnyObjectByType<GameManager>().RestoreNoAdsPurchases();
+        });
+    }
+
     // --- Store Unavailable Popup ---
 
     public void ShowStoreUnavailablePopup(string errorDetail = null)
@@ -1330,9 +1359,6 @@ public class UIManager : MonoBehaviour
 
         noAdsButton.gameObject.SetActive(!isPurchased);
         noAdsButton.interactable = isAvailable && !isPurchased;
-
-        if (restoreButton != null)
-            restoreButton.gameObject.SetActive(!isPurchased);
     }
 
     public void SetHintAvailable(bool isAvailable)
@@ -1354,6 +1380,5 @@ public class UIManager : MonoBehaviour
         if (noAdsButton != null)          noAdsButton.interactable          = !isTutorial;
         if (restartButton != null)        restartButton.interactable        = !isTutorial;
         if (levelSelectToggleButton != null) levelSelectToggleButton.interactable = !isTutorial;
-        if (restoreButton != null)        restoreButton.interactable        = !isTutorial;
     }
 }
