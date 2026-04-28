@@ -15,8 +15,6 @@ public class GameManager : MonoBehaviour
     private int currentLevelIndex = 0;
     private bool isLevelTransitionRunning;
     private int hintPressedThisLevel;
-    private int secretTapCount;
-    private float lastSecretTapTime;
 
     public bool IsTutorialRunning => tutorialController != null && tutorialController.IsRunning;
 
@@ -194,18 +192,6 @@ public class GameManager : MonoBehaviour
         if (uiManager == null)
             return;
 
-        // Secret: tap level title 7 times quickly to unlock all levels
-        float now = Time.unscaledTime;
-        if (now - lastSecretTapTime > 1.5f) secretTapCount = 0;
-        secretTapCount++;
-        lastSecretTapTime = now;
-        if (secretTapCount >= 7)
-        {
-            secretTapCount = 0;
-            UnlockAllLevels();
-            return;
-        }
-
         if (uiManager.IsLevelSelectVisible)
         {
             uiManager.HideLevelSelect();
@@ -213,14 +199,6 @@ public class GameManager : MonoBehaviour
         }
 
         uiManager.ShowLevelSelect(currentLevelIndex, GetHighestUnlockedLevelIndex(), LevelDatabase.Levels.Length);
-    }
-
-    private void UnlockAllLevels()
-    {
-        int maxIndex = LevelDatabase.Levels.Length - 1;
-        PlayerPrefs.SetInt(SavedLevelIndexKey, maxIndex);
-        PlayerPrefs.Save();
-        uiManager.ShowLevelSelect(currentLevelIndex, maxIndex, LevelDatabase.Levels.Length);
     }
 
     public void SelectLevel(int index)
