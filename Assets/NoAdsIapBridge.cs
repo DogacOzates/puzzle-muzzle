@@ -37,7 +37,17 @@ public class NoAdsIapBridge
 #endif
     }
 
-    public bool IsStoreReady => storeController != null;
+    public bool IsStoreReady
+    {
+        get
+        {
+#if UNITY_PURCHASING
+            return storeController != null;
+#else
+            return false;
+#endif
+        }
+    }
 
     public void Purchase()
     {
