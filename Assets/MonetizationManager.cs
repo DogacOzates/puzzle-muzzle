@@ -124,6 +124,10 @@ public class MonetizationManager : MonoBehaviour
         if (string.IsNullOrEmpty(price))
             return;
 
+        // Unity IAP returns "$0.01" as a placeholder in the Editor. Ignore it.
+        if (price == "$0.01" || price == "0.01")
+            return;
+
         NoAdsPrice = price;
         NoAdsPriceChanged?.Invoke();
     }
