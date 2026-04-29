@@ -134,11 +134,6 @@ public class UIManager : MonoBehaviour
         levelSelectToggleButton = CreateInvisibleButton("LevelSelect", bar.transform, new Vector2(0, -70), new Vector2(520, 84));
         levelSelectToggleButton.onClick.AddListener(() => FindAnyObjectByType<GameManager>().ToggleLevelSelectMenu());
 
-        // Streak label (left side) — hidden until streak > 0
-        streakText = MakeText("Streak", bar.transform, new Vector2(-420, -70), 34, FontStyle.Bold, new Color(1f, 0.65f, 0f));
-        streakText.alignment = TextAnchor.MiddleCenter;
-        streakText.gameObject.SetActive(false);
-
         // Game Center trophy button (right side)
         var trophyBtn = CreateInvisibleButton("GameCenter", bar.transform, new Vector2(420, -70), new Vector2(80, 80));
         trophyBtn.onClick.AddListener(ShowGameCenterMenu);
@@ -1242,16 +1237,8 @@ public class UIManager : MonoBehaviour
 
     public void UpdateStreakDisplay(int streak)
     {
-        if (streakText == null) return;
-        if (streak <= 0)
-        {
-            streakText.gameObject.SetActive(false);
-        }
-        else
-        {
-            streakText.text = $"🔥 {streak}";
-            streakText.gameObject.SetActive(true);
-        }
+        // Streak is shown only inside the daily challenge card in level select.
+        // Top-bar streak label is intentionally kept hidden.
     }
 
     public void UpdateDailyChallengeCard()

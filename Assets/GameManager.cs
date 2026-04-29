@@ -190,6 +190,9 @@ public class GameManager : MonoBehaviour
             int streak = DailyChallengeManager.GetStreak();
             gameCenterManager?.ReportDailyCompleted(streak);
             uiManager?.UpdateStreakDisplay(streak);
+            // Restore currentLevelIndex immediately so GetHighestUnlockedLevelIndex()
+            // never sees the daily level index again (e.g. during transition animation).
+            currentLevelIndex = preDailyLevelIndex;
             currentGameMode = GameMode.Regular;
             uiManager.HideLevelComplete();
             TransitionToLevel(preDailyLevelIndex, false);
@@ -377,10 +380,9 @@ public class GameManager : MonoBehaviour
     private int GetHighestUnlockedLevelIndex()
     {
         int maxLevelIndex = LevelDatabase.Levels.Length - 1;
-        // In daily mode, currentLevelIndex is the daily level index — use preDailyLevelIndex
-        // so the daily challenge never inflates the campaign unlock count.
-        int effectiveCurrent = currentGameMode == GameMode.Daily ? preDailyLevelIndex : currentLevelIndex;
-        return Mathf.Clamp(Mathf.Max(effectiveCurrent, LoadSavedLevelIndex()), 0, maxLevelIndex);
+        // Use only the saved progress — never currentLevelIndex.
+        // This ensures daily challenge level never inflates campaign unlock count.
+        return Mathf.Clamp(LoadSavedLevelIndex(), 0, maxLevelIndex);
     }
 
     private void SaveProgressForNextLevel()
