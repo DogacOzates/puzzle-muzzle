@@ -10,7 +10,7 @@ public class LevelGateAdsBridge
     // ── Ad Unit IDs ───────────────────────────────────────────────────────
     // Set USE_TEST_ADS = true while testing on device.
     // Switch to false and use your real IDs before App Store submission.
-    private const bool USE_TEST_ADS = true;
+    private const bool USE_TEST_ADS = false;
 
     // Google's official test ad unit IDs (safe to use on any device)
     private const string TestInterstitialAdUnitId = "ca-app-pub-3940256099942544/4411468910";
