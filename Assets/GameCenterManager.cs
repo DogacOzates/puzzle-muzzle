@@ -35,10 +35,10 @@ public class GameCenterManager : MonoBehaviour
         if (!isAuthenticated) return;
 
         int total = highestUnlockedIndex + 1;
-        if (total >= 1)   Social.ReportAchievement(AchievFirstLevel, 100.0, _ => { });
-        if (total >= 10)  Social.ReportAchievement(AchievLevel10,    100.0, _ => { });
-        if (total >= 50)  Social.ReportAchievement(AchievLevel50,    100.0, _ => { });
-        if (total >= 100) Social.ReportAchievement(AchievLevel100,   100.0, _ => { });
+        if (total >= 1)   Social.ReportProgress(AchievFirstLevel, 100.0, _ => { });
+        if (total >= 10)  Social.ReportProgress(AchievLevel10,    100.0, _ => { });
+        if (total >= 50)  Social.ReportProgress(AchievLevel50,    100.0, _ => { });
+        if (total >= 100) Social.ReportProgress(AchievLevel100,   100.0, _ => { });
 
         Social.ReportScore(total, LeaderboardId, _ => { });
 #endif
@@ -50,9 +50,9 @@ public class GameCenterManager : MonoBehaviour
 #if UNITY_IOS && !UNITY_EDITOR
         if (!isAuthenticated) return;
 
-        Social.ReportAchievement(AchievDailyFirst, 100.0, _ => { });
-        if (streak >= 7)  Social.ReportAchievement(AchievStreak7,  100.0, _ => { });
-        if (streak >= 30) Social.ReportAchievement(AchievStreak30, 100.0, _ => { });
+        Social.ReportProgress(AchievDailyFirst, 100.0, _ => { });
+        if (streak >= 7)  Social.ReportProgress(AchievStreak7,  100.0, _ => { });
+        if (streak >= 30) Social.ReportProgress(AchievStreak30, 100.0, _ => { });
 #endif
     }
 
