@@ -5,6 +5,8 @@ public class GameManager : MonoBehaviour
 {
     private const string SavedLevelIndexKey = "progress.savedLevelIndex";
 
+    private enum GameMode { Regular, Daily }
+
     public bool IsLevelComplete { get; private set; }
 
     private GridManager gridManager;
@@ -12,9 +14,13 @@ public class GameManager : MonoBehaviour
     private UIManager uiManager;
     private MonetizationManager monetizationManager;
     private TutorialController tutorialController;
+    private iCloudSyncManager iCloudSync;
+    private GameCenterManager gameCenterManager;
     private int currentLevelIndex = 0;
     private bool isLevelTransitionRunning;
     private int hintPressedThisLevel;
+    private GameMode currentGameMode = GameMode.Regular;
+    private int preDailyLevelIndex;
 
     public bool IsTutorialRunning => tutorialController != null && tutorialController.IsRunning;
 
@@ -55,6 +61,15 @@ public class GameManager : MonoBehaviour
         monetizationManager = monetizationObj.AddComponent<MonetizationManager>();
         monetizationManager.Initialize();
 
+        // iCloudSyncManager must Awake before LoadSavedLevelIndex so merged progress is read.
+        var iCloudObj = new GameObject("iCloudSyncManager");
+        iCloudObj.transform.SetParent(transform);
+        iCloudSync = iCloudObj.AddComponent<iCloudSyncManager>();
+
+        var gcObj = new GameObject("GameCenterManager");
+        gcObj.transform.SetParent(transform);
+        gameCenterManager = gcObj.AddComponent<GameCenterManager>();
+
         var uiObj = new GameObject("UIManager");
         uiObj.transform.SetParent(transform);
         uiManager = uiObj.AddComponent<UIManager>();
@@ -62,6 +77,9 @@ public class GameManager : MonoBehaviour
         monetizationManager.NoAdsStateChanged += RefreshMonetizationUI;
         monetizationManager.NoAdsPriceChanged += RefreshMonetizationUI;
         RefreshMonetizationUI();
+
+        // Show streak on launch (may be 0, which hides the label)
+        uiManager.UpdateStreakDisplay(DailyChallengeManager.GetStreak());
 
         currentLevelIndex = LoadSavedLevelIndex();
         LoadLevel(currentLevelIndex);
@@ -164,10 +182,34 @@ public class GameManager : MonoBehaviour
 
         IsLevelComplete = true;
         AudioManager.Instance?.OnLevelComplete();
+
+        if (currentGameMode == GameMode.Daily)
+        {
+            // Daily challenge: don't advance campaign progress.
+            DailyChallengeManager.MarkTodayCompleted();
+            int streak = DailyChallengeManager.GetStreak();
+            gameCenterManager?.ReportDailyCompleted(streak);
+            uiManager?.UpdateStreakDisplay(streak);
+            currentGameMode = GameMode.Regular;
+            uiManager.HideLevelComplete();
+            TransitionToLevel(preDailyLevelIndex, false);
+            return;
+        }
+
+        // Regular campaign completion
         SaveProgressForNextLevel();
+        gameCenterManager?.ReportCampaignLevelCompleted(GetHighestUnlockedLevelIndex());
         TryRequestReview();
         uiManager.HideLevelComplete();
         NextLevel();
+    }
+
+    public void PlayDailyChallenge()
+    {
+        preDailyLevelIndex = currentLevelIndex;
+        currentGameMode = GameMode.Daily;
+        uiManager?.HideLevelSelect();
+        TransitionToLevel(DailyChallengeManager.GetDailyLevelIndex(), false);
     }
 
     private void TryRequestReview()
@@ -227,6 +269,7 @@ public class GameManager : MonoBehaviour
         }
 
         uiManager.ShowLevelSelect(currentLevelIndex, GetHighestUnlockedLevelIndex(), LevelDatabase.Levels.Length);
+        uiManager.UpdateDailyChallengeCard();
     }
 
     public void SelectLevel(int index)
@@ -234,6 +277,7 @@ public class GameManager : MonoBehaviour
         if (index < 0 || index > GetHighestUnlockedLevelIndex())
             return;
 
+        currentGameMode = GameMode.Regular;
         TransitionToLevel(index, false);
     }
 
@@ -346,6 +390,7 @@ public class GameManager : MonoBehaviour
 
         PlayerPrefs.SetInt(SavedLevelIndexKey, savedLevelIndex);
         PlayerPrefs.Save();
+        iCloudSyncManager.SyncProgress(savedLevelIndex);
     }
 
     private void TransitionToLevel(int index, bool showCompletedPreview)

@@ -6,6 +6,7 @@ using UnityEngine.UI;
 public class UIManager : MonoBehaviour
 {
     private Text levelProgressText;
+    private Text streakText;
     private GameObject levelCompletePanel;
     private Text completeText;
     private Button nextLevelButton;
@@ -28,6 +29,10 @@ public class UIManager : MonoBehaviour
     private Button[] levelSelectButtons;
     private Image[] levelSelectButtonImages;
     private Text[] levelSelectButtonLabels;
+    private Image dailyChallengeCardImage;
+    private Button dailyChallengeCardButton;
+    private Text dailyChallengeCardMainText;
+    private Text dailyChallengeCardSubText;
     private GameObject transitionOverlay;
     private Image transitionOverlayImage;
     private Text transitionOverlayText;
@@ -129,6 +134,17 @@ public class UIManager : MonoBehaviour
         levelSelectToggleButton = CreateInvisibleButton("LevelSelect", bar.transform, new Vector2(0, -70), new Vector2(520, 84));
         levelSelectToggleButton.onClick.AddListener(() => FindAnyObjectByType<GameManager>().ToggleLevelSelectMenu());
 
+        // Streak label (left side) — hidden until streak > 0
+        streakText = MakeText("Streak", bar.transform, new Vector2(-420, -70), 34, FontStyle.Bold, new Color(1f, 0.65f, 0f));
+        streakText.alignment = TextAnchor.MiddleCenter;
+        streakText.gameObject.SetActive(false);
+
+        // Game Center leaderboard trophy button (right side)
+        var trophyBtn = CreateInvisibleButton("GameCenter", bar.transform, new Vector2(420, -70), new Vector2(80, 80));
+        trophyBtn.onClick.AddListener(() => GameCenterManager.Instance?.ShowLeaderboard());
+        var trophyLabel = MakeText("Trophy", trophyBtn.transform, Vector2.zero, 36, FontStyle.Normal, TextMuted);
+        trophyLabel.text = "🏆";
+        trophyLabel.alignment = TextAnchor.MiddleCenter;
     }
 
     private void CreateBottomBar()
@@ -397,10 +413,42 @@ public class UIManager : MonoBehaviour
         frameRect.anchorMin = new Vector2(0f, 0f);
         frameRect.anchorMax = new Vector2(1f, 1f);
         frameRect.offsetMin = new Vector2(52f, 52f);
-        frameRect.offsetMax = new Vector2(-52f, -52f);
+        frameRect.offsetMax = new Vector2(-52f, -(52f + 176f)); // leave 176px (16 gap + 160 card) at top
         var frameImage = frame.AddComponent<Image>();
         frameImage.sprite = SpriteGenerator.RoundedRect;
         frameImage.color = new Color(0.97f, 0.96f, 0.95f, 0.95f);
+
+        // Daily challenge card above the grid frame
+        var dcCard = new GameObject("DailyCard");
+        dcCard.transform.SetParent(card.transform, false);
+        var dcRect = dcCard.AddComponent<RectTransform>();
+        dcRect.anchorMin = new Vector2(0f, 1f);
+        dcRect.anchorMax = new Vector2(1f, 1f);
+        dcRect.pivot = new Vector2(0.5f, 1f);
+        dcRect.offsetMin = new Vector2(52f, -(52f + 160f)); // 52 from sides, 160px tall
+        dcRect.offsetMax = new Vector2(-52f, -52f);
+
+        dailyChallengeCardImage = dcCard.AddComponent<Image>();
+        dailyChallengeCardImage.sprite = SpriteGenerator.RoundedRect;
+        dailyChallengeCardImage.color = new Color(0.25f, 0.78f, 0.72f, 0.9f);
+
+        var dcBtn = dcCard.AddComponent<Button>();
+        var dcColors = dcBtn.colors;
+        dcColors.highlightedColor = new Color(0.8f, 0.97f, 0.96f, 1f);
+        dcColors.pressedColor = new Color(0.6f, 0.9f, 0.88f, 1f);
+        dcColors.disabledColor = new Color(0.7f, 0.82f, 0.80f, 0.7f);
+        dcBtn.colors = dcColors;
+        dcBtn.targetGraphic = dailyChallengeCardImage;
+        dcBtn.onClick.AddListener(() => FindAnyObjectByType<GameManager>().PlayDailyChallenge());
+        dailyChallengeCardButton = dcBtn;
+
+        dailyChallengeCardMainText = MakeText("DailyMain", dcCard.transform, new Vector2(0, -44), 36, FontStyle.Bold, Color.white);
+        dailyChallengeCardMainText.alignment = TextAnchor.MiddleCenter;
+        dailyChallengeCardMainText.text = "📅 Daily Challenge";
+
+        dailyChallengeCardSubText = MakeText("DailySub", dcCard.transform, new Vector2(0, -108), 28, FontStyle.Normal, new Color(1f, 1f, 1f, 0.88f));
+        dailyChallengeCardSubText.alignment = TextAnchor.MiddleCenter;
+        dailyChallengeCardSubText.text = "";
 
         var scrollObj = new GameObject("ScrollView");
         scrollObj.transform.SetParent(frame.transform, false);
@@ -1190,6 +1238,43 @@ public class UIManager : MonoBehaviour
     public void SetLevelInfo(string name, int index, int total)
     {
         if (levelProgressText != null) levelProgressText.text = $"Level {index + 1} / {total}";
+    }
+
+    public void UpdateStreakDisplay(int streak)
+    {
+        if (streakText == null) return;
+        if (streak <= 0)
+        {
+            streakText.gameObject.SetActive(false);
+        }
+        else
+        {
+            streakText.text = $"🔥 {streak}";
+            streakText.gameObject.SetActive(true);
+        }
+    }
+
+    public void UpdateDailyChallengeCard()
+    {
+        if (dailyChallengeCardImage == null) return;
+
+        bool completed = DailyChallengeManager.IsTodayCompleted();
+        int dailyIndex = DailyChallengeManager.GetDailyLevelIndex();
+        string levelName = (dailyIndex >= 0 && dailyIndex < LevelDatabase.Levels.Length)
+            ? LevelDatabase.Levels[dailyIndex].levelName
+            : $"Level {dailyIndex + 1}";
+        int streak = DailyChallengeManager.GetStreak();
+
+        dailyChallengeCardImage.color = completed
+            ? new Color(0.30f, 0.75f, 0.48f, 0.9f) // green = done
+            : new Color(0.25f, 0.78f, 0.72f, 0.9f); // teal = available
+
+        string streakSuffix = streak > 0 ? $"  🔥 {streak}" : "";
+        dailyChallengeCardMainText.text = completed ? $"✓ Daily Complete!{streakSuffix}" : "📅 Daily Challenge";
+        dailyChallengeCardSubText.text = completed ? "Come back tomorrow!" : levelName;
+
+        if (dailyChallengeCardButton != null)
+            dailyChallengeCardButton.interactable = !completed;
     }
 
     public void ShowLevelComplete()
