@@ -47,6 +47,7 @@ public class UIManager : MonoBehaviour
     private Image levelSelectCardBg;
     private Image levelSelectFrameBg;
     private Image settingsButtonBg;
+    private Image settingsIconImg;
     private Text levelProgressTextRef;  // alias — same as levelProgressText
 
     // Colors
@@ -90,9 +91,11 @@ public class UIManager : MonoBehaviour
         var tm = ThemeManager.Instance;
         if (tm == null) return;
 
-        // Settings button bg
+        // Settings button bg (transparent) + icon tint
         if (settingsButtonBg != null)
-            settingsButtonBg.color = tm.SettingsBtnBg;
+            settingsButtonBg.color = Color.clear;
+        if (settingsIconImg != null)
+            settingsIconImg.color = tm.IsDarkMode ? Color.white : TextDark;
 
         // Level progress text
         if (levelProgressText != null)
@@ -210,7 +213,7 @@ public class UIManager : MonoBehaviour
 
         var settingsImg = settingsObj.AddComponent<Image>();
         settingsImg.sprite = SpriteGenerator.RoundedRect;
-        settingsImg.color = ThemeManager.Instance != null ? ThemeManager.Instance.SettingsBtnBg : new Color(0.95f, 0.93f, 0.88f, 1f);
+        settingsImg.color = Color.clear;
         settingsButtonBg = settingsImg;
 
         var settingsBtn = settingsObj.AddComponent<Button>();
@@ -230,10 +233,12 @@ public class UIManager : MonoBehaviour
         siRect.offsetMax = Vector2.zero;
         var siImg = settingsIconObj.AddComponent<Image>();
         var settingsSprite = Resources.Load<Sprite>("icons/settings");
+        bool isDark = ThemeManager.Instance?.IsDarkMode ?? false;
         if (settingsSprite != null)
         {
             siImg.sprite = settingsSprite;
-            siImg.color = TextDark;
+            siImg.color = isDark ? Color.white : TextDark;
+            settingsIconImg = siImg;
         }
         else
         {
@@ -251,7 +256,7 @@ public class UIManager : MonoBehaviour
             fbTxt.text = "⚙️";
             fbTxt.fontSize = 40;
             fbTxt.alignment = TextAnchor.MiddleCenter;
-            fbTxt.color = TextDark;
+            fbTxt.color = isDark ? Color.white : TextDark;
         }
     }
 
