@@ -377,7 +377,10 @@ public class GameManager : MonoBehaviour
     private int GetHighestUnlockedLevelIndex()
     {
         int maxLevelIndex = LevelDatabase.Levels.Length - 1;
-        return Mathf.Clamp(Mathf.Max(currentLevelIndex, LoadSavedLevelIndex()), 0, maxLevelIndex);
+        // In daily mode, currentLevelIndex is the daily level index — use preDailyLevelIndex
+        // so the daily challenge never inflates the campaign unlock count.
+        int effectiveCurrent = currentGameMode == GameMode.Daily ? preDailyLevelIndex : currentLevelIndex;
+        return Mathf.Clamp(Mathf.Max(effectiveCurrent, LoadSavedLevelIndex()), 0, maxLevelIndex);
     }
 
     private void SaveProgressForNextLevel()

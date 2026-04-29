@@ -63,4 +63,12 @@ public class GameCenterManager : MonoBehaviour
         Social.ShowLeaderboardUI();
 #endif
     }
+
+    public void ShowAchievements()
+    {
+#if UNITY_IOS && !UNITY_EDITOR
+        if (!isAuthenticated) return;
+        Social.ShowAchievementsUI();
+#endif
+    }
 }

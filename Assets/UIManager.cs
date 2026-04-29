@@ -139,9 +139,9 @@ public class UIManager : MonoBehaviour
         streakText.alignment = TextAnchor.MiddleCenter;
         streakText.gameObject.SetActive(false);
 
-        // Game Center leaderboard trophy button (right side)
+        // Game Center trophy button (right side)
         var trophyBtn = CreateInvisibleButton("GameCenter", bar.transform, new Vector2(420, -70), new Vector2(80, 80));
-        trophyBtn.onClick.AddListener(() => GameCenterManager.Instance?.ShowLeaderboard());
+        trophyBtn.onClick.AddListener(ShowGameCenterMenu);
         var trophyLabel = MakeText("Trophy", trophyBtn.transform, Vector2.zero, 36, FontStyle.Normal, TextMuted);
         trophyLabel.text = "🏆";
         trophyLabel.alignment = TextAnchor.MiddleCenter;
@@ -1286,6 +1286,73 @@ public class UIManager : MonoBehaviour
     {
         levelCompletePanel.SetActive(false);
     }
+
+    private void ShowGameCenterMenu()
+    {
+        var popup = new GameObject("GameCenterMenuPopup");
+        popup.transform.SetParent(canvas.transform, false);
+        popup.transform.SetAsLastSibling();
+
+        var popupRect = popup.AddComponent<RectTransform>();
+        popupRect.anchorMin = Vector2.zero;
+        popupRect.anchorMax = Vector2.one;
+        popupRect.offsetMin = Vector2.zero;
+        popupRect.offsetMax = Vector2.zero;
+
+        var overlay = popup.AddComponent<Image>();
+        overlay.color = new Color(0.10f, 0.08f, 0.14f, 0.62f);
+        var overlayBtn = popup.AddComponent<Button>();
+        overlayBtn.targetGraphic = overlay;
+        overlayBtn.onClick.AddListener(() => Destroy(popup));
+
+        // Shadow
+        var shadowObj = new GameObject("Shadow");
+        shadowObj.transform.SetParent(popup.transform, false);
+        var shadowRect = shadowObj.AddComponent<RectTransform>();
+        shadowRect.anchorMin = new Vector2(0.5f, 0.5f);
+        shadowRect.anchorMax = new Vector2(0.5f, 0.5f);
+        shadowRect.pivot = new Vector2(0.5f, 0.5f);
+        shadowRect.sizeDelta = new Vector2(626f, 406f);
+        shadowRect.anchoredPosition = new Vector2(4f, -8f);
+        var shadowImg = shadowObj.AddComponent<Image>();
+        shadowImg.sprite = SpriteGenerator.RoundedRect;
+        shadowImg.color = new Color(0f, 0f, 0f, 0.18f);
+
+        // Card
+        var card = new GameObject("Card");
+        card.transform.SetParent(popup.transform, false);
+        var cardRect = card.AddComponent<RectTransform>();
+        cardRect.anchorMin = new Vector2(0.5f, 0.5f);
+        cardRect.anchorMax = new Vector2(0.5f, 0.5f);
+        cardRect.pivot = new Vector2(0.5f, 0.5f);
+        cardRect.sizeDelta = new Vector2(600f, 380f);
+        var cardImg = card.AddComponent<Image>();
+        cardImg.sprite = SpriteGenerator.RoundedRect;
+        cardImg.color = new Color(1f, 1f, 1f, 0.98f);
+
+        // Title
+        var title = MakeCardText("Title", card.transform, new Vector2(0, 130), 44, FontStyle.Bold, TextDark);
+        title.text = "🏆  Game Center";
+
+        // Achievements button
+        var achBtn = CreateCardButton("Başarımlar / Achievements", card.transform, new Vector2(0, 30), BtnTeal);
+        achBtn.onClick.AddListener(() =>
+        {
+            Destroy(popup);
+            GameCenterManager.Instance?.ShowAchievements();
+        });
+
+        // Leaderboard button
+        var lbBtn = CreateCardButton("Liderlik Tablosu / Leaderboard", card.transform, new Vector2(0, -70), new Color(0.38f, 0.32f, 0.58f));
+        var lbText = lbBtn.GetComponentInChildren<Text>();
+        if (lbText != null) lbText.fontSize = 28;
+        lbBtn.onClick.AddListener(() =>
+        {
+            Destroy(popup);
+            GameCenterManager.Instance?.ShowLeaderboard();
+        });
+    }
+
 
     public bool IsLevelSelectVisible => levelSelectPanel != null && levelSelectPanel.activeSelf;
 
