@@ -170,21 +170,23 @@ public class GameManager : MonoBehaviour
         NextLevel();
     }
 
-    private static readonly int[] ReviewMilestones = { 4, 14 }; // levels 5 and 15
-
     private void TryRequestReview()
     {
-        int lastMilestone = PlayerPrefs.GetInt("review.lastMilestone", -1);
-        foreach (int milestone in ReviewMilestones)
-        {
-            if (currentLevelIndex >= milestone && lastMilestone < milestone)
-            {
-                PlayerPrefs.SetInt("review.lastMilestone", milestone);
-                PlayerPrefs.Save();
-                StartCoroutine(RequestReviewAfterDelay(2f));
-                break;
-            }
-        }
+        // Every 50 levels: level 50, 100, 150, ...
+        if ((currentLevelIndex + 1) % 50 != 0)
+            return;
+
+        // Max 3 times per day
+        int today = int.Parse(System.DateTime.Now.ToString("yyyyMMdd"));
+        int storedDate = PlayerPrefs.GetInt("review.dailyDate", 0);
+        int dailyCount = (storedDate == today) ? PlayerPrefs.GetInt("review.dailyCount", 0) : 0;
+        if (dailyCount >= 3)
+            return;
+
+        PlayerPrefs.SetInt("review.dailyDate", today);
+        PlayerPrefs.SetInt("review.dailyCount", dailyCount + 1);
+        PlayerPrefs.Save();
+        StartCoroutine(RequestReviewAfterDelay(2f));
     }
 
     private IEnumerator RequestReviewAfterDelay(float delay)
