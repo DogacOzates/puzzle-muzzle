@@ -140,8 +140,8 @@ public class UIManager : MonoBehaviour
         var settingsRect = settingsObj.AddComponent<RectTransform>();
         settingsRect.anchorMin = new Vector2(1f, 1f);
         settingsRect.anchorMax = new Vector2(1f, 1f);
-        settingsRect.pivot = new Vector2(1f, 0.5f);
-        settingsRect.anchoredPosition = new Vector2(-20f, -70f);
+        settingsRect.pivot = new Vector2(0.5f, 0.5f);
+        settingsRect.anchoredPosition = new Vector2(-100f, -70f);
         settingsRect.sizeDelta = new Vector2(90f, 90f);
 
         var settingsImg = settingsObj.AddComponent<Image>();
