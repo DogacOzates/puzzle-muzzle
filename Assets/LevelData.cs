@@ -1,5 +1,20 @@
 using System;
 
+public enum CellShape { Square, Pentagon }
+
+[Serializable]
+public class BlockedCellData
+{
+    public int x;
+    public int y;
+
+    public BlockedCellData(int x, int y)
+    {
+        this.x = x;
+        this.y = y;
+    }
+}
+
 [Serializable]
 public class NumberCellData
 {
@@ -39,20 +54,23 @@ public class LevelData
     public int gridHeight;
     public NumberCellData[] numberCells;
     public SolutionPath[] solutions;
+    public BlockedCellData[] blockedCells;
+    public CellShape cellShape = CellShape.Square;
 
-    public LevelData(string name, int width, int height, NumberCellData[] cells, SolutionPath[] solutions)
+    public LevelData(string name, int width, int height, NumberCellData[] cells, SolutionPath[] solutions, BlockedCellData[] blockedCells = null)
     {
         levelName = name;
         gridWidth = width;
         gridHeight = height;
         numberCells = cells;
         this.solutions = solutions;
+        this.blockedCells = blockedCells ?? new BlockedCellData[0];
     }
 }
 
 public static class LevelDatabase
 {
-    public const int TotalLevels = 150;
+    public const int TotalLevels = 310;
 
     private static LevelData[] _levels;
 
@@ -65,8 +83,12 @@ public static class LevelDatabase
                 _levels = new LevelData[TotalLevels];
                 _levels[0] = TutorialLevel();
                 _levels[1] = SecondLevel();
-                for (int i = 2; i < TotalLevels; i++)
-                    _levels[i] = LevelGenerator.Generate(i - 1);
+                LevelData[] generatedLevels = LevelGenerator.GenerateCampaign(298);
+                for (int i = 2; i < 300; i++)
+                    _levels[i] = generatedLevels[i - 2];
+                LevelData[] pentagonLevels = LevelGenerator.GeneratePentagonCampaign(10);
+                for (int i = 0; i < 10; i++)
+                    _levels[300 + i] = pentagonLevels[i];
             }
             return _levels;
         }

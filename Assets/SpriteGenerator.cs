@@ -4,6 +4,8 @@ using System.Collections.Generic;
 public static class SpriteGenerator
 {
     private static Sprite _roundedRect;
+    private static Sprite _circle;
+    private static Sprite _pentagon;
     private static readonly Dictionary<int, Sprite> numberSpriteCache = new Dictionary<int, Sprite>();
 
     public static Sprite RoundedRect
@@ -13,6 +15,16 @@ public static class SpriteGenerator
             if (_roundedRect == null)
                 _roundedRect = CreateRoundedRect(256, 256, 38);
             return _roundedRect;
+        }
+    }
+
+    public static Sprite Circle
+    {
+        get
+        {
+            if (_circle == null)
+                _circle = CreateRoundedRect(256, 256, 127);
+            return _circle;
         }
     }
 
@@ -36,6 +48,78 @@ public static class SpriteGenerator
         tex.SetPixels32(pixels);
         tex.Apply();
         return Sprite.Create(tex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f), w);
+    }
+
+    public static Sprite Pentagon
+    {
+        get
+        {
+            if (_pentagon == null)
+                _pentagon = CreatePentagon();
+            return _pentagon;
+        }
+    }
+
+    private static Sprite CreatePentagon()
+    {
+        int w = 256, h = 256;
+        var tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
+        tex.filterMode = FilterMode.Bilinear;
+        tex.wrapMode = TextureWrapMode.Clamp;
+
+        var pixels = new Color32[w * h];
+        float cx = w * 0.5f, cy = h * 0.5f;
+        float r = 108f;
+
+        // Regular pentagon, pointy top: vertices at angles 90°, 18°, -54°, -126°, -198°
+        var vx = new float[5];
+        var vy = new float[5];
+        for (int k = 0; k < 5; k++)
+        {
+            float angle = Mathf.PI / 2f - k * 2f * Mathf.PI / 5f;
+            vx[k] = cx + r * Mathf.Cos(angle);
+            vy[k] = cy + r * Mathf.Sin(angle);
+        }
+
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+            {
+                float d = PolygonSdf(x, y, vx, vy);
+                float a = Mathf.Clamp01(0.5f - d);
+                pixels[y * w + x] = new Color32(255, 255, 255, (byte)(a * 255));
+            }
+
+        tex.SetPixels32(pixels);
+        tex.Apply();
+        return Sprite.Create(tex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f), w);
+    }
+
+    // Returns negative distance inside polygon, positive outside.
+    private static float PolygonSdf(float px, float py, float[] vx, float[] vy)
+    {
+        int n = vx.Length;
+        float minDist2 = float.MaxValue;
+        bool inside = false;
+
+        for (int i = 0, j = n - 1; i < n; j = i++)
+        {
+            // Ray-cast parity for inside test
+            if ((vy[i] > py) != (vy[j] > py))
+            {
+                float t = (py - vy[i]) / (vy[j] - vy[i]);
+                if (px < vx[i] + t * (vx[j] - vx[i]))
+                    inside = !inside;
+            }
+            // Squared distance to edge segment
+            float ex = vx[j] - vx[i], ey = vy[j] - vy[i];
+            float dx = px - vx[i], dy = py - vy[i];
+            float t2 = Mathf.Clamp01((dx * ex + dy * ey) / (ex * ex + ey * ey));
+            float qx = dx - t2 * ex, qy = dy - t2 * ey;
+            minDist2 = Mathf.Min(minDist2, qx * qx + qy * qy);
+        }
+
+        float d = Mathf.Sqrt(minDist2);
+        return inside ? -d : d;
     }
 
     private static float SdfRoundBox(float px, float py, float bx, float by, float r)

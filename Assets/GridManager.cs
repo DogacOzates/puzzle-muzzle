@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 using System.Collections.Generic;
 
 public class GridManager : MonoBehaviour
@@ -8,6 +9,14 @@ public class GridManager : MonoBehaviour
     public int GridWidth { get; private set; }
     public int GridHeight { get; private set; }
     public Vector2 GridOrigin { get; private set; }
+
+    private bool isPentagonMode;
+    private const float PentagonCellVisualSize = 0.82f;
+
+    public float BoardVisualWidth => isPentagonMode
+        ? (GridWidth - 0.5f) * CellSpacing + CellVisualSize
+        : (GridWidth - 1) * CellSpacing + CellVisualSize;
+    public float BoardVisualHeight => (GridHeight - 1) * CellSpacing + CellVisualSize;
 
     private Cell[,] cells;
     private GameObject gridContainer;
@@ -21,6 +30,7 @@ public class GridManager : MonoBehaviour
     private int nextBlockId = 0;
 
     private static readonly Color GridBgColor = new Color(0.99f, 0.98f, 0.96f);
+    private SpriteRenderer gridBgRenderer;
 
     // Block color palette - distinct vibrant colors for completed paths
     private static readonly Color[] BlockPalette = new Color[]
@@ -42,6 +52,8 @@ public class GridManager : MonoBehaviour
         ClearAll();
         GridWidth = level.gridWidth;
         GridHeight = level.gridHeight;
+        isPentagonMode = level.cellShape == CellShape.Pentagon;
+        CellVisualSize = isPentagonMode ? PentagonCellVisualSize : 0.9f;
         cells = new Cell[GridWidth, GridHeight];
 
         gridContainer = new GameObject("Grid");
@@ -50,11 +62,14 @@ public class GridManager : MonoBehaviour
         CalculateGridOrigin();
         CreateGridBackground();
         CreateCells(level);
+        AnimateCellEntrance();
     }
 
     private void CalculateGridOrigin()
     {
-        float gridWorldWidth = (GridWidth - 1) * CellSpacing;
+        float gridWorldWidth = isPentagonMode
+            ? (GridWidth - 0.5f) * CellSpacing
+            : (GridWidth - 1) * CellSpacing;
         float gridWorldHeight = (GridHeight - 1) * CellSpacing;
 
         GridOrigin = new Vector2(
@@ -65,16 +80,18 @@ public class GridManager : MonoBehaviour
 
     private void CreateGridBackground()
     {
-        float gridWorldWidth = (GridWidth - 1) * CellSpacing + CellVisualSize;
-        float gridWorldHeight = (GridHeight - 1) * CellSpacing + CellVisualSize;
+        float bgWidth = isPentagonMode
+            ? (GridWidth - 0.5f) * CellSpacing + CellVisualSize
+            : (GridWidth - 1) * CellSpacing + CellVisualSize;
+        float bgHeight = (GridHeight - 1) * CellSpacing + CellVisualSize;
         float padding = 0.35f;
 
         Vector3 bgCenter = new Vector3(
-            GridOrigin.x + (GridWidth - 1) * CellSpacing / 2f,
+            0f,
             GridOrigin.y - (GridHeight - 1) * CellSpacing / 2f,
             0.1f
         );
-        Vector3 bgScale = new Vector3(gridWorldWidth + padding * 2, gridWorldHeight + padding * 2, 1f);
+        Vector3 bgScale = new Vector3(bgWidth + padding * 2, bgHeight + padding * 2, 1f);
 
         // Soft shadow behind grid (larger offset, more visible)
         var shadowObj = new GameObject("GridShadow");
@@ -91,27 +108,41 @@ public class GridManager : MonoBehaviour
         bgObj.transform.SetParent(gridContainer.transform);
         var renderer = bgObj.AddComponent<SpriteRenderer>();
         renderer.sprite = SpriteGenerator.RoundedRect;
-        renderer.color = GridBgColor;
+        renderer.color = ThemeManager.Instance != null ? ThemeManager.Instance.GridBgColor : GridBgColor;
         renderer.sortingOrder = -1;
         bgObj.transform.position = bgCenter;
         bgObj.transform.localScale = bgScale;
+        gridBgRenderer = renderer;
     }
 
     private void CreateCells(LevelData level)
     {
-        Sprite cellSprite = SpriteGenerator.RoundedRect;
+        Sprite cellSprite = isPentagonMode ? SpriteGenerator.Pentagon : SpriteGenerator.RoundedRect;
+
+        // Build a fast lookup set for blocked positions
+        var blockedSet = new System.Collections.Generic.HashSet<Vector2Int>();
+        if (level.blockedCells != null)
+        {
+            foreach (var bc in level.blockedCells)
+                blockedSet.Add(new Vector2Int(bc.x, bc.y));
+        }
 
         for (int y = 0; y < GridHeight; y++)
         {
             for (int x = 0; x < GridWidth; x++)
             {
+                bool isBlocked = blockedSet.Contains(new Vector2Int(x, y));
+
                 int number = 0;
-                foreach (var nc in level.numberCells)
+                if (!isBlocked)
                 {
-                    if (nc.x == x && nc.y == y)
+                    foreach (var nc in level.numberCells)
                     {
-                        number = nc.value;
-                        break;
+                        if (nc.x == x && nc.y == y)
+                        {
+                            number = nc.value;
+                            break;
+                        }
                     }
                 }
 
@@ -122,10 +153,64 @@ public class GridManager : MonoBehaviour
                 cellObj.transform.localScale = new Vector3(CellVisualSize, CellVisualSize, 1f);
 
                 var cell = cellObj.AddComponent<Cell>();
-                cell.Initialize(x, y, number, cellSprite);
+                cell.Initialize(x, y, number, cellSprite, isBlocked);
                 cells[x, y] = cell;
             }
         }
+    }
+
+    private void AnimateCellEntrance()
+    {
+        float centerX = (GridWidth - 1) * 0.5f;
+        float centerY = (GridHeight - 1) * 0.5f;
+
+        for (int y = 0; y < GridHeight; y++)
+        {
+            for (int x = 0; x < GridWidth; x++)
+            {
+                float delay = (Mathf.Abs(x - centerX) + Mathf.Abs(y - centerY)) * 0.04f;
+                cells[x, y].PlaySpawn(delay);
+            }
+        }
+    }
+
+    public IEnumerator PlayTransitionOut(float previewDelay = 0f, float waveStepDelay = 0.032f, float disappearDuration = 0.28f)
+    {
+        if (cells == null)
+            yield break;
+
+        if (previewDelay > 0f)
+        {
+            for (int y = 0; y < GridHeight; y++)
+            {
+                for (int x = 0; x < GridWidth; x++)
+                {
+                    if (cells[x, y] != null && cells[x, y].State == CellState.Completed)
+                        cells[x, y].PlayCompletionPulse();
+                }
+            }
+
+            yield return new WaitForSeconds(previewDelay);
+        }
+
+        float centerX = (GridWidth - 1) * 0.5f;
+        float centerY = (GridHeight - 1) * 0.5f;
+        float maxDelay = 0f;
+
+        for (int y = 0; y < GridHeight; y++)
+        {
+            for (int x = 0; x < GridWidth; x++)
+            {
+                if (cells[x, y] == null)
+                    continue;
+
+                float delay = (Mathf.Abs(x - centerX) + Mathf.Abs(y - centerY)) * waveStepDelay;
+                maxDelay = Mathf.Max(maxDelay, delay);
+                cells[x, y].PlayDisappear(delay, disappearDuration);
+            }
+        }
+
+        yield return new WaitForSeconds(maxDelay + disappearDuration + 0.02f);
     }
 
     // --- Selection Chain ---
@@ -198,6 +283,11 @@ public class GridManager : MonoBehaviour
     public bool IsLastInChain(Cell cell)
     {
         return ActiveChain.Count > 0 && ActiveChain[ActiveChain.Count - 1] == cell;
+    }
+
+    public bool IsSecondToLastInChain(Cell cell)
+    {
+        return ActiveChain.Count >= 2 && ActiveChain[ActiveChain.Count - 2] == cell;
     }
 
     public bool UndoLastStep()
@@ -331,8 +421,9 @@ public class GridManager : MonoBehaviour
 
     public Vector3 GridToWorld(int x, int y)
     {
+        float xOffset = (isPentagonMode && y % 2 == 1) ? CellSpacing * 0.5f : 0f;
         return new Vector3(
-            GridOrigin.x + x * CellSpacing,
+            GridOrigin.x + x * CellSpacing + xOffset,
             GridOrigin.y - y * CellSpacing,
             0f
         );
@@ -340,9 +431,32 @@ public class GridManager : MonoBehaviour
 
     public Vector2Int WorldToGrid(Vector3 worldPos)
     {
-        int x = Mathf.RoundToInt((worldPos.x - GridOrigin.x) / CellSpacing);
-        int y = Mathf.RoundToInt((GridOrigin.y - worldPos.y) / CellSpacing);
-        return new Vector2Int(x, y);
+        if (!isPentagonMode)
+        {
+            int x = Mathf.RoundToInt((worldPos.x - GridOrigin.x) / CellSpacing);
+            int y = Mathf.RoundToInt((GridOrigin.y - worldPos.y) / CellSpacing);
+            return new Vector2Int(x, y);
+        }
+
+        // Pentagon mode: find nearest cell center across candidate rows to avoid seam errors
+        int approxY = Mathf.RoundToInt((GridOrigin.y - worldPos.y) / CellSpacing);
+        float bestDist2 = float.MaxValue;
+        Vector2Int bestCell = Vector2Int.zero;
+
+        for (int cy = Mathf.Max(0, approxY - 1); cy <= Mathf.Min(GridHeight - 1, approxY + 1); cy++)
+        {
+            float rowOffset = (cy % 2 == 1) ? CellSpacing * 0.5f : 0f;
+            int approxX = Mathf.RoundToInt((worldPos.x - GridOrigin.x - rowOffset) / CellSpacing);
+            for (int cx = Mathf.Max(0, approxX - 1); cx <= Mathf.Min(GridWidth - 1, approxX + 1); cx++)
+            {
+                Vector3 cellWorld = GridToWorld(cx, cy);
+                float dx = worldPos.x - cellWorld.x, dy = worldPos.y - cellWorld.y;
+                float dist2 = dx * dx + dy * dy;
+                if (dist2 < bestDist2) { bestDist2 = dist2; bestCell = new Vector2Int(cx, cy); }
+            }
+        }
+
+        return bestCell;
     }
 
     public bool IsValidGridPos(int x, int y)
@@ -360,7 +474,7 @@ public class GridManager : MonoBehaviour
     {
         for (int y = 0; y < GridHeight; y++)
             for (int x = 0; x < GridWidth; x++)
-                if (cells[x, y].State != CellState.Completed)
+                if (!cells[x, y].IsBlocked && cells[x, y].State != CellState.Completed)
                     return false;
         return true;
     }
@@ -376,5 +490,18 @@ public class GridManager : MonoBehaviour
             Destroy(gridContainer);
 
         cells = null;
+    }
+
+    void OnEnable()  { ThemeManager.OnThemeChanged += OnThemeChanged; }
+    void OnDisable() { ThemeManager.OnThemeChanged -= OnThemeChanged; }
+
+    private void OnThemeChanged()
+    {
+        if (gridBgRenderer != null && ThemeManager.Instance != null)
+            gridBgRenderer.color = ThemeManager.Instance.GridBgColor;
+
+        if (cells == null) return;
+        foreach (var cell in cells)
+            cell?.RefreshTheme();
     }
 }

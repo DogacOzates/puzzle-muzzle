@@ -130,8 +130,8 @@ public class GameManager : MonoBehaviour
         Camera cam = Camera.main;
         if (cam == null) return;
 
-        float gridW = (gridManager.GridWidth - 1) * gridManager.CellSpacing + gridManager.CellVisualSize;
-        float gridH = (gridManager.GridHeight - 1) * gridManager.CellSpacing + gridManager.CellVisualSize;
+        float gridW = gridManager.BoardVisualWidth;
+        float gridH = gridManager.BoardVisualHeight;
 
         Rect safe = Screen.safeArea;
         float screenH = Screen.height;
