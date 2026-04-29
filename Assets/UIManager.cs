@@ -43,6 +43,12 @@ public class UIManager : MonoBehaviour
     private RectTransform safeAreaRect;
     private Font defaultFont;
 
+    // Theme-reactive UI refs
+    private Image levelSelectCardBg;
+    private Image levelSelectFrameBg;
+    private Image settingsButtonBg;
+    private Text levelProgressTextRef;  // alias — same as levelProgressText
+
     // Colors
     private static readonly Color BtnTeal = new Color(0.25f, 0.78f, 0.72f);
     private static readonly Color BtnCoral = new Color(0.91f, 0.40f, 0.35f);
@@ -70,6 +76,64 @@ public class UIManager : MonoBehaviour
         CreateLevelSelectPanel();
         CreateLevelCompletePanel();
         CreateTransitionOverlay();
+
+        ThemeManager.OnThemeChanged += OnThemeChanged;
+    }
+
+    private void OnDestroy()
+    {
+        ThemeManager.OnThemeChanged -= OnThemeChanged;
+    }
+
+    private void OnThemeChanged()
+    {
+        var tm = ThemeManager.Instance;
+        if (tm == null) return;
+
+        // Settings button bg
+        if (settingsButtonBg != null)
+            settingsButtonBg.color = tm.SettingsBtnBg;
+
+        // Level progress text
+        if (levelProgressText != null)
+            levelProgressText.color = tm.TextPrimary;
+
+        // Level select card & frame
+        if (levelSelectCardBg != null)
+            levelSelectCardBg.color = tm.CardBg;
+        if (levelSelectFrameBg != null)
+            levelSelectFrameBg.color = tm.LevelSelectFrame;
+
+        // Level select buttons — re-apply current lock state colors
+        if (levelSelectButtonImages != null)
+        {
+            for (int i = 0; i < levelSelectButtonImages.Length; i++)
+            {
+                if (levelSelectButtonImages[i] == null) continue;
+                var img = levelSelectButtonImages[i];
+                // Determine state by current color heuristic (teal = current, else check label)
+                Color c = img.color;
+                bool isCurrent = c.g > 0.7f && c.b > 0.7f && c.r < 0.5f; // teal-ish
+                bool isLocked = levelSelectButtonLabels[i] != null &&
+                                levelSelectButtonLabels[i].color.a < 0.9f;
+                if (isCurrent)
+                    img.color = tm.LevelBtnCurrent;
+                else if (isLocked)
+                    img.color = tm.LevelBtnLocked;
+                else
+                    img.color = tm.LevelBtnUnlocked;
+
+                if (levelSelectButtonLabels[i] != null)
+                {
+                    var lbl = levelSelectButtonLabels[i];
+                    lbl.color = isLocked ? tm.TextMuted : tm.TextPrimary;
+                }
+            }
+        }
+
+        // Transition overlay
+        if (transitionOverlayImage != null)
+            transitionOverlayImage.color = tm.TransitionBg;
     }
 
     private void CreateCanvas()
@@ -146,7 +210,8 @@ public class UIManager : MonoBehaviour
 
         var settingsImg = settingsObj.AddComponent<Image>();
         settingsImg.sprite = SpriteGenerator.RoundedRect;
-        settingsImg.color = new Color(0.95f, 0.93f, 0.88f, 1f);
+        settingsImg.color = ThemeManager.Instance != null ? ThemeManager.Instance.SettingsBtnBg : new Color(0.95f, 0.93f, 0.88f, 1f);
+        settingsButtonBg = settingsImg;
 
         var settingsBtn = settingsObj.AddComponent<Button>();
         settingsBtn.targetGraphic = settingsImg;
@@ -448,7 +513,8 @@ public class UIManager : MonoBehaviour
 
         var cardImage = card.AddComponent<Image>();
         cardImage.sprite = SpriteGenerator.RoundedRect;
-        cardImage.color = new Color(1f, 1f, 1f, 0.97f);
+        cardImage.color = ThemeManager.Instance != null ? ThemeManager.Instance.CardBg : new Color(1f, 1f, 1f, 0.97f);
+        levelSelectCardBg = cardImage;
 
         var frame = new GameObject("LevelGridFrame");
         frame.transform.SetParent(card.transform, false);
@@ -459,7 +525,8 @@ public class UIManager : MonoBehaviour
         frameRect.offsetMax = new Vector2(-52f, -(52f + 176f)); // leave 176px (16 gap + 160 card) at top
         var frameImage = frame.AddComponent<Image>();
         frameImage.sprite = SpriteGenerator.RoundedRect;
-        frameImage.color = new Color(0.97f, 0.96f, 0.95f, 0.95f);
+        frameImage.color = ThemeManager.Instance != null ? ThemeManager.Instance.LevelSelectFrame : new Color(0.97f, 0.96f, 0.95f, 0.95f);
+        levelSelectFrameBg = frameImage;
 
         // Daily challenge card above the grid frame
         var dcCard = new GameObject("DailyCard");
@@ -607,6 +674,13 @@ public class UIManager : MonoBehaviour
 
     private void RefreshLevelSelectButtons(int currentLevelIndex, int highestUnlockedLevelIndex, int totalLevels)
     {
+        var tm = ThemeManager.Instance;
+        Color colUnlocked = tm != null ? tm.LevelBtnUnlocked : new Color(0.94f, 0.96f, 0.92f, 1f);
+        Color colLocked   = tm != null ? tm.LevelBtnLocked   : new Color(0.92f, 0.90f, 0.89f, 1f);
+        Color colCurrent  = tm != null ? tm.LevelBtnCurrent  : new Color(0.74f, 0.90f, 0.86f, 1f);
+        Color txtPrimary  = tm != null ? tm.TextPrimary      : TextDark;
+        Color txtMuted    = tm != null ? tm.TextMuted        : new Color(0.62f, 0.60f, 0.58f, 1f);
+
         for (int i = 0; i < levelSelectButtons.Length; i++)
         {
             bool exists = i < totalLevels;
@@ -619,20 +693,21 @@ public class UIManager : MonoBehaviour
 
             levelSelectButtons[i].interactable = unlocked;
             levelSelectButtonLabels[i].text = (i + 1).ToString();
-            levelSelectButtonLabels[i].color = unlocked ? TextDark : new Color(0.62f, 0.60f, 0.58f, 1f);
 
             if (isCurrent)
             {
-                levelSelectButtonImages[i].color = new Color(0.74f, 0.90f, 0.86f, 1f);
-                levelSelectButtonLabels[i].color = TextDark;
+                levelSelectButtonImages[i].color = colCurrent;
+                levelSelectButtonLabels[i].color = txtPrimary;
             }
             else if (unlocked)
             {
-                levelSelectButtonImages[i].color = new Color(0.94f, 0.96f, 0.92f, 1f);
+                levelSelectButtonImages[i].color = colUnlocked;
+                levelSelectButtonLabels[i].color = txtPrimary;
             }
             else
             {
-                levelSelectButtonImages[i].color = new Color(0.92f, 0.90f, 0.89f, 1f);
+                levelSelectButtonImages[i].color = colLocked;
+                levelSelectButtonLabels[i].color = txtMuted;
             }
         }
     }
@@ -1324,6 +1399,11 @@ public class UIManager : MonoBehaviour
 
     private void ShowSettingsPopup()
     {
+        var tm = ThemeManager.Instance;
+        Color cardColor   = tm != null ? tm.CardBg    : new Color(1f, 1f, 1f, 0.98f);
+        Color textColor   = tm != null ? tm.TextPrimary : TextDark;
+        Color divColor    = tm != null ? (tm.IsDarkMode ? new Color(0.30f, 0.29f, 0.35f) : new Color(0.85f, 0.83f, 0.78f)) : new Color(0.85f, 0.83f, 0.78f);
+
         var popup = new GameObject("SettingsPopup");
         popup.transform.SetParent(canvas.transform, false);
         popup.transform.SetAsLastSibling();
@@ -1347,7 +1427,7 @@ public class UIManager : MonoBehaviour
         shadowRect.anchorMin = new Vector2(0.5f, 0.5f);
         shadowRect.anchorMax = new Vector2(0.5f, 0.5f);
         shadowRect.pivot = new Vector2(0.5f, 0.5f);
-        shadowRect.sizeDelta = new Vector2(666f, 596f);
+        shadowRect.sizeDelta = new Vector2(666f, 696f);
         shadowRect.anchoredPosition = new Vector2(4f, -8f);
         var shadowImg = shadowObj.AddComponent<Image>();
         shadowImg.sprite = SpriteGenerator.RoundedRect;
@@ -1360,27 +1440,36 @@ public class UIManager : MonoBehaviour
         cardRect.anchorMin = new Vector2(0.5f, 0.5f);
         cardRect.anchorMax = new Vector2(0.5f, 0.5f);
         cardRect.pivot = new Vector2(0.5f, 0.5f);
-        cardRect.sizeDelta = new Vector2(640f, 570f);
+        cardRect.sizeDelta = new Vector2(640f, 670f);
         var cardImg = card.AddComponent<Image>();
         cardImg.sprite = SpriteGenerator.RoundedRect;
-        cardImg.color = new Color(1f, 1f, 1f, 0.98f);
+        cardImg.color = cardColor;
 
         // Title
-        var title = MakeCardText("Title", card.transform, new Vector2(0, 222), 44, FontStyle.Bold, TextDark);
+        var title = MakeCardText("Title", card.transform, new Vector2(0, 272), 44, FontStyle.Bold, textColor);
         title.text = "⚙️  Settings";
 
-        // ─── Sound toggle row ───────────────────────────────────────────────
+        // ─── Sound toggle ────────────────────────────────────────────────────
         bool soundOn = !(AudioManager.Instance?.IsMuted ?? false);
-        CreateToggleRow(card.transform, "🔊  Sound", soundOn, new Vector2(0, 130), (val) =>
+        CreateToggleRow(card.transform, "🔊  Sound", soundOn, new Vector2(0, 180), (val) =>
         {
             AudioManager.Instance?.SetMuted(!val);
         });
 
-        // ─── Haptic toggle row ──────────────────────────────────────────────
+        // ─── Haptic toggle ───────────────────────────────────────────────────
         bool hapticOn = HapticManager.Instance?.IsHapticsEnabled ?? true;
-        CreateToggleRow(card.transform, "📳  Haptics", hapticOn, new Vector2(0, 30), (val) =>
+        CreateToggleRow(card.transform, "📳  Haptics", hapticOn, new Vector2(0, 80), (val) =>
         {
             if (HapticManager.Instance != null) HapticManager.Instance.IsHapticsEnabled = val;
+        });
+
+        // ─── Dark Mode toggle ────────────────────────────────────────────────
+        bool darkOn = tm?.IsDarkMode ?? false;
+        CreateToggleRow(card.transform, "🌙  Dark Mode", darkOn, new Vector2(0, -20), (val) =>
+        {
+            if (ThemeManager.Instance != null) ThemeManager.Instance.IsDarkMode = val;
+            // Update card color live
+            cardImg.color = ThemeManager.Instance != null ? ThemeManager.Instance.CardBg : cardColor;
         });
 
         // Divider
@@ -1390,13 +1479,12 @@ public class UIManager : MonoBehaviour
         divRect.anchorMin = new Vector2(0.5f, 0.5f);
         divRect.anchorMax = new Vector2(0.5f, 0.5f);
         divRect.pivot = new Vector2(0.5f, 0.5f);
-        divRect.anchoredPosition = new Vector2(0, -40f);
+        divRect.anchoredPosition = new Vector2(0, -90f);
         divRect.sizeDelta = new Vector2(560f, 2f);
-        var divImg = divObj.AddComponent<Image>();
-        divImg.color = new Color(0.85f, 0.83f, 0.78f, 1f);
+        divObj.AddComponent<Image>().color = divColor;
 
         // Achievements button
-        var achBtn = CreateCardButton("🏆  Achievements", card.transform, new Vector2(0, -100f), BtnTeal);
+        var achBtn = CreateCardButton("🏆  Achievements", card.transform, new Vector2(0, -155f), BtnTeal);
         achBtn.onClick.AddListener(() =>
         {
             Destroy(popup);
@@ -1404,7 +1492,7 @@ public class UIManager : MonoBehaviour
         });
 
         // Leaderboard button
-        var lbBtn = CreateCardButton("📊  Leaderboard", card.transform, new Vector2(0, -195f), new Color(0.38f, 0.32f, 0.58f));
+        var lbBtn = CreateCardButton("📊  Leaderboard", card.transform, new Vector2(0, -250f), new Color(0.38f, 0.32f, 0.58f));
         lbBtn.onClick.AddListener(() =>
         {
             Destroy(popup);
@@ -1429,7 +1517,7 @@ public class UIManager : MonoBehaviour
         // Row background
         var rowBg = row.AddComponent<Image>();
         rowBg.sprite = SpriteGenerator.RoundedRect;
-        rowBg.color = new Color(0.96f, 0.94f, 0.90f, 1f);
+        rowBg.color = ThemeManager.Instance != null ? ThemeManager.Instance.ToggleRowBg : new Color(0.96f, 0.94f, 0.90f, 1f);
 
         // Label
         var labelObj = new GameObject("Label");
@@ -1444,7 +1532,7 @@ public class UIManager : MonoBehaviour
         labelTxt.text = label;
         labelTxt.fontSize = 34;
         labelTxt.alignment = TextAnchor.MiddleLeft;
-        labelTxt.color = TextDark;
+        labelTxt.color = ThemeManager.Instance != null ? ThemeManager.Instance.TextPrimary : TextDark;
 
         // Toggle button
         var togObj = new GameObject("Toggle");
