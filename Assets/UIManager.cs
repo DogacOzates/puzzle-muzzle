@@ -156,19 +156,38 @@ public class UIManager : MonoBehaviour
         settingsBtn.colors = sc;
         settingsBtn.onClick.AddListener(ShowSettingsPopup);
 
-        var settingsEmojiObj = new GameObject("Emoji");
-        settingsEmojiObj.transform.SetParent(settingsObj.transform, false);
-        var seRect = settingsEmojiObj.AddComponent<RectTransform>();
-        seRect.anchorMin = Vector2.zero;
-        seRect.anchorMax = Vector2.one;
-        seRect.offsetMin = Vector2.zero;
-        seRect.offsetMax = Vector2.zero;
-        var settingsTxt = settingsEmojiObj.AddComponent<Text>();
-        settingsTxt.font = defaultFont;
-        settingsTxt.text = "⚙️";
-        settingsTxt.fontSize = 40;
-        settingsTxt.alignment = TextAnchor.MiddleCenter;
-        settingsTxt.color = TextDark;
+        var settingsIconObj = new GameObject("Icon");
+        settingsIconObj.transform.SetParent(settingsObj.transform, false);
+        var siRect = settingsIconObj.AddComponent<RectTransform>();
+        siRect.anchorMin = new Vector2(0.15f, 0.15f);
+        siRect.anchorMax = new Vector2(0.85f, 0.85f);
+        siRect.offsetMin = Vector2.zero;
+        siRect.offsetMax = Vector2.zero;
+        var siImg = settingsIconObj.AddComponent<Image>();
+        var settingsSprite = Resources.Load<Sprite>("icons/settings");
+        if (settingsSprite != null)
+        {
+            siImg.sprite = settingsSprite;
+            siImg.color = TextDark;
+        }
+        else
+        {
+            // Fallback: emoji text if sprite not found
+            Destroy(settingsIconObj);
+            var fallback = new GameObject("Emoji");
+            fallback.transform.SetParent(settingsObj.transform, false);
+            var fbRect = fallback.AddComponent<RectTransform>();
+            fbRect.anchorMin = Vector2.zero;
+            fbRect.anchorMax = Vector2.one;
+            fbRect.offsetMin = Vector2.zero;
+            fbRect.offsetMax = Vector2.zero;
+            var fbTxt = fallback.AddComponent<Text>();
+            fbTxt.font = defaultFont;
+            fbTxt.text = "⚙️";
+            fbTxt.fontSize = 40;
+            fbTxt.alignment = TextAnchor.MiddleCenter;
+            fbTxt.color = TextDark;
+        }
     }
 
     private void CreateBottomBar()
