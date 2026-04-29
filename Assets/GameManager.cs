@@ -165,8 +165,34 @@ public class GameManager : MonoBehaviour
         IsLevelComplete = true;
         AudioManager.Instance?.OnLevelComplete();
         SaveProgressForNextLevel();
+        TryRequestReview();
         uiManager.HideLevelComplete();
         NextLevel();
+    }
+
+    private static readonly int[] ReviewMilestones = { 4, 14 }; // levels 5 and 15
+
+    private void TryRequestReview()
+    {
+        int lastMilestone = PlayerPrefs.GetInt("review.lastMilestone", -1);
+        foreach (int milestone in ReviewMilestones)
+        {
+            if (currentLevelIndex >= milestone && lastMilestone < milestone)
+            {
+                PlayerPrefs.SetInt("review.lastMilestone", milestone);
+                PlayerPrefs.Save();
+                StartCoroutine(RequestReviewAfterDelay(2f));
+                break;
+            }
+        }
+    }
+
+    private IEnumerator RequestReviewAfterDelay(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+#if UNITY_IOS && !UNITY_EDITOR
+        UnityEngine.iOS.Device.RequestStoreReview();
+#endif
     }
 
     public void NextLevel()
