@@ -1194,95 +1194,95 @@ public static class LevelGenerator
     {
         CampaignConfig c = new CampaignConfig();
 
-        if (idx < 25)          // Tier 1: 4×4, Easy (levels 301-325)
+        if (idx < 25)          // Tier 1: 5×5, Easy (levels 301-325)
         {
-            c.width = 4; c.height = 4;
-            c.minSegment = 3; c.maxSegment = 5; c.candidateCount = 22;
+            c.width = 5; c.height = 5;
+            c.minSegment = 3; c.maxSegment = 7; c.candidateCount = 24;
             c.tierName = "Hex Easy";
             c.rectanglePenalty = 3.2f; c.densePenalty = 2.4f;
             c.straightPenalty = 1.8f; c.turnWeight = 1.15f;
             c.squarePenalty = 1.2f; c.lateRectangleBonus = 0f;
             c.minBlocked = 0; c.maxBlocked = 0;
         }
-        else if (idx < 55)     // Tier 2: 4×5, Easy (326-355)
+        else if (idx < 60)     // Tier 2: 5×6, Easy+ (326-360)
         {
-            SetRectangularBoard(ref c, 4, 5);
-            c.minSegment = 3; c.maxSegment = 7; c.candidateCount = 24;
+            SetRectangularBoard(ref c, 5, 6);
+            c.minSegment = 3; c.maxSegment = 8; c.candidateCount = 26;
             c.tierName = "Hex Easy";
-            c.rectanglePenalty = 3.0f; c.densePenalty = 2.2f;
+            c.rectanglePenalty = 2.9f; c.densePenalty = 2.2f;
             c.straightPenalty = 1.7f; c.turnWeight = 1.1f;
             c.squarePenalty = 1.0f; c.lateRectangleBonus = 0f;
             c.minBlocked = 0; c.maxBlocked = 0;
         }
-        else if (idx < 90)     // Tier 3: 5×5, Normal (356-390)
-        {
-            c.width = 5; c.height = 5;
-            c.minSegment = 3; c.maxSegment = 8; c.candidateCount = 26;
-            c.tierName = "Hex Normal";
-            c.rectanglePenalty = 2.7f; c.densePenalty = 2.0f;
-            c.straightPenalty = 1.5f; c.turnWeight = 1.05f;
-            c.squarePenalty = 0.9f; c.lateRectangleBonus = 0f;
-            c.minBlocked = 0; c.maxBlocked = 0;
-        }
-        else if (idx < 130)    // Tier 4: 5×6, Normal (391-430)
-        {
-            SetRectangularBoard(ref c, 5, 6);
-            c.minSegment = 3; c.maxSegment = 9; c.candidateCount = 26;
-            c.tierName = "Hex Normal";
-            c.rectanglePenalty = 2.3f; c.densePenalty = 1.8f;
-            c.straightPenalty = 1.35f; c.turnWeight = 1.0f;
-            c.squarePenalty = 0.75f; c.lateRectangleBonus = 0f;
-            c.minBlocked = 0; c.maxBlocked = 0;
-        }
-        else if (idx < 160)    // Tier 5: 6×6, Hard (431-460)
+        else if (idx < 95)     // Tier 3: 6×6, Normal (361-395)
         {
             c.width = 6; c.height = 6;
             c.minSegment = 4; c.maxSegment = 9; c.candidateCount = 26;
-            c.tierName = "Hex Hard";
-            c.rectanglePenalty = 2.0f; c.densePenalty = 1.55f;
-            c.straightPenalty = 1.2f; c.turnWeight = 0.95f;
-            c.squarePenalty = 0.65f; c.lateRectangleBonus = 0f;
+            c.tierName = "Hex Normal";
+            c.rectanglePenalty = 2.5f; c.densePenalty = 1.9f;
+            c.straightPenalty = 1.5f; c.turnWeight = 1.05f;
+            c.squarePenalty = 0.85f; c.lateRectangleBonus = 0f;
             c.minBlocked = 0; c.maxBlocked = 0;
         }
-        else if (idx < 200)    // Tier 6: 6×6 + blocked, Hard (461-500)
-        {
-            c.width = 6; c.height = 6;
-            c.minSegment = 4; c.maxSegment = 9; c.candidateCount = 28;
-            c.tierName = "Hex Hard";
-            c.rectanglePenalty = 1.8f; c.densePenalty = 1.4f;
-            c.straightPenalty = 1.1f; c.turnWeight = 0.92f;
-            c.squarePenalty = 0.6f; c.lateRectangleBonus = 0f;
-            c.minBlocked = 1; c.maxBlocked = 2;
-        }
-        else if (idx < 235)    // Tier 7: 6×7, Advanced (501-535)
+        else if (idx < 135)    // Tier 4: 6×7, Normal+ (396-435)
         {
             SetRectangularBoard(ref c, 6, 7);
-            c.minSegment = 4; c.maxSegment = 10; c.candidateCount = 26;
-            c.tierName = "Hex Advanced";
-            c.rectanglePenalty = 1.5f; c.densePenalty = 1.2f;
-            c.straightPenalty = 1.0f; c.turnWeight = 0.88f;
-            c.squarePenalty = 0.5f; c.lateRectangleBonus = 0.05f;
-            c.minBlocked = 2; c.maxBlocked = 3;
+            c.minSegment = 4; c.maxSegment = 9; c.candidateCount = 26;
+            c.tierName = "Hex Normal";
+            c.rectanglePenalty = 2.1f; c.densePenalty = 1.6f;
+            c.straightPenalty = 1.3f; c.turnWeight = 0.98f;
+            c.squarePenalty = 0.7f; c.lateRectangleBonus = 0f;
+            c.minBlocked = 0; c.maxBlocked = 1;
         }
-        else if (idx < 265)    // Tier 8: 6×8, Expert (536-565)
+        else if (idx < 170)    // Tier 5: 6×8, Hard (436-470)
         {
             SetRectangularBoard(ref c, 6, 8);
             c.minSegment = 4; c.maxSegment = 10; c.candidateCount = 28;
-            c.tierName = "Hex Expert";
+            c.tierName = "Hex Hard";
+            c.rectanglePenalty = 1.8f; c.densePenalty = 1.4f;
+            c.straightPenalty = 1.1f; c.turnWeight = 0.92f;
+            c.squarePenalty = 0.6f; c.lateRectangleBonus = 0.05f;
+            c.minBlocked = 1; c.maxBlocked = 2;
+        }
+        else if (idx < 210)    // Tier 6: 6×9, Hard+ (471-510)
+        {
+            SetRectangularBoard(ref c, 6, 9);
+            c.minSegment = 4; c.maxSegment = 10; c.candidateCount = 28;
+            c.tierName = "Hex Hard";
+            c.rectanglePenalty = 1.5f; c.densePenalty = 1.2f;
+            c.straightPenalty = 1.0f; c.turnWeight = 0.87f;
+            c.squarePenalty = 0.5f; c.lateRectangleBonus = 0.1f;
+            c.minBlocked = 2; c.maxBlocked = 3;
+        }
+        else if (idx < 245)    // Tier 7: 6×10, Advanced (511-545)
+        {
+            SetRectangularBoard(ref c, 6, 10);
+            c.minSegment = 5; c.maxSegment = 11; c.candidateCount = 28;
+            c.tierName = "Hex Advanced";
             c.rectanglePenalty = 1.2f; c.densePenalty = 0.95f;
             c.straightPenalty = 0.9f; c.turnWeight = 0.82f;
             c.squarePenalty = 0.4f; c.lateRectangleBonus = 0.15f;
             c.minBlocked = 3; c.maxBlocked = 4;
         }
-        else                   // Tier 9: 6×9, Master (566-600)
+        else if (idx < 275)    // Tier 8: 6×11, Expert (546-575)
         {
-            SetRectangularBoard(ref c, 6, 9);
-            c.minSegment = 5; c.maxSegment = 10; c.candidateCount = 30;
-            c.tierName = "Hex Master";
-            c.rectanglePenalty = 0.9f; c.densePenalty = 0.7f;
-            c.straightPenalty = 0.8f; c.turnWeight = 0.72f;
-            c.squarePenalty = 0.25f; c.lateRectangleBonus = 0.3f;
+            SetRectangularBoard(ref c, 6, 11);
+            c.minSegment = 5; c.maxSegment = 12; c.candidateCount = 30;
+            c.tierName = "Hex Expert";
+            c.rectanglePenalty = 1.0f; c.densePenalty = 0.75f;
+            c.straightPenalty = 0.85f; c.turnWeight = 0.77f;
+            c.squarePenalty = 0.3f; c.lateRectangleBonus = 0.2f;
             c.minBlocked = 4; c.maxBlocked = 5;
+        }
+        else                   // Tier 9: 6×12, Master (576-600)
+        {
+            SetRectangularBoard(ref c, 6, 12);
+            c.minSegment = 5; c.maxSegment = 12; c.candidateCount = 32;
+            c.tierName = "Hex Master";
+            c.rectanglePenalty = 0.8f; c.densePenalty = 0.6f;
+            c.straightPenalty = 0.75f; c.turnWeight = 0.7f;
+            c.squarePenalty = 0.2f; c.lateRectangleBonus = 0.3f;
+            c.minBlocked = 5; c.maxBlocked = 6;
         }
 
         return c;
