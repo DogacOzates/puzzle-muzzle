@@ -26,7 +26,7 @@ public class GameManager : MonoBehaviour
     public bool IsTutorialRunning => tutorialController != null && tutorialController.IsRunning;
 
     private static readonly Color BgColor = new Color(0.97f, 0.95f, 0.92f);
-    private const float CompletedLevelPreviewDuration = 0.2f;
+    private const float CompletedLevelPreviewDuration   = 0.6f;
     private const float CompletedLevelDisappearWaveStep = 0.045f;
     private const float CompletedLevelDisappearDuration = 0.42f;
 
@@ -75,6 +75,11 @@ public class GameManager : MonoBehaviour
         hapticObj.transform.SetParent(transform);
         hapticManager = hapticObj.AddComponent<HapticManager>();
 
+        var themeObj = new GameObject("ThemeManager");
+        themeObj.transform.SetParent(transform);
+        themeObj.AddComponent<ThemeManager>();
+        ThemeManager.OnThemeChanged += OnThemeChanged;
+
         var uiObj = new GameObject("UIManager");
         uiObj.transform.SetParent(transform);
         uiManager = uiObj.AddComponent<UIManager>();
@@ -91,6 +96,18 @@ public class GameManager : MonoBehaviour
         StartCoroutine(PeriodicPromoBannerCoroutine());
     }
 
+    private void OnThemeChanged()
+    {
+        Camera cam = Camera.main;
+        if (cam != null && ThemeManager.Instance != null)
+            cam.backgroundColor = ThemeManager.Instance.BgColor;
+    }
+
+    private void OnDestroy()
+    {
+        ThemeManager.OnThemeChanged -= OnThemeChanged;
+    }
+
     private void SetupCamera()
     {
         Camera cam = Camera.main;
@@ -102,7 +119,7 @@ public class GameManager : MonoBehaviour
         }
 
         cam.orthographic = true;
-        cam.backgroundColor = BgColor;
+        cam.backgroundColor = ThemeManager.Instance != null ? ThemeManager.Instance.BgColor : BgColor;
         cam.clearFlags = CameraClearFlags.SolidColor;
         cam.transform.position = new Vector3(0, -0.5f, -10f);
         cam.allowHDR = false;
