@@ -18,8 +18,12 @@ public class UIManager : MonoBehaviour
     private GameObject noAdsPurchasePopup;
     private Image hintButtonIcon;
     private Image noAdsButtonIcon;
+    private Image restartButtonIcon;
     private Image noAdsPingRing1;
     private Image noAdsPingRing2;
+    // (basePath, Image) pairs for icons that need dark/light sprite swap
+    private System.Collections.Generic.List<(string basePath, Image img)> themedIcons
+        = new System.Collections.Generic.List<(string, Image)>();
     private GameObject hintPromoPopup;
     private GameObject promoTopBanner;
     private Coroutine bannerCoroutine;
@@ -91,11 +95,19 @@ public class UIManager : MonoBehaviour
         var tm = ThemeManager.Instance;
         if (tm == null) return;
 
-        // Settings button bg (transparent) + icon tint
+        // Settings button bg (transparent) + themed icon sprite swap
         if (settingsButtonBg != null)
             settingsButtonBg.color = Color.clear;
-        if (settingsIconImg != null)
-            settingsIconImg.color = tm.IsDarkMode ? Color.white : TextDark;
+
+        // Swap all tracked icon sprites to dark/light variant
+        bool dark = tm.IsDarkMode;
+        foreach (var (basePath, img) in themedIcons)
+        {
+            if (img == null) continue;
+            string path = dark ? basePath + "_white" : basePath;
+            var s = LoadIconSprite(path) ?? LoadIconSprite(basePath);
+            if (s != null) img.sprite = s;
+        }
 
         // Level progress text
         if (levelProgressText != null)
@@ -232,13 +244,15 @@ public class UIManager : MonoBehaviour
         siRect.offsetMin = Vector2.zero;
         siRect.offsetMax = Vector2.zero;
         var siImg = settingsIconObj.AddComponent<Image>();
-        var settingsSprite = Resources.Load<Sprite>("icons/settings");
         bool isDark = ThemeManager.Instance?.IsDarkMode ?? false;
+        string settingsPath = isDark ? "icons/settings_white" : "icons/settings";
+        var settingsSprite = Resources.Load<Sprite>(settingsPath)
+                          ?? Resources.Load<Sprite>("icons/settings");
         if (settingsSprite != null)
         {
             siImg.sprite = settingsSprite;
-            siImg.color = isDark ? Color.white : TextDark;
             settingsIconImg = siImg;
+            themedIcons.Add(("icons/settings", siImg));
         }
         else
         {
@@ -350,7 +364,9 @@ public class UIManager : MonoBehaviour
         iRect.offsetMax = Vector2.zero;
 
         var iconImg = iconObj.AddComponent<Image>();
-        var sprite = LoadIconSprite(iconPath);
+        bool darkNow = ThemeManager.Instance?.IsDarkMode ?? false;
+        string spritePath = darkNow ? iconPath + "_white" : iconPath;
+        var sprite = LoadIconSprite(spritePath) ?? LoadIconSprite(iconPath);
         if (sprite != null)
         {
             iconImg.sprite = sprite;
@@ -372,8 +388,12 @@ public class UIManager : MonoBehaviour
 
         if (name == "Hint")
             hintButtonIcon = iconImg;
+        if (name == "Restart")
+            restartButtonIcon = iconImg;
         if (name == "NoAds")
             noAdsButtonIcon = iconImg;
+
+        themedIcons.Add((iconPath, iconImg));
 
         return btn;
     }
