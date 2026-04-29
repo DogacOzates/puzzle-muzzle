@@ -134,12 +134,41 @@ public class UIManager : MonoBehaviour
         levelSelectToggleButton = CreateInvisibleButton("LevelSelect", bar.transform, new Vector2(0, -70), new Vector2(520, 84));
         levelSelectToggleButton.onClick.AddListener(() => FindAnyObjectByType<GameManager>().ToggleLevelSelectMenu());
 
-        // Game Center trophy button (right side)
-        var trophyBtn = CreateInvisibleButton("GameCenter", bar.transform, new Vector2(420, -70), new Vector2(80, 80));
+        // Game Center trophy button (right side of top bar)
+        var trophyObj = new GameObject("GameCenterBtn");
+        trophyObj.transform.SetParent(bar.transform, false);
+        var trophyRect = trophyObj.AddComponent<RectTransform>();
+        trophyRect.anchorMin = new Vector2(1f, 1f);
+        trophyRect.anchorMax = new Vector2(1f, 1f);
+        trophyRect.pivot = new Vector2(1f, 0.5f);
+        trophyRect.anchoredPosition = new Vector2(-20f, -70f);
+        trophyRect.sizeDelta = new Vector2(90f, 90f);
+
+        var trophyImg = trophyObj.AddComponent<Image>();
+        trophyImg.sprite = SpriteGenerator.RoundedRect;
+        trophyImg.color = new Color(0.95f, 0.93f, 0.88f, 1f);
+
+        var trophyBtn = trophyObj.AddComponent<Button>();
+        trophyBtn.targetGraphic = trophyImg;
+        var tc = trophyBtn.colors;
+        tc.highlightedColor = new Color(0.88f, 0.86f, 0.80f, 1f);
+        tc.pressedColor    = new Color(0.78f, 0.76f, 0.70f, 1f);
+        trophyBtn.colors = tc;
         trophyBtn.onClick.AddListener(ShowGameCenterMenu);
-        var trophyLabel = MakeText("Trophy", trophyBtn.transform, Vector2.zero, 36, FontStyle.Normal, TextMuted);
-        trophyLabel.text = "🏆";
-        trophyLabel.alignment = TextAnchor.MiddleCenter;
+
+        var trophyEmojiObj = new GameObject("Emoji");
+        trophyEmojiObj.transform.SetParent(trophyObj.transform, false);
+        var teRect = trophyEmojiObj.AddComponent<RectTransform>();
+        teRect.anchorMin = Vector2.zero;
+        teRect.anchorMax = Vector2.one;
+        teRect.offsetMin = Vector2.zero;
+        teRect.offsetMax = Vector2.zero;
+        var trophyTxt = trophyEmojiObj.AddComponent<Text>();
+        trophyTxt.font = defaultFont;
+        trophyTxt.text = "🏆";
+        trophyTxt.fontSize = 40;
+        trophyTxt.alignment = TextAnchor.MiddleCenter;
+        trophyTxt.color = Color.white;
     }
 
     private void CreateBottomBar()
