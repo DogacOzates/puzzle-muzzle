@@ -6,6 +6,7 @@ public static class SpriteGenerator
     private static Sprite _roundedRect;
     private static Sprite _circle;
     private static Sprite _pentagon;
+    private static Sprite _hexagon;
     private static readonly Dictionary<int, Sprite> numberSpriteCache = new Dictionary<int, Sprite>();
 
     public static Sprite RoundedRect
@@ -58,6 +59,52 @@ public static class SpriteGenerator
                 _pentagon = CreatePentagon();
             return _pentagon;
         }
+    }
+
+    // Regular pointy-top hexagon that tiles perfectly in the hex grid.
+    // r = 126px in 256×256 texture → apothem = r*cos(30°); CellVisualSize = 2/√3 makes cells touch.
+    public static Sprite Hexagon
+    {
+        get
+        {
+            if (_hexagon == null)
+                _hexagon = CreateHexagon();
+            return _hexagon;
+        }
+    }
+
+    private static Sprite CreateHexagon()
+    {
+        int w = 256, h = 256;
+        var tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
+        tex.filterMode = FilterMode.Bilinear;
+        tex.wrapMode = TextureWrapMode.Clamp;
+
+        var pixels = new Color32[w * h];
+        float cx = w * 0.5f, cy = h * 0.5f;
+        float r = 126f; // slightly under half-texture so AA doesn't clip
+
+        // Pointy-top hexagon: vertices at 90°, 30°, -30°, -90°, -150°, 150°
+        var vx = new float[6];
+        var vy = new float[6];
+        for (int k = 0; k < 6; k++)
+        {
+            float angle = Mathf.PI / 2f - k * Mathf.PI / 3f;
+            vx[k] = cx + r * Mathf.Cos(angle);
+            vy[k] = cy + r * Mathf.Sin(angle);
+        }
+
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+            {
+                float d = PolygonSdf(x, y, vx, vy);
+                float a = Mathf.Clamp01(0.5f - d);
+                pixels[y * w + x] = new Color32(255, 255, 255, (byte)(a * 255));
+            }
+
+        tex.SetPixels32(pixels);
+        tex.Apply();
+        return Sprite.Create(tex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f), w);
     }
 
     private static Sprite CreatePentagon()

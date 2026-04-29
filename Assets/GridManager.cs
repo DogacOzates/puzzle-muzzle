@@ -12,7 +12,8 @@ public class GridManager : MonoBehaviour
     public Vector2 GridOrigin { get; private set; }
 
     private bool isPentagonMode;
-    private const float PentagonCellVisualSize = 0.92f;
+    // CellVisualSize = 2/√3 ≈ 1.1547: hexagon apothem = r*cos(30°) = 0.5*0.866; 2*apothem*CVS = 1.0 → no gaps
+    private const float HexCellVisualSize = 1.1547f;
 
     public float BoardVisualWidth => isPentagonMode
         ? (GridWidth - 0.5f) * CellSpacing + CellVisualSize
@@ -54,7 +55,7 @@ public class GridManager : MonoBehaviour
         GridWidth = level.gridWidth;
         GridHeight = level.gridHeight;
         isPentagonMode = level.cellShape == CellShape.Pentagon;
-        CellVisualSize = isPentagonMode ? PentagonCellVisualSize : 0.9f;
+        CellVisualSize = isPentagonMode ? HexCellVisualSize : 0.9f;
         RowSpacing = isPentagonMode ? CellSpacing * Mathf.Sqrt(3f) / 2f : CellSpacing;
         cells = new Cell[GridWidth, GridHeight];
 
@@ -119,7 +120,7 @@ public class GridManager : MonoBehaviour
 
     private void CreateCells(LevelData level)
     {
-        Sprite cellSprite = isPentagonMode ? SpriteGenerator.Pentagon : SpriteGenerator.RoundedRect;
+        Sprite cellSprite = isPentagonMode ? SpriteGenerator.Hexagon : SpriteGenerator.RoundedRect;
 
         // Build a fast lookup set for blocked positions
         var blockedSet = new System.Collections.Generic.HashSet<Vector2Int>();
