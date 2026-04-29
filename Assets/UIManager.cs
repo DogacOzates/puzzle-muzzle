@@ -1371,7 +1371,7 @@ public class UIManager : MonoBehaviour
 
         // ─── Sound toggle row ───────────────────────────────────────────────
         bool soundOn = !(AudioManager.Instance?.IsMuted ?? false);
-        CreateToggleRow(card.transform, "🔊  Ses", soundOn, new Vector2(0, 130), (val) =>
+        CreateToggleRow(card.transform, "🔊  Sound", soundOn, new Vector2(0, 130), (val) =>
         {
             AudioManager.Instance?.SetMuted(!val);
         });
