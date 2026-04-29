@@ -1367,7 +1367,7 @@ public class UIManager : MonoBehaviour
 
         // Title
         var title = MakeCardText("Title", card.transform, new Vector2(0, 222), 44, FontStyle.Bold, TextDark);
-        title.text = "⚙️  Ayarlar";
+        title.text = "⚙️  Settings";
 
         // ─── Sound toggle row ───────────────────────────────────────────────
         bool soundOn = !(AudioManager.Instance?.IsMuted ?? false);
@@ -1378,7 +1378,7 @@ public class UIManager : MonoBehaviour
 
         // ─── Haptic toggle row ──────────────────────────────────────────────
         bool hapticOn = HapticManager.Instance?.IsHapticsEnabled ?? true;
-        CreateToggleRow(card.transform, "📳  Titreşim", hapticOn, new Vector2(0, 30), (val) =>
+        CreateToggleRow(card.transform, "📳  Haptics", hapticOn, new Vector2(0, 30), (val) =>
         {
             if (HapticManager.Instance != null) HapticManager.Instance.IsHapticsEnabled = val;
         });
@@ -1396,7 +1396,7 @@ public class UIManager : MonoBehaviour
         divImg.color = new Color(0.85f, 0.83f, 0.78f, 1f);
 
         // Achievements button
-        var achBtn = CreateCardButton("🏆  Başarımlar / Achievements", card.transform, new Vector2(0, -100f), BtnTeal);
+        var achBtn = CreateCardButton("🏆  Achievements", card.transform, new Vector2(0, -100f), BtnTeal);
         achBtn.onClick.AddListener(() =>
         {
             Destroy(popup);
@@ -1404,7 +1404,7 @@ public class UIManager : MonoBehaviour
         });
 
         // Leaderboard button
-        var lbBtn = CreateCardButton("📊  Liderlik Tablosu", card.transform, new Vector2(0, -195f), new Color(0.38f, 0.32f, 0.58f));
+        var lbBtn = CreateCardButton("📊  Leaderboard", card.transform, new Vector2(0, -195f), new Color(0.38f, 0.32f, 0.58f));
         lbBtn.onClick.AddListener(() =>
         {
             Destroy(popup);

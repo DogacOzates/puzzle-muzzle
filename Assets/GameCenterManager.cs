@@ -59,7 +59,6 @@ public class GameCenterManager : MonoBehaviour
     public void ShowLeaderboard()
     {
 #if UNITY_IOS && !UNITY_EDITOR
-        if (!isAuthenticated) return;
         Social.ShowLeaderboardUI();
 #endif
     }
@@ -67,7 +66,6 @@ public class GameCenterManager : MonoBehaviour
     public void ShowAchievements()
     {
 #if UNITY_IOS && !UNITY_EDITOR
-        if (!isAuthenticated) return;
         Social.ShowAchievementsUI();
 #endif
     }
