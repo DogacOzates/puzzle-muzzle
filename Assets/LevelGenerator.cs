@@ -1162,7 +1162,7 @@ public static class LevelGenerator
         return deadEnds;
     }
 
-
+    public static LevelData[] GeneratePentagonCampaign(int count)
     {
         var levels = new LevelData[count];
         var recentSignatures = new Queue<string>();
