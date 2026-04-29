@@ -7,14 +7,21 @@ using GoogleMobileAds.Api;
 
 public class LevelGateAdsBridge
 {
-    // TODO: Replace with real Ad Unit IDs from AdMob console (admob.google.com)
-    // Your publisher ID is 2933494287812005 — create two ad units under your iOS app:
-    //   1. Interstitial  → copy its ID below as IosInterstitialAdUnitId
-    //   2. Rewarded      → copy its ID below as IosRewardedAdUnitId
-    private const string AndroidInterstitialAdUnitId = "ca-app-pub-3940256099942544/1033173712"; // Android test ID — replace if targeting Android
-    private const string IosInterstitialAdUnitId     = "ca-app-pub-2933494287812005/4279957716";
-    private const string AndroidRewardedAdUnitId     = "ca-app-pub-3940256099942544/5224354917"; // Android test ID — replace if targeting Android
-    private const string IosRewardedAdUnitId         = "ca-app-pub-2933494287812005/7161258613";
+    // ── Ad Unit IDs ───────────────────────────────────────────────────────
+    // Set USE_TEST_ADS = true while testing on device.
+    // Switch to false and use your real IDs before App Store submission.
+    private const bool USE_TEST_ADS = true;
+
+    // Google's official test ad unit IDs (safe to use on any device)
+    private const string TestInterstitialAdUnitId = "ca-app-pub-3940256099942544/4411468910";
+    private const string TestRewardedAdUnitId     = "ca-app-pub-3940256099942544/1712485313";
+
+    // Your real production ad unit IDs
+    private const string RealIosInterstitialAdUnitId = "ca-app-pub-2933494287812005/4279957716";
+    private const string RealIosRewardedAdUnitId     = "ca-app-pub-2933494287812005/7161258613";
+
+    private const string AndroidInterstitialAdUnitId = "ca-app-pub-3940256099942544/1033173712";
+    private const string AndroidRewardedAdUnitId     = "ca-app-pub-3940256099942544/5224354917";
 
 #if GOOGLE_MOBILE_ADS
     private InterstitialAd interstitialAd;
@@ -206,7 +213,7 @@ public class LevelGateAdsBridge
 #if UNITY_ANDROID
         return AndroidInterstitialAdUnitId;
 #elif UNITY_IOS
-        return IosInterstitialAdUnitId;
+        return USE_TEST_ADS ? TestInterstitialAdUnitId : RealIosInterstitialAdUnitId;
 #else
         return string.Empty;
 #endif
@@ -217,7 +224,7 @@ public class LevelGateAdsBridge
 #if UNITY_ANDROID
         return AndroidRewardedAdUnitId;
 #elif UNITY_IOS
-        return IosRewardedAdUnitId;
+        return USE_TEST_ADS ? TestRewardedAdUnitId : RealIosRewardedAdUnitId;
 #else
         return string.Empty;
 #endif
