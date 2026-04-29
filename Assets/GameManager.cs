@@ -151,7 +151,7 @@ public class GameManager : MonoBehaviour
         float orthoW = neededWidth / (2f * aspect);
         cam.orthographicSize = Mathf.Max(orthoH, orthoW);
 
-        float gridCenterY = gridManager.GridOrigin.y - (gridManager.GridHeight - 1) * gridManager.RowSpacing / 2f;
+        float gridCenterY = gridManager.GridCenterY;
         float cameraY = gridCenterY - (paddingBottom - paddingTop) / 2f;
         cam.transform.position = new Vector3(0, cameraY, -10f);
     }

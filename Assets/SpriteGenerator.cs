@@ -7,6 +7,7 @@ public static class SpriteGenerator
     private static Sprite _circle;
     private static Sprite _pentagon;
     private static Sprite _hexagon;
+    private static Sprite _flatHexagon;
     private static readonly Dictionary<int, Sprite> numberSpriteCache = new Dictionary<int, Sprite>();
 
     public static Sprite RoundedRect
@@ -71,6 +72,52 @@ public static class SpriteGenerator
                 _hexagon = CreateHexagon();
             return _hexagon;
         }
+    }
+
+    // Flat-top hexagon for column-offset grid (6gen levels).
+    // Vertices at 0°, 60°, 120°, 180°, 240°, 300°. Same CVS = 2/√3 as pointy-top.
+    public static Sprite FlatHexagon
+    {
+        get
+        {
+            if (_flatHexagon == null)
+                _flatHexagon = CreateFlatHexagon();
+            return _flatHexagon;
+        }
+    }
+
+    private static Sprite CreateFlatHexagon()
+    {
+        int w = 256, h = 256;
+        var tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
+        tex.filterMode = FilterMode.Bilinear;
+        tex.wrapMode = TextureWrapMode.Clamp;
+
+        var pixels = new Color32[w * h];
+        float cx = w * 0.5f, cy = h * 0.5f;
+        float r = 126f;
+
+        // Flat-top hexagon: vertices at 0°, 60°, 120°, 180°, 240°, 300°
+        var vx = new float[6];
+        var vy = new float[6];
+        for (int k = 0; k < 6; k++)
+        {
+            float angle = k * Mathf.PI / 3f;
+            vx[k] = cx + r * Mathf.Cos(angle);
+            vy[k] = cy + r * Mathf.Sin(angle);
+        }
+
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+            {
+                float d = PolygonSdf(x, y, vx, vy);
+                float a = Mathf.Clamp01(0.5f - d);
+                pixels[y * w + x] = new Color32(255, 255, 255, (byte)(a * 255));
+            }
+
+        tex.SetPixels32(pixels);
+        tex.Apply();
+        return Sprite.Create(tex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f), w);
     }
 
     private static Sprite CreateHexagon()

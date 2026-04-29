@@ -22,6 +22,7 @@ public class Cell : MonoBehaviour
 
     private bool _isBlocked;
     private bool _isPentagonMode;
+    private bool _isHexagonMode;
     private SpriteRenderer bgRenderer;
     private SpriteRenderer shadowRenderer;
     private SpriteRenderer numberRenderer;
@@ -34,13 +35,14 @@ public class Cell : MonoBehaviour
     private static readonly Color SelectingColor = new Color(0.25f, 0.78f, 0.72f);
     private static readonly Color LastSelectedColor = new Color(0.16f, 0.88f, 0.52f);
 
-    public void Initialize(int x, int y, int targetNumber, Sprite bgSprite, bool isBlocked = false, bool isPentagonMode = false)
+    public void Initialize(int x, int y, int targetNumber, Sprite bgSprite, bool isBlocked = false, bool isPentagonMode = false, bool isHexagonMode = false)
     {
         GridX = x;
         GridY = y;
         TargetNumber = targetNumber;
         _isBlocked = isBlocked;
         _isPentagonMode = isPentagonMode;
+        _isHexagonMode = isHexagonMode;
         State = isBlocked ? CellState.Blocked : (targetNumber > 0 ? CellState.NumberTarget : CellState.Empty);
         baseScale = transform.localScale;
 
@@ -326,17 +328,24 @@ public class Cell : MonoBehaviour
 
     public bool IsAdjacentTo(Cell other)
     {
-        if (!_isPentagonMode)
+        if (!_isPentagonMode && !_isHexagonMode)
             return Mathf.Abs(GridX - other.GridX) + Mathf.Abs(GridY - other.GridY) == 1;
 
-        // Hex adjacency for offset grid (odd rows shifted +0.5 in X)
         int dx = other.GridX - GridX;
         int dy = other.GridY - GridY;
-        if (dy == 0) return Mathf.Abs(dx) == 1;
-        if (Mathf.Abs(dy) != 1) return false;
-        // Even row: diagonal neighbors are at (x-1) and (x) in adjacent rows
-        // Odd  row: diagonal neighbors are at (x)   and (x+1) in adjacent rows
-        return GridY % 2 == 0 ? (dx == -1 || dx == 0) : (dx == 0 || dx == 1);
+
+        if (_isPentagonMode)
+        {
+            // Pointy-top row-offset hex (odd rows shifted +0.5 in X)
+            if (dy == 0) return Mathf.Abs(dx) == 1;
+            if (Mathf.Abs(dy) != 1) return false;
+            return GridY % 2 == 0 ? (dx == -1 || dx == 0) : (dx == 0 || dx == 1);
+        }
+
+        // Flat-top column-offset hex (odd columns shifted down 0.5)
+        if (dx == 0) return Mathf.Abs(dy) == 1;
+        if (Mathf.Abs(dx) != 1) return false;
+        return GridX % 2 == 0 ? (dy == -1 || dy == 0) : (dy == 0 || dy == 1);
     }
 
     public void RefreshTheme()

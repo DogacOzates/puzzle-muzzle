@@ -327,7 +327,7 @@ public static class LevelGenerator
         config.height = Mathf.Max(a, b);
     }
 
-    private static List<Vector2Int> HamiltonianPath(int width, int height, HashSet<Vector2Int> blocked, System.Random rng, bool hexMode = false)
+    private static List<Vector2Int> HamiltonianPath(int width, int height, HashSet<Vector2Int> blocked, System.Random rng, bool hexMode = false, bool colHexMode = false)
     {
         int total = width * height - blocked.Count;
 
@@ -347,9 +347,11 @@ public static class LevelGenerator
             while (path.Count < total)
             {
                 Vector2Int current = path[path.Count - 1];
-                List<Vector2Int> neighbors = hexMode
-                    ? HexNeighbors(current.x, current.y, width, height, visited)
-                    : Neighbors(current.x, current.y, width, height, visited);
+                List<Vector2Int> neighbors = colHexMode
+                    ? HexColNeighbors(current.x, current.y, width, height, visited)
+                    : (hexMode
+                        ? HexNeighbors(current.x, current.y, width, height, visited)
+                        : Neighbors(current.x, current.y, width, height, visited));
                 if (neighbors.Count == 0)
                 {
                     stuck = true;
@@ -366,9 +368,11 @@ public static class LevelGenerator
                 for (int i = 0; i < neighbors.Count; i++)
                 {
                     Vector2Int next = neighbors[i];
-                    int onwardMoves = hexMode
-                        ? HexNeighbors(next.x, next.y, width, height, visited).Count
-                        : Neighbors(next.x, next.y, width, height, visited).Count;
+                    int onwardMoves = colHexMode
+                        ? HexColNeighbors(next.x, next.y, width, height, visited).Count
+                        : (hexMode
+                            ? HexNeighbors(next.x, next.y, width, height, visited).Count
+                            : Neighbors(next.x, next.y, width, height, visited).Count);
                     int edgeDistance = Mathf.Min(
                         Mathf.Min(next.x, width - 1 - next.x),
                         Mathf.Min(next.y, height - 1 - next.y));
@@ -381,9 +385,11 @@ public static class LevelGenerator
                     float score = onwardMoves * 3f;
                     score += nearEnd ? edgeDistance * 0.1f : edgeDistance * 0.35f;
                     score += changesDirection ? -0.7f : 0.45f;
-                    score += (hexMode
-                        ? CountHexFutureDeadEnds(next, width, height, visited)
-                        : CountFutureDeadEnds(next, width, height, visited)) * 1.3f;
+                    score += (colHexMode
+                        ? CountColHexFutureDeadEnds(next, width, height, visited)
+                        : (hexMode
+                            ? CountHexFutureDeadEnds(next, width, height, visited)
+                            : CountFutureDeadEnds(next, width, height, visited))) * 1.3f;
                     score += (float)rng.NextDouble() * 0.35f;
 
                     if (score < bestScore)
@@ -829,7 +835,7 @@ public static class LevelGenerator
         return config.width + "x" + config.height + ":" + string.Join("|", parts) + blockedStr;
     }
 
-    private static HashSet<Vector2Int> GenerateBlockedCells(CampaignConfig config, System.Random rng, bool hexMode = false)
+    private static HashSet<Vector2Int> GenerateBlockedCells(CampaignConfig config, System.Random rng, bool hexMode = false, bool colHexMode = false)
     {
         if (config.maxBlocked == 0) return new HashSet<Vector2Int>();
 
@@ -861,7 +867,7 @@ public static class LevelGenerator
         {
             if (blocked.Count >= count) break;
             blocked.Add(candidate);
-            if (!IsGridConnected(config.width, config.height, blocked, hexMode))
+            if (!IsGridConnected(config.width, config.height, blocked, hexMode, colHexMode))
                 blocked.Remove(candidate);
         }
 
@@ -877,7 +883,7 @@ public static class LevelGenerator
         }
     }
 
-    private static bool IsGridConnected(int width, int height, HashSet<Vector2Int> blocked, bool hexMode = false)
+    private static bool IsGridConnected(int width, int height, HashSet<Vector2Int> blocked, bool hexMode = false, bool colHexMode = false)
     {
         int total = width * height - blocked.Count;
         if (total <= 1) return true;
@@ -903,7 +909,20 @@ public static class LevelGenerator
             var neighbors = new List<Vector2Int>(6);
             neighbors.Add(new Vector2Int(cur.x - 1, cur.y));
             neighbors.Add(new Vector2Int(cur.x + 1, cur.y));
-            if (hexMode)
+            if (colHexMode)
+            {
+                // 6-way column-offset neighbors (odd columns shifted down 0.5)
+                neighbors.Add(new Vector2Int(cur.x, cur.y - 1));
+                neighbors.Add(new Vector2Int(cur.x, cur.y + 1));
+                if (cur.x % 2 == 0) {
+                    neighbors.Add(new Vector2Int(cur.x - 1, cur.y - 1));
+                    neighbors.Add(new Vector2Int(cur.x + 1, cur.y - 1));
+                } else {
+                    neighbors.Add(new Vector2Int(cur.x - 1, cur.y + 1));
+                    neighbors.Add(new Vector2Int(cur.x + 1, cur.y + 1));
+                }
+            }
+            else if (hexMode)
             {
                 // 6-way offset-grid neighbors (odd rows shifted +0.5 in X)
                 if (cur.y % 2 == 0) {
@@ -1078,7 +1097,72 @@ public static class LevelGenerator
         return deadEnds;
     }
 
-    public static LevelData[] GeneratePentagonCampaign(int count)
+    // 6-directional neighbors for flat-top column-offset hex (odd columns shifted down 0.5)
+    private static List<Vector2Int> HexColNeighbors(int x, int y, int width, int height, bool[,] visited)
+    {
+        var result = new List<Vector2Int>(6);
+        // Same column: up and down
+        if (y > 0 && !visited[y - 1, x]) result.Add(new Vector2Int(x, y - 1));
+        if (y < height - 1 && !visited[y + 1, x]) result.Add(new Vector2Int(x, y + 1));
+        // Adjacent columns: (x±1, y) always; parity determines the second row
+        if (x % 2 == 0) // even col: cross neighbors at y and y-1
+        {
+            if (x > 0)
+            {
+                if (!visited[y, x - 1]) result.Add(new Vector2Int(x - 1, y));
+                if (y > 0 && !visited[y - 1, x - 1]) result.Add(new Vector2Int(x - 1, y - 1));
+            }
+            if (x < width - 1)
+            {
+                if (!visited[y, x + 1]) result.Add(new Vector2Int(x + 1, y));
+                if (y > 0 && !visited[y - 1, x + 1]) result.Add(new Vector2Int(x + 1, y - 1));
+            }
+        }
+        else // odd col: cross neighbors at y and y+1
+        {
+            if (x > 0)
+            {
+                if (!visited[y, x - 1]) result.Add(new Vector2Int(x - 1, y));
+                if (y < height - 1 && !visited[y + 1, x - 1]) result.Add(new Vector2Int(x - 1, y + 1));
+            }
+            if (x < width - 1)
+            {
+                if (!visited[y, x + 1]) result.Add(new Vector2Int(x + 1, y));
+                if (y < height - 1 && !visited[y + 1, x + 1]) result.Add(new Vector2Int(x + 1, y + 1));
+            }
+        }
+        return result;
+    }
+
+    private static int CountColHexFutureDeadEnds(Vector2Int next, int width, int height, bool[,] visited)
+    {
+        int deadEnds = 0;
+        visited[next.y, next.x] = true;
+        for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+            {
+                if (visited[y, x]) continue;
+                int options = 0;
+                if (y > 0 && !visited[y - 1, x]) options++;
+                if (y < height - 1 && !visited[y + 1, x]) options++;
+                if (x % 2 == 0)
+                {
+                    if (x > 0)        { if (!visited[y, x - 1]) options++; if (y > 0 && !visited[y - 1, x - 1]) options++; }
+                    if (x < width - 1) { if (!visited[y, x + 1]) options++; if (y > 0 && !visited[y - 1, x + 1]) options++; }
+                }
+                else
+                {
+                    if (x > 0)        { if (!visited[y, x - 1]) options++; if (y < height - 1 && !visited[y + 1, x - 1]) options++; }
+                    if (x < width - 1) { if (!visited[y, x + 1]) options++; if (y < height - 1 && !visited[y + 1, x + 1]) options++; }
+                }
+                if (options == 0) deadEnds += 3;
+                else if (options == 1) deadEnds++;
+            }
+        visited[next.y, next.x] = false;
+        return deadEnds;
+    }
+
+
     {
         var levels = new LevelData[count];
         var recentSignatures = new Queue<string>();
@@ -1283,6 +1367,197 @@ public static class LevelGenerator
             c.straightPenalty = 0.75f; c.turnWeight = 0.7f;
             c.squarePenalty = 0.2f; c.lateRectangleBonus = 0.3f;
             c.minBlocked = 5; c.maxBlocked = 6;
+        }
+
+        return c;
+    }
+
+    // --- Hexagon campaign (flat-top column-offset, 6gen) ---
+
+    public static LevelData[] GenerateHexagonCampaign(int count)
+    {
+        var levels = new LevelData[count];
+        var recentSignatures = new Queue<string>();
+        var usedSignatures = new Dictionary<string, int>();
+        var allFingerprints = new HashSet<string>();
+        var usedValueSetsByTier = new Dictionary<string, Dictionary<string, int>>();
+        var recentRegionSets = new Queue<string>();
+
+        for (int i = 0; i < count; i++)
+        {
+            var rng = new System.Random((i + 1000) * 7919 + 17);
+            CampaignConfig config = GetHexagonConfig(i);
+            LevelCandidate bestCandidate = null;
+
+            for (int ci = 0; ci < config.candidateCount; ci++)
+            {
+                var candidateRng = new System.Random(rng.Next());
+                HashSet<Vector2Int> blocked = GenerateBlockedCells(config, candidateRng, hexMode: false, colHexMode: true);
+                List<Vector2Int> path = HamiltonianPath(config.width, config.height, blocked, candidateRng, hexMode: false, colHexMode: true);
+                if (path == null) continue;
+                List<List<Vector2Int>> segments = SplitPath(path, config, candidateRng);
+                if (segments == null || segments.Count == 0) continue;
+
+                var blockedList = new List<Vector2Int>(blocked);
+                string signature = BuildSignature(config, segments);
+                string contentFingerprint = BuildContentFingerprint(config, segments, blockedList);
+                float score = ScoreCandidate(path, segments, config, signature, contentFingerprint,
+                    recentSignatures, usedSignatures, allFingerprints, usedValueSetsByTier, recentRegionSets);
+
+                if (bestCandidate == null || score > bestCandidate.score)
+                {
+                    bestCandidate = new LevelCandidate
+                    {
+                        path = path, segments = segments,
+                        signature = signature, contentFingerprint = contentFingerprint,
+                        score = score, blocked = blockedList
+                    };
+                }
+            }
+
+            if (bestCandidate == null)
+            {
+                var emptyBlocked = new List<Vector2Int>();
+                List<Vector2Int> fallbackPath = SnakePath(config.width, config.height);
+                List<List<Vector2Int>> fallbackSegs = SplitPath(fallbackPath, config, rng)
+                    ?? UniformSplit(fallbackPath, config.minSegment);
+                bestCandidate = new LevelCandidate
+                {
+                    path = fallbackPath, segments = fallbackSegs,
+                    signature = BuildSignature(config, fallbackSegs),
+                    contentFingerprint = BuildContentFingerprint(config, fallbackSegs, emptyBlocked),
+                    score = 0f, blocked = emptyBlocked
+                };
+            }
+
+            int extraAttempts = config.maxBlocked > 0 ? 100 : 60;
+            if (allFingerprints.Contains(bestCandidate.contentFingerprint))
+            {
+                for (int extra = 0; extra < extraAttempts; extra++)
+                {
+                    var xRng = new System.Random((i + 1000) * 7919 + 17 + (extra + 1) * 1013);
+                    HashSet<Vector2Int> xBlocked = GenerateBlockedCells(config, xRng, hexMode: false, colHexMode: true);
+                    List<Vector2Int> xPath = HamiltonianPath(config.width, config.height, xBlocked, xRng, hexMode: false, colHexMode: true);
+                    if (xPath == null) continue;
+                    List<List<Vector2Int>> xSegs = SplitPath(xPath, config, xRng);
+                    if (xSegs == null || xSegs.Count == 0) continue;
+                    var xBlockedList = new List<Vector2Int>(xBlocked);
+                    string xFp = BuildContentFingerprint(config, xSegs, xBlockedList);
+                    if (!allFingerprints.Contains(xFp))
+                    {
+                        bestCandidate = new LevelCandidate
+                        {
+                            path = xPath, segments = xSegs,
+                            signature = BuildSignature(config, xSegs),
+                            contentFingerprint = xFp,
+                            score = float.PositiveInfinity, blocked = xBlockedList
+                        };
+                        break;
+                    }
+                }
+            }
+
+            LevelData ld = BuildLevelData(config, bestCandidate.segments, bestCandidate.blocked);
+            ld.cellShape = CellShape.Hexagon;
+            levels[i] = ld;
+
+            recentSignatures.Enqueue(bestCandidate.signature);
+            while (recentSignatures.Count > 15) recentSignatures.Dequeue();
+
+            if (!usedSignatures.ContainsKey(bestCandidate.signature))
+                usedSignatures[bestCandidate.signature] = 0;
+            usedSignatures[bestCandidate.signature]++;
+
+            string chosenValueSet = BuildValueSetFingerprint(bestCandidate.segments);
+            if (!usedValueSetsByTier.ContainsKey(config.tierName))
+                usedValueSetsByTier[config.tierName] = new Dictionary<string, int>();
+            if (!usedValueSetsByTier[config.tierName].ContainsKey(chosenValueSet))
+                usedValueSetsByTier[config.tierName][chosenValueSet] = 0;
+            usedValueSetsByTier[config.tierName][chosenValueSet]++;
+
+            string chosenRegion = BuildRegionFingerprint(bestCandidate.segments, config);
+            recentRegionSets.Enqueue(chosenRegion);
+            while (recentRegionSets.Count > 10) recentRegionSets.Dequeue();
+
+            allFingerprints.Add(bestCandidate.contentFingerprint);
+        }
+
+        return levels;
+    }
+
+    private static CampaignConfig GetHexagonConfig(int idx)
+    {
+        CampaignConfig c = new CampaignConfig();
+
+        if (idx < 1)           // Level 601: 4×4 intro
+        {
+            c.width = 4; c.height = 4;
+            c.minSegment = 2; c.maxSegment = 6; c.candidateCount = 20;
+            c.tierName = "6gen Intro";
+            c.rectanglePenalty = 3.5f; c.densePenalty = 2.5f;
+            c.straightPenalty = 2.0f; c.turnWeight = 1.2f;
+            c.squarePenalty = 1.5f; c.lateRectangleBonus = 0f;
+            c.minBlocked = 0; c.maxBlocked = 0;
+        }
+        else if (idx < 2)      // Level 602: 4×5
+        {
+            SetRectangularBoard(ref c, 4, 5);
+            c.minSegment = 3; c.maxSegment = 7; c.candidateCount = 22;
+            c.tierName = "6gen Easy";
+            c.rectanglePenalty = 3.2f; c.densePenalty = 2.3f;
+            c.straightPenalty = 1.9f; c.turnWeight = 1.15f;
+            c.squarePenalty = 1.2f; c.lateRectangleBonus = 0f;
+            c.minBlocked = 0; c.maxBlocked = 0;
+        }
+        else if (idx < 4)      // Levels 603-604: 5×5
+        {
+            c.width = 5; c.height = 5;
+            c.minSegment = 3; c.maxSegment = 7; c.candidateCount = 24;
+            c.tierName = "6gen Easy";
+            c.rectanglePenalty = 3.0f; c.densePenalty = 2.2f;
+            c.straightPenalty = 1.8f; c.turnWeight = 1.1f;
+            c.squarePenalty = 1.0f; c.lateRectangleBonus = 0f;
+            c.minBlocked = 0; c.maxBlocked = (idx == 3 ? 1 : 0);
+        }
+        else if (idx < 6)      // Levels 605-606: 5×6
+        {
+            SetRectangularBoard(ref c, 5, 6);
+            c.minSegment = 3; c.maxSegment = 8; c.candidateCount = 24;
+            c.tierName = "6gen Normal";
+            c.rectanglePenalty = 2.6f; c.densePenalty = 1.9f;
+            c.straightPenalty = 1.5f; c.turnWeight = 1.0f;
+            c.squarePenalty = 0.85f; c.lateRectangleBonus = 0f;
+            c.minBlocked = (idx == 5 ? 1 : 0); c.maxBlocked = (idx == 5 ? 2 : 1);
+        }
+        else if (idx < 7)      // Level 607: 6×6
+        {
+            c.width = 6; c.height = 6;
+            c.minSegment = 4; c.maxSegment = 9; c.candidateCount = 26;
+            c.tierName = "6gen Normal";
+            c.rectanglePenalty = 2.2f; c.densePenalty = 1.6f;
+            c.straightPenalty = 1.3f; c.turnWeight = 0.95f;
+            c.squarePenalty = 0.7f; c.lateRectangleBonus = 0f;
+            c.minBlocked = 1; c.maxBlocked = 2;
+        }
+        else if (idx < 9)      // Levels 608-609: 6×7
+        {
+            SetRectangularBoard(ref c, 6, 7);
+            c.minSegment = 4; c.maxSegment = 9; c.candidateCount = 26;
+            c.tierName = "6gen Hard";
+            c.rectanglePenalty = 1.9f; c.densePenalty = 1.4f;
+            c.straightPenalty = 1.1f; c.turnWeight = 0.9f;
+            c.squarePenalty = 0.55f; c.lateRectangleBonus = 0.05f;
+            c.minBlocked = 2; c.maxBlocked = 3;
+        }
+        else                   // Level 610: 6×8
+        {
+            SetRectangularBoard(ref c, 6, 8);
+            c.minSegment = 4; c.maxSegment = 10; c.candidateCount = 28;
+            c.tierName = "6gen Hard";
+            c.rectanglePenalty = 1.6f; c.densePenalty = 1.2f;
+            c.straightPenalty = 1.0f; c.turnWeight = 0.85f;
+            c.squarePenalty = 0.45f; c.lateRectangleBonus = 0.1f;
+            c.minBlocked = 3; c.maxBlocked = 4;
         }
 
         return c;
