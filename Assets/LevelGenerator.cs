@@ -327,7 +327,7 @@ public static class LevelGenerator
         config.height = Mathf.Max(a, b);
     }
 
-    private static List<Vector2Int> HamiltonianPath(int width, int height, HashSet<Vector2Int> blocked, System.Random rng)
+    private static List<Vector2Int> HamiltonianPath(int width, int height, HashSet<Vector2Int> blocked, System.Random rng, bool hexMode = false)
     {
         int total = width * height - blocked.Count;
 
@@ -347,7 +347,9 @@ public static class LevelGenerator
             while (path.Count < total)
             {
                 Vector2Int current = path[path.Count - 1];
-                List<Vector2Int> neighbors = Neighbors(current.x, current.y, width, height, visited);
+                List<Vector2Int> neighbors = hexMode
+                    ? HexNeighbors(current.x, current.y, width, height, visited)
+                    : Neighbors(current.x, current.y, width, height, visited);
                 if (neighbors.Count == 0)
                 {
                     stuck = true;
@@ -364,7 +366,9 @@ public static class LevelGenerator
                 for (int i = 0; i < neighbors.Count; i++)
                 {
                     Vector2Int next = neighbors[i];
-                    int onwardMoves = Neighbors(next.x, next.y, width, height, visited).Count;
+                    int onwardMoves = hexMode
+                        ? HexNeighbors(next.x, next.y, width, height, visited).Count
+                        : Neighbors(next.x, next.y, width, height, visited).Count;
                     int edgeDistance = Mathf.Min(
                         Mathf.Min(next.x, width - 1 - next.x),
                         Mathf.Min(next.y, height - 1 - next.y));
@@ -377,7 +381,9 @@ public static class LevelGenerator
                     float score = onwardMoves * 3f;
                     score += nearEnd ? edgeDistance * 0.1f : edgeDistance * 0.35f;
                     score += changesDirection ? -0.7f : 0.45f;
-                    score += CountFutureDeadEnds(next, width, height, visited) * 1.3f;
+                    score += (hexMode
+                        ? CountHexFutureDeadEnds(next, width, height, visited)
+                        : CountFutureDeadEnds(next, width, height, visited)) * 1.3f;
                     score += (float)rng.NextDouble() * 0.35f;
 
                     if (score < bestScore)
@@ -1003,6 +1009,55 @@ public static class LevelGenerator
 
     // --- Pentagon campaign ---
 
+    // 6-directional neighbors for offset hex grid (odd rows shifted +0.5 in X)
+    private static List<Vector2Int> HexNeighbors(int x, int y, int width, int height, bool[,] visited)
+    {
+        var result = new List<Vector2Int>(6);
+        // Left / right (same for all rows)
+        if (x > 0 && !visited[y, x - 1]) result.Add(new Vector2Int(x - 1, y));
+        if (x < width - 1 && !visited[y, x + 1]) result.Add(new Vector2Int(x + 1, y));
+        // Diagonal neighbors depend on row parity
+        if (y % 2 == 0) // even row: diagonals at (x-1,y±1) and (x,y±1)
+        {
+            if (y > 0) { if (x > 0 && !visited[y-1, x-1]) result.Add(new Vector2Int(x-1, y-1)); if (!visited[y-1, x]) result.Add(new Vector2Int(x, y-1)); }
+            if (y < height-1) { if (x > 0 && !visited[y+1, x-1]) result.Add(new Vector2Int(x-1, y+1)); if (!visited[y+1, x]) result.Add(new Vector2Int(x, y+1)); }
+        }
+        else // odd row: diagonals at (x,y±1) and (x+1,y±1)
+        {
+            if (y > 0) { if (!visited[y-1, x]) result.Add(new Vector2Int(x, y-1)); if (x < width-1 && !visited[y-1, x+1]) result.Add(new Vector2Int(x+1, y-1)); }
+            if (y < height-1) { if (!visited[y+1, x]) result.Add(new Vector2Int(x, y+1)); if (x < width-1 && !visited[y+1, x+1]) result.Add(new Vector2Int(x+1, y+1)); }
+        }
+        return result;
+    }
+
+    private static int CountHexFutureDeadEnds(Vector2Int next, int width, int height, bool[,] visited)
+    {
+        int deadEnds = 0;
+        visited[next.y, next.x] = true;
+        for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+            {
+                if (visited[y, x]) continue;
+                // Count using temporary visited (not modifying array, just passing current state)
+                int options = 0;
+                // Same row
+                if (x > 0 && !visited[y, x-1]) options++;
+                if (x < width-1 && !visited[y, x+1]) options++;
+                // Diagonals
+                if (y % 2 == 0) {
+                    if (y > 0) { if (x > 0 && !visited[y-1, x-1]) options++; if (!visited[y-1, x]) options++; }
+                    if (y < height-1) { if (x > 0 && !visited[y+1, x-1]) options++; if (!visited[y+1, x]) options++; }
+                } else {
+                    if (y > 0) { if (!visited[y-1, x]) options++; if (x < width-1 && !visited[y-1, x+1]) options++; }
+                    if (y < height-1) { if (!visited[y+1, x]) options++; if (x < width-1 && !visited[y+1, x+1]) options++; }
+                }
+                if (options == 0) deadEnds += 3;
+                else if (options == 1) deadEnds++;
+            }
+        visited[next.y, next.x] = false;
+        return deadEnds;
+    }
+
     public static LevelData[] GeneratePentagonCampaign(int count)
     {
         var levels = new LevelData[count];
@@ -1017,7 +1072,7 @@ public static class LevelGenerator
             {
                 var candidateRng = new System.Random(rng.Next());
                 HashSet<Vector2Int> blocked = GenerateBlockedCells(config, candidateRng);
-                List<Vector2Int> path = HamiltonianPath(config.width, config.height, blocked, candidateRng);
+                List<Vector2Int> path = HamiltonianPath(config.width, config.height, blocked, candidateRng, hexMode: true);
                 if (path == null) continue;
                 List<List<Vector2Int>> segments = SplitPath(path, config, candidateRng);
                 if (segments == null || segments.Count == 0) continue;

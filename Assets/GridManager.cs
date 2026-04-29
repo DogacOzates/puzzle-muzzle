@@ -6,17 +6,18 @@ public class GridManager : MonoBehaviour
 {
     public float CellSpacing { get; private set; } = 1.0f;
     public float CellVisualSize { get; private set; } = 0.9f;
+    public float RowSpacing { get; private set; } = 1.0f;
     public int GridWidth { get; private set; }
     public int GridHeight { get; private set; }
     public Vector2 GridOrigin { get; private set; }
 
     private bool isPentagonMode;
-    private const float PentagonCellVisualSize = 0.82f;
+    private const float PentagonCellVisualSize = 0.92f;
 
     public float BoardVisualWidth => isPentagonMode
         ? (GridWidth - 0.5f) * CellSpacing + CellVisualSize
         : (GridWidth - 1) * CellSpacing + CellVisualSize;
-    public float BoardVisualHeight => (GridHeight - 1) * CellSpacing + CellVisualSize;
+    public float BoardVisualHeight => (GridHeight - 1) * RowSpacing + CellVisualSize;
 
     private Cell[,] cells;
     private GameObject gridContainer;
@@ -54,6 +55,7 @@ public class GridManager : MonoBehaviour
         GridHeight = level.gridHeight;
         isPentagonMode = level.cellShape == CellShape.Pentagon;
         CellVisualSize = isPentagonMode ? PentagonCellVisualSize : 0.9f;
+        RowSpacing = isPentagonMode ? CellSpacing * Mathf.Sqrt(3f) / 2f : CellSpacing;
         cells = new Cell[GridWidth, GridHeight];
 
         gridContainer = new GameObject("Grid");
@@ -70,7 +72,7 @@ public class GridManager : MonoBehaviour
         float gridWorldWidth = isPentagonMode
             ? (GridWidth - 0.5f) * CellSpacing
             : (GridWidth - 1) * CellSpacing;
-        float gridWorldHeight = (GridHeight - 1) * CellSpacing;
+        float gridWorldHeight = (GridHeight - 1) * RowSpacing;
 
         GridOrigin = new Vector2(
             -gridWorldWidth / 2f,
@@ -83,12 +85,12 @@ public class GridManager : MonoBehaviour
         float bgWidth = isPentagonMode
             ? (GridWidth - 0.5f) * CellSpacing + CellVisualSize
             : (GridWidth - 1) * CellSpacing + CellVisualSize;
-        float bgHeight = (GridHeight - 1) * CellSpacing + CellVisualSize;
+        float bgHeight = (GridHeight - 1) * RowSpacing + CellVisualSize;
         float padding = 0.35f;
 
         Vector3 bgCenter = new Vector3(
             0f,
-            GridOrigin.y - (GridHeight - 1) * CellSpacing / 2f,
+            GridOrigin.y - (GridHeight - 1) * RowSpacing / 2f,
             0.1f
         );
         Vector3 bgScale = new Vector3(bgWidth + padding * 2, bgHeight + padding * 2, 1f);
@@ -153,7 +155,7 @@ public class GridManager : MonoBehaviour
                 cellObj.transform.localScale = new Vector3(CellVisualSize, CellVisualSize, 1f);
 
                 var cell = cellObj.AddComponent<Cell>();
-                cell.Initialize(x, y, number, cellSprite, isBlocked);
+                cell.Initialize(x, y, number, cellSprite, isBlocked, isPentagonMode);
                 cells[x, y] = cell;
             }
         }
@@ -424,7 +426,7 @@ public class GridManager : MonoBehaviour
         float xOffset = (isPentagonMode && y % 2 == 1) ? CellSpacing * 0.5f : 0f;
         return new Vector3(
             GridOrigin.x + x * CellSpacing + xOffset,
-            GridOrigin.y - y * CellSpacing,
+            GridOrigin.y - y * RowSpacing,
             0f
         );
     }
@@ -438,8 +440,8 @@ public class GridManager : MonoBehaviour
             return new Vector2Int(x, y);
         }
 
-        // Pentagon mode: find nearest cell center across candidate rows to avoid seam errors
-        int approxY = Mathf.RoundToInt((GridOrigin.y - worldPos.y) / CellSpacing);
+        // Pentagon: find nearest cell center to handle row seam correctly
+        int approxY = Mathf.RoundToInt((GridOrigin.y - worldPos.y) / RowSpacing);
         float bestDist2 = float.MaxValue;
         Vector2Int bestCell = Vector2Int.zero;
 
