@@ -829,7 +829,7 @@ public static class LevelGenerator
         return config.width + "x" + config.height + ":" + string.Join("|", parts) + blockedStr;
     }
 
-    private static HashSet<Vector2Int> GenerateBlockedCells(CampaignConfig config, System.Random rng)
+    private static HashSet<Vector2Int> GenerateBlockedCells(CampaignConfig config, System.Random rng, bool hexMode = false)
     {
         if (config.maxBlocked == 0) return new HashSet<Vector2Int>();
 
@@ -861,7 +861,7 @@ public static class LevelGenerator
         {
             if (blocked.Count >= count) break;
             blocked.Add(candidate);
-            if (!IsGridConnected(config.width, config.height, blocked))
+            if (!IsGridConnected(config.width, config.height, blocked, hexMode))
                 blocked.Remove(candidate);
         }
 
@@ -877,7 +877,7 @@ public static class LevelGenerator
         }
     }
 
-    private static bool IsGridConnected(int width, int height, HashSet<Vector2Int> blocked)
+    private static bool IsGridConnected(int width, int height, HashSet<Vector2Int> blocked, bool hexMode = false)
     {
         int total = width * height - blocked.Count;
         if (total <= 1) return true;
@@ -900,11 +900,31 @@ public static class LevelGenerator
         while (queue.Count > 0)
         {
             var cur = queue.Dequeue();
-            int[] ddx = { -1, 1, 0, 0 };
-            int[] ddy = { 0, 0, -1, 1 };
-            for (int d = 0; d < 4; d++)
+            var neighbors = new List<Vector2Int>(6);
+            neighbors.Add(new Vector2Int(cur.x - 1, cur.y));
+            neighbors.Add(new Vector2Int(cur.x + 1, cur.y));
+            if (hexMode)
             {
-                var next = new Vector2Int(cur.x + ddx[d], cur.y + ddy[d]);
+                // 6-way offset-grid neighbors (odd rows shifted +0.5 in X)
+                if (cur.y % 2 == 0) {
+                    neighbors.Add(new Vector2Int(cur.x - 1, cur.y - 1));
+                    neighbors.Add(new Vector2Int(cur.x,     cur.y - 1));
+                    neighbors.Add(new Vector2Int(cur.x - 1, cur.y + 1));
+                    neighbors.Add(new Vector2Int(cur.x,     cur.y + 1));
+                } else {
+                    neighbors.Add(new Vector2Int(cur.x,     cur.y - 1));
+                    neighbors.Add(new Vector2Int(cur.x + 1, cur.y - 1));
+                    neighbors.Add(new Vector2Int(cur.x,     cur.y + 1));
+                    neighbors.Add(new Vector2Int(cur.x + 1, cur.y + 1));
+                }
+            }
+            else
+            {
+                neighbors.Add(new Vector2Int(cur.x, cur.y - 1));
+                neighbors.Add(new Vector2Int(cur.x, cur.y + 1));
+            }
+            foreach (var next in neighbors)
+            {
                 if (next.x < 0 || next.x >= width || next.y < 0 || next.y >= height) continue;
                 if (blocked.Contains(next) || visited.Contains(next)) continue;
                 visited.Add(next);
@@ -1061,6 +1081,11 @@ public static class LevelGenerator
     public static LevelData[] GeneratePentagonCampaign(int count)
     {
         var levels = new LevelData[count];
+        var recentSignatures = new Queue<string>();
+        var usedSignatures = new Dictionary<string, int>();
+        var allFingerprints = new HashSet<string>();
+        var usedValueSetsByTier = new Dictionary<string, Dictionary<string, int>>();
+        var recentRegionSets = new Queue<string>();
 
         for (int i = 0; i < count; i++)
         {
@@ -1071,24 +1096,25 @@ public static class LevelGenerator
             for (int ci = 0; ci < config.candidateCount; ci++)
             {
                 var candidateRng = new System.Random(rng.Next());
-                HashSet<Vector2Int> blocked = GenerateBlockedCells(config, candidateRng);
+                HashSet<Vector2Int> blocked = GenerateBlockedCells(config, candidateRng, hexMode: true);
                 List<Vector2Int> path = HamiltonianPath(config.width, config.height, blocked, candidateRng, hexMode: true);
                 if (path == null) continue;
                 List<List<Vector2Int>> segments = SplitPath(path, config, candidateRng);
                 if (segments == null || segments.Count == 0) continue;
 
                 var blockedList = new List<Vector2Int>(blocked);
-                float score = segments.Count;
+                string signature = BuildSignature(config, segments);
+                string contentFingerprint = BuildContentFingerprint(config, segments, blockedList);
+                float score = ScoreCandidate(path, segments, config, signature, contentFingerprint,
+                    recentSignatures, usedSignatures, allFingerprints, usedValueSetsByTier, recentRegionSets);
+
                 if (bestCandidate == null || score > bestCandidate.score)
                 {
                     bestCandidate = new LevelCandidate
                     {
-                        path = path,
-                        segments = segments,
-                        signature = BuildSignature(config, segments),
-                        contentFingerprint = BuildContentFingerprint(config, segments, blockedList),
-                        score = score,
-                        blocked = blockedList
+                        path = path, segments = segments,
+                        signature = signature, contentFingerprint = contentFingerprint,
+                        score = score, blocked = blockedList
                     };
                 }
             }
@@ -1101,18 +1127,64 @@ public static class LevelGenerator
                     ?? UniformSplit(fallbackPath, config.minSegment);
                 bestCandidate = new LevelCandidate
                 {
-                    path = fallbackPath,
-                    segments = fallbackSegs,
+                    path = fallbackPath, segments = fallbackSegs,
                     signature = BuildSignature(config, fallbackSegs),
                     contentFingerprint = BuildContentFingerprint(config, fallbackSegs, emptyBlocked),
-                    score = 0f,
-                    blocked = emptyBlocked
+                    score = 0f, blocked = emptyBlocked
                 };
+            }
+
+            // Extra de-dup loop — avoid exact duplicate puzzles
+            int extraAttempts = config.maxBlocked > 0 ? 100 : 60;
+            if (allFingerprints.Contains(bestCandidate.contentFingerprint))
+            {
+                for (int extra = 0; extra < extraAttempts; extra++)
+                {
+                    var xRng = new System.Random((i + 500) * 7919 + 11 + (extra + 1) * 1013);
+                    HashSet<Vector2Int> xBlocked = GenerateBlockedCells(config, xRng, hexMode: true);
+                    List<Vector2Int> xPath = HamiltonianPath(config.width, config.height, xBlocked, xRng, hexMode: true);
+                    if (xPath == null) continue;
+                    List<List<Vector2Int>> xSegs = SplitPath(xPath, config, xRng);
+                    if (xSegs == null || xSegs.Count == 0) continue;
+                    var xBlockedList = new List<Vector2Int>(xBlocked);
+                    string xFp = BuildContentFingerprint(config, xSegs, xBlockedList);
+                    if (!allFingerprints.Contains(xFp))
+                    {
+                        bestCandidate = new LevelCandidate
+                        {
+                            path = xPath, segments = xSegs,
+                            signature = BuildSignature(config, xSegs),
+                            contentFingerprint = xFp,
+                            score = float.PositiveInfinity, blocked = xBlockedList
+                        };
+                        break;
+                    }
+                }
             }
 
             LevelData ld = BuildLevelData(config, bestCandidate.segments, bestCandidate.blocked);
             ld.cellShape = CellShape.Pentagon;
             levels[i] = ld;
+
+            recentSignatures.Enqueue(bestCandidate.signature);
+            while (recentSignatures.Count > 15) recentSignatures.Dequeue();
+
+            if (!usedSignatures.ContainsKey(bestCandidate.signature))
+                usedSignatures[bestCandidate.signature] = 0;
+            usedSignatures[bestCandidate.signature]++;
+
+            string chosenValueSet = BuildValueSetFingerprint(bestCandidate.segments);
+            if (!usedValueSetsByTier.ContainsKey(config.tierName))
+                usedValueSetsByTier[config.tierName] = new Dictionary<string, int>();
+            if (!usedValueSetsByTier[config.tierName].ContainsKey(chosenValueSet))
+                usedValueSetsByTier[config.tierName][chosenValueSet] = 0;
+            usedValueSetsByTier[config.tierName][chosenValueSet]++;
+
+            string chosenRegion = BuildRegionFingerprint(bestCandidate.segments, config);
+            recentRegionSets.Enqueue(chosenRegion);
+            while (recentRegionSets.Count > 10) recentRegionSets.Dequeue();
+
+            allFingerprints.Add(bestCandidate.contentFingerprint);
         }
 
         return levels;
@@ -1121,99 +1193,98 @@ public static class LevelGenerator
     private static CampaignConfig GetPentagonConfig(int idx)
     {
         CampaignConfig c = new CampaignConfig();
-        switch (idx)
+
+        if (idx < 25)          // Tier 1: 4×4, Easy (levels 301-325)
         {
-            case 0:
-                c.width = 4; c.height = 4;
-                c.minSegment = 3; c.maxSegment = 5; c.candidateCount = 20;
-                c.tierName = "Pentagon Easy";
-                c.rectanglePenalty = 3.2f; c.densePenalty = 2.4f;
-                c.straightPenalty = 1.8f; c.turnWeight = 1.15f;
-                c.squarePenalty = 1.2f; c.lateRectangleBonus = 0f;
-                c.minBlocked = 0; c.maxBlocked = 0;
-                break;
-            case 1:
-                c.width = 4; c.height = 4;
-                c.minSegment = 3; c.maxSegment = 5; c.candidateCount = 20;
-                c.tierName = "Pentagon Easy";
-                c.rectanglePenalty = 3.0f; c.densePenalty = 2.2f;
-                c.straightPenalty = 1.7f; c.turnWeight = 1.1f;
-                c.squarePenalty = 1.0f; c.lateRectangleBonus = 0f;
-                c.minBlocked = 0; c.maxBlocked = 0;
-                break;
-            case 2:
-                SetRectangularBoard(ref c, 4, 5);
-                c.minSegment = 3; c.maxSegment = 7; c.candidateCount = 22;
-                c.tierName = "Pentagon Normal";
-                c.rectanglePenalty = 2.7f; c.densePenalty = 2.0f;
-                c.straightPenalty = 1.5f; c.turnWeight = 1.05f;
-                c.squarePenalty = 0.9f; c.lateRectangleBonus = 0f;
-                c.minBlocked = 0; c.maxBlocked = 0;
-                break;
-            case 3:
-                SetRectangularBoard(ref c, 4, 5);
-                c.minSegment = 3; c.maxSegment = 7; c.candidateCount = 22;
-                c.tierName = "Pentagon Normal";
-                c.rectanglePenalty = 2.3f; c.densePenalty = 1.8f;
-                c.straightPenalty = 1.35f; c.turnWeight = 1.0f;
-                c.squarePenalty = 0.75f; c.lateRectangleBonus = 0f;
-                c.minBlocked = 0; c.maxBlocked = 0;
-                break;
-            case 4:
-                c.width = 5; c.height = 5;
-                c.minSegment = 3; c.maxSegment = 8; c.candidateCount = 24;
-                c.tierName = "Pentagon Hard";
-                c.rectanglePenalty = 2.0f; c.densePenalty = 1.55f;
-                c.straightPenalty = 1.2f; c.turnWeight = 0.95f;
-                c.squarePenalty = 0.65f; c.lateRectangleBonus = 0f;
-                c.minBlocked = 0; c.maxBlocked = 0;
-                break;
-            case 5:
-                SetRectangularBoard(ref c, 5, 6);
-                c.minSegment = 3; c.maxSegment = 9; c.candidateCount = 24;
-                c.tierName = "Pentagon Hard";
-                c.rectanglePenalty = 1.8f; c.densePenalty = 1.4f;
-                c.straightPenalty = 1.1f; c.turnWeight = 0.92f;
-                c.squarePenalty = 0.6f; c.lateRectangleBonus = 0f;
-                c.minBlocked = 0; c.maxBlocked = 1;
-                break;
-            case 6:
-                c.width = 6; c.height = 6;
-                c.minSegment = 4; c.maxSegment = 9; c.candidateCount = 24;
-                c.tierName = "Pentagon Advanced";
-                c.rectanglePenalty = 1.5f; c.densePenalty = 1.2f;
-                c.straightPenalty = 1.0f; c.turnWeight = 0.88f;
-                c.squarePenalty = 0.5f; c.lateRectangleBonus = 0.05f;
-                c.minBlocked = 1; c.maxBlocked = 1;
-                break;
-            case 7:
-                SetRectangularBoard(ref c, 6, 7);
-                c.minSegment = 4; c.maxSegment = 10; c.candidateCount = 24;
-                c.tierName = "Pentagon Expert";
-                c.rectanglePenalty = 1.2f; c.densePenalty = 0.95f;
-                c.straightPenalty = 0.9f; c.turnWeight = 0.82f;
-                c.squarePenalty = 0.4f; c.lateRectangleBonus = 0.15f;
-                c.minBlocked = 1; c.maxBlocked = 2;
-                break;
-            case 8:
-                SetRectangularBoard(ref c, 6, 8);
-                c.minSegment = 4; c.maxSegment = 10; c.candidateCount = 24;
-                c.tierName = "Pentagon Expert";
-                c.rectanglePenalty = 1.0f; c.densePenalty = 0.8f;
-                c.straightPenalty = 0.85f; c.turnWeight = 0.78f;
-                c.squarePenalty = 0.35f; c.lateRectangleBonus = 0.2f;
-                c.minBlocked = 2; c.maxBlocked = 3;
-                break;
-            default:
-                SetRectangularBoard(ref c, 6, 9);
-                c.minSegment = 5; c.maxSegment = 10; c.candidateCount = 26;
-                c.tierName = "Pentagon Master";
-                c.rectanglePenalty = 0.9f; c.densePenalty = 0.7f;
-                c.straightPenalty = 0.8f; c.turnWeight = 0.72f;
-                c.squarePenalty = 0.25f; c.lateRectangleBonus = 0.3f;
-                c.minBlocked = 4; c.maxBlocked = 4;
-                break;
+            c.width = 4; c.height = 4;
+            c.minSegment = 3; c.maxSegment = 5; c.candidateCount = 22;
+            c.tierName = "Hex Easy";
+            c.rectanglePenalty = 3.2f; c.densePenalty = 2.4f;
+            c.straightPenalty = 1.8f; c.turnWeight = 1.15f;
+            c.squarePenalty = 1.2f; c.lateRectangleBonus = 0f;
+            c.minBlocked = 0; c.maxBlocked = 0;
         }
+        else if (idx < 55)     // Tier 2: 4×5, Easy (326-355)
+        {
+            SetRectangularBoard(ref c, 4, 5);
+            c.minSegment = 3; c.maxSegment = 7; c.candidateCount = 24;
+            c.tierName = "Hex Easy";
+            c.rectanglePenalty = 3.0f; c.densePenalty = 2.2f;
+            c.straightPenalty = 1.7f; c.turnWeight = 1.1f;
+            c.squarePenalty = 1.0f; c.lateRectangleBonus = 0f;
+            c.minBlocked = 0; c.maxBlocked = 0;
+        }
+        else if (idx < 90)     // Tier 3: 5×5, Normal (356-390)
+        {
+            c.width = 5; c.height = 5;
+            c.minSegment = 3; c.maxSegment = 8; c.candidateCount = 26;
+            c.tierName = "Hex Normal";
+            c.rectanglePenalty = 2.7f; c.densePenalty = 2.0f;
+            c.straightPenalty = 1.5f; c.turnWeight = 1.05f;
+            c.squarePenalty = 0.9f; c.lateRectangleBonus = 0f;
+            c.minBlocked = 0; c.maxBlocked = 0;
+        }
+        else if (idx < 130)    // Tier 4: 5×6, Normal (391-430)
+        {
+            SetRectangularBoard(ref c, 5, 6);
+            c.minSegment = 3; c.maxSegment = 9; c.candidateCount = 26;
+            c.tierName = "Hex Normal";
+            c.rectanglePenalty = 2.3f; c.densePenalty = 1.8f;
+            c.straightPenalty = 1.35f; c.turnWeight = 1.0f;
+            c.squarePenalty = 0.75f; c.lateRectangleBonus = 0f;
+            c.minBlocked = 0; c.maxBlocked = 0;
+        }
+        else if (idx < 160)    // Tier 5: 6×6, Hard (431-460)
+        {
+            c.width = 6; c.height = 6;
+            c.minSegment = 4; c.maxSegment = 9; c.candidateCount = 26;
+            c.tierName = "Hex Hard";
+            c.rectanglePenalty = 2.0f; c.densePenalty = 1.55f;
+            c.straightPenalty = 1.2f; c.turnWeight = 0.95f;
+            c.squarePenalty = 0.65f; c.lateRectangleBonus = 0f;
+            c.minBlocked = 0; c.maxBlocked = 0;
+        }
+        else if (idx < 200)    // Tier 6: 6×6 + blocked, Hard (461-500)
+        {
+            c.width = 6; c.height = 6;
+            c.minSegment = 4; c.maxSegment = 9; c.candidateCount = 28;
+            c.tierName = "Hex Hard";
+            c.rectanglePenalty = 1.8f; c.densePenalty = 1.4f;
+            c.straightPenalty = 1.1f; c.turnWeight = 0.92f;
+            c.squarePenalty = 0.6f; c.lateRectangleBonus = 0f;
+            c.minBlocked = 1; c.maxBlocked = 2;
+        }
+        else if (idx < 235)    // Tier 7: 6×7, Advanced (501-535)
+        {
+            SetRectangularBoard(ref c, 6, 7);
+            c.minSegment = 4; c.maxSegment = 10; c.candidateCount = 26;
+            c.tierName = "Hex Advanced";
+            c.rectanglePenalty = 1.5f; c.densePenalty = 1.2f;
+            c.straightPenalty = 1.0f; c.turnWeight = 0.88f;
+            c.squarePenalty = 0.5f; c.lateRectangleBonus = 0.05f;
+            c.minBlocked = 2; c.maxBlocked = 3;
+        }
+        else if (idx < 265)    // Tier 8: 6×8, Expert (536-565)
+        {
+            SetRectangularBoard(ref c, 6, 8);
+            c.minSegment = 4; c.maxSegment = 10; c.candidateCount = 28;
+            c.tierName = "Hex Expert";
+            c.rectanglePenalty = 1.2f; c.densePenalty = 0.95f;
+            c.straightPenalty = 0.9f; c.turnWeight = 0.82f;
+            c.squarePenalty = 0.4f; c.lateRectangleBonus = 0.15f;
+            c.minBlocked = 3; c.maxBlocked = 4;
+        }
+        else                   // Tier 9: 6×9, Master (566-600)
+        {
+            SetRectangularBoard(ref c, 6, 9);
+            c.minSegment = 5; c.maxSegment = 10; c.candidateCount = 30;
+            c.tierName = "Hex Master";
+            c.rectanglePenalty = 0.9f; c.densePenalty = 0.7f;
+            c.straightPenalty = 0.8f; c.turnWeight = 0.72f;
+            c.squarePenalty = 0.25f; c.lateRectangleBonus = 0.3f;
+            c.minBlocked = 4; c.maxBlocked = 5;
+        }
+
         return c;
     }
 }

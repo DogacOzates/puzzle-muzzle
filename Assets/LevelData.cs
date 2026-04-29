@@ -70,7 +70,7 @@ public class LevelData
 
 public static class LevelDatabase
 {
-    public const int TotalLevels = 310;
+    public const int TotalLevels = 600;
 
     private static LevelData[] _levels;
 
@@ -86,8 +86,8 @@ public static class LevelDatabase
                 LevelData[] generatedLevels = LevelGenerator.GenerateCampaign(298);
                 for (int i = 2; i < 300; i++)
                     _levels[i] = generatedLevels[i - 2];
-                LevelData[] pentagonLevels = LevelGenerator.GeneratePentagonCampaign(10);
-                for (int i = 0; i < 10; i++)
+                LevelData[] pentagonLevels = LevelGenerator.GeneratePentagonCampaign(300);
+                for (int i = 0; i < 300; i++)
                     _levels[300 + i] = pentagonLevels[i];
             }
             return _levels;
