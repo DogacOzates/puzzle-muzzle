@@ -134,41 +134,41 @@ public class UIManager : MonoBehaviour
         levelSelectToggleButton = CreateInvisibleButton("LevelSelect", bar.transform, new Vector2(0, -70), new Vector2(520, 84));
         levelSelectToggleButton.onClick.AddListener(() => FindAnyObjectByType<GameManager>().ToggleLevelSelectMenu());
 
-        // Game Center trophy button (right side of top bar)
-        var trophyObj = new GameObject("GameCenterBtn");
-        trophyObj.transform.SetParent(bar.transform, false);
-        var trophyRect = trophyObj.AddComponent<RectTransform>();
-        trophyRect.anchorMin = new Vector2(1f, 1f);
-        trophyRect.anchorMax = new Vector2(1f, 1f);
-        trophyRect.pivot = new Vector2(1f, 0.5f);
-        trophyRect.anchoredPosition = new Vector2(-20f, -70f);
-        trophyRect.sizeDelta = new Vector2(90f, 90f);
+        // Settings gear button (right side of top bar)
+        var settingsObj = new GameObject("SettingsBtn");
+        settingsObj.transform.SetParent(bar.transform, false);
+        var settingsRect = settingsObj.AddComponent<RectTransform>();
+        settingsRect.anchorMin = new Vector2(1f, 1f);
+        settingsRect.anchorMax = new Vector2(1f, 1f);
+        settingsRect.pivot = new Vector2(1f, 0.5f);
+        settingsRect.anchoredPosition = new Vector2(-20f, -70f);
+        settingsRect.sizeDelta = new Vector2(90f, 90f);
 
-        var trophyImg = trophyObj.AddComponent<Image>();
-        trophyImg.sprite = SpriteGenerator.RoundedRect;
-        trophyImg.color = new Color(0.95f, 0.93f, 0.88f, 1f);
+        var settingsImg = settingsObj.AddComponent<Image>();
+        settingsImg.sprite = SpriteGenerator.RoundedRect;
+        settingsImg.color = new Color(0.95f, 0.93f, 0.88f, 1f);
 
-        var trophyBtn = trophyObj.AddComponent<Button>();
-        trophyBtn.targetGraphic = trophyImg;
-        var tc = trophyBtn.colors;
-        tc.highlightedColor = new Color(0.88f, 0.86f, 0.80f, 1f);
-        tc.pressedColor    = new Color(0.78f, 0.76f, 0.70f, 1f);
-        trophyBtn.colors = tc;
-        trophyBtn.onClick.AddListener(ShowGameCenterMenu);
+        var settingsBtn = settingsObj.AddComponent<Button>();
+        settingsBtn.targetGraphic = settingsImg;
+        var sc = settingsBtn.colors;
+        sc.highlightedColor = new Color(0.88f, 0.86f, 0.80f, 1f);
+        sc.pressedColor    = new Color(0.78f, 0.76f, 0.70f, 1f);
+        settingsBtn.colors = sc;
+        settingsBtn.onClick.AddListener(ShowSettingsPopup);
 
-        var trophyEmojiObj = new GameObject("Emoji");
-        trophyEmojiObj.transform.SetParent(trophyObj.transform, false);
-        var teRect = trophyEmojiObj.AddComponent<RectTransform>();
-        teRect.anchorMin = Vector2.zero;
-        teRect.anchorMax = Vector2.one;
-        teRect.offsetMin = Vector2.zero;
-        teRect.offsetMax = Vector2.zero;
-        var trophyTxt = trophyEmojiObj.AddComponent<Text>();
-        trophyTxt.font = defaultFont;
-        trophyTxt.text = "🏆";
-        trophyTxt.fontSize = 40;
-        trophyTxt.alignment = TextAnchor.MiddleCenter;
-        trophyTxt.color = Color.white;
+        var settingsEmojiObj = new GameObject("Emoji");
+        settingsEmojiObj.transform.SetParent(settingsObj.transform, false);
+        var seRect = settingsEmojiObj.AddComponent<RectTransform>();
+        seRect.anchorMin = Vector2.zero;
+        seRect.anchorMax = Vector2.one;
+        seRect.offsetMin = Vector2.zero;
+        seRect.offsetMax = Vector2.zero;
+        var settingsTxt = settingsEmojiObj.AddComponent<Text>();
+        settingsTxt.font = defaultFont;
+        settingsTxt.text = "⚙️";
+        settingsTxt.fontSize = 40;
+        settingsTxt.alignment = TextAnchor.MiddleCenter;
+        settingsTxt.color = TextDark;
     }
 
     private void CreateBottomBar()
@@ -1303,9 +1303,9 @@ public class UIManager : MonoBehaviour
         levelCompletePanel.SetActive(false);
     }
 
-    private void ShowGameCenterMenu()
+    private void ShowSettingsPopup()
     {
-        var popup = new GameObject("GameCenterMenuPopup");
+        var popup = new GameObject("SettingsPopup");
         popup.transform.SetParent(canvas.transform, false);
         popup.transform.SetAsLastSibling();
 
@@ -1328,7 +1328,7 @@ public class UIManager : MonoBehaviour
         shadowRect.anchorMin = new Vector2(0.5f, 0.5f);
         shadowRect.anchorMax = new Vector2(0.5f, 0.5f);
         shadowRect.pivot = new Vector2(0.5f, 0.5f);
-        shadowRect.sizeDelta = new Vector2(626f, 406f);
+        shadowRect.sizeDelta = new Vector2(666f, 596f);
         shadowRect.anchoredPosition = new Vector2(4f, -8f);
         var shadowImg = shadowObj.AddComponent<Image>();
         shadowImg.sprite = SpriteGenerator.RoundedRect;
@@ -1341,17 +1341,43 @@ public class UIManager : MonoBehaviour
         cardRect.anchorMin = new Vector2(0.5f, 0.5f);
         cardRect.anchorMax = new Vector2(0.5f, 0.5f);
         cardRect.pivot = new Vector2(0.5f, 0.5f);
-        cardRect.sizeDelta = new Vector2(600f, 380f);
+        cardRect.sizeDelta = new Vector2(640f, 570f);
         var cardImg = card.AddComponent<Image>();
         cardImg.sprite = SpriteGenerator.RoundedRect;
         cardImg.color = new Color(1f, 1f, 1f, 0.98f);
 
         // Title
-        var title = MakeCardText("Title", card.transform, new Vector2(0, 130), 44, FontStyle.Bold, TextDark);
-        title.text = "🏆  Game Center";
+        var title = MakeCardText("Title", card.transform, new Vector2(0, 222), 44, FontStyle.Bold, TextDark);
+        title.text = "⚙️  Ayarlar";
+
+        // ─── Sound toggle row ───────────────────────────────────────────────
+        bool soundOn = !(AudioManager.Instance?.IsMuted ?? false);
+        CreateToggleRow(card.transform, "🔊  Ses", soundOn, new Vector2(0, 130), (val) =>
+        {
+            AudioManager.Instance?.SetMuted(!val);
+        });
+
+        // ─── Haptic toggle row ──────────────────────────────────────────────
+        bool hapticOn = HapticManager.Instance?.IsHapticsEnabled ?? true;
+        CreateToggleRow(card.transform, "📳  Titreşim", hapticOn, new Vector2(0, 30), (val) =>
+        {
+            if (HapticManager.Instance != null) HapticManager.Instance.IsHapticsEnabled = val;
+        });
+
+        // Divider
+        var divObj = new GameObject("Divider");
+        divObj.transform.SetParent(card.transform, false);
+        var divRect = divObj.AddComponent<RectTransform>();
+        divRect.anchorMin = new Vector2(0.5f, 0.5f);
+        divRect.anchorMax = new Vector2(0.5f, 0.5f);
+        divRect.pivot = new Vector2(0.5f, 0.5f);
+        divRect.anchoredPosition = new Vector2(0, -40f);
+        divRect.sizeDelta = new Vector2(560f, 2f);
+        var divImg = divObj.AddComponent<Image>();
+        divImg.color = new Color(0.85f, 0.83f, 0.78f, 1f);
 
         // Achievements button
-        var achBtn = CreateCardButton("Başarımlar / Achievements", card.transform, new Vector2(0, 30), BtnTeal);
+        var achBtn = CreateCardButton("🏆  Başarımlar / Achievements", card.transform, new Vector2(0, -100f), BtnTeal);
         achBtn.onClick.AddListener(() =>
         {
             Destroy(popup);
@@ -1359,14 +1385,92 @@ public class UIManager : MonoBehaviour
         });
 
         // Leaderboard button
-        var lbBtn = CreateCardButton("Liderlik Tablosu / Leaderboard", card.transform, new Vector2(0, -70), new Color(0.38f, 0.32f, 0.58f));
-        var lbText = lbBtn.GetComponentInChildren<Text>();
-        if (lbText != null) lbText.fontSize = 28;
+        var lbBtn = CreateCardButton("📊  Liderlik Tablosu", card.transform, new Vector2(0, -195f), new Color(0.38f, 0.32f, 0.58f));
         lbBtn.onClick.AddListener(() =>
         {
             Destroy(popup);
             GameCenterManager.Instance?.ShowLeaderboard();
         });
+    }
+
+    // Creates a labeled toggle row (label on left, ON/OFF button on right)
+    private void CreateToggleRow(Transform parent, string label, bool initialState, Vector2 position, System.Action<bool> onChange)
+    {
+        const float rowW = 560f, rowH = 74f;
+
+        var row = new GameObject("ToggleRow_" + label);
+        row.transform.SetParent(parent, false);
+        var rowRect = row.AddComponent<RectTransform>();
+        rowRect.anchorMin = new Vector2(0.5f, 0.5f);
+        rowRect.anchorMax = new Vector2(0.5f, 0.5f);
+        rowRect.pivot = new Vector2(0.5f, 0.5f);
+        rowRect.anchoredPosition = position;
+        rowRect.sizeDelta = new Vector2(rowW, rowH);
+
+        // Row background
+        var rowBg = row.AddComponent<Image>();
+        rowBg.sprite = SpriteGenerator.RoundedRect;
+        rowBg.color = new Color(0.96f, 0.94f, 0.90f, 1f);
+
+        // Label
+        var labelObj = new GameObject("Label");
+        labelObj.transform.SetParent(row.transform, false);
+        var labelRect = labelObj.AddComponent<RectTransform>();
+        labelRect.anchorMin = new Vector2(0f, 0f);
+        labelRect.anchorMax = new Vector2(1f, 1f);
+        labelRect.offsetMin = new Vector2(20f, 0f);
+        labelRect.offsetMax = new Vector2(-110f, 0f);
+        var labelTxt = labelObj.AddComponent<Text>();
+        labelTxt.font = defaultFont;
+        labelTxt.text = label;
+        labelTxt.fontSize = 34;
+        labelTxt.alignment = TextAnchor.MiddleLeft;
+        labelTxt.color = TextDark;
+
+        // Toggle button
+        var togObj = new GameObject("Toggle");
+        togObj.transform.SetParent(row.transform, false);
+        var togRect = togObj.AddComponent<RectTransform>();
+        togRect.anchorMin = new Vector2(1f, 0.5f);
+        togRect.anchorMax = new Vector2(1f, 0.5f);
+        togRect.pivot = new Vector2(1f, 0.5f);
+        togRect.anchoredPosition = new Vector2(-12f, 0f);
+        togRect.sizeDelta = new Vector2(86f, 50f);
+
+        var togImg = togObj.AddComponent<Image>();
+        togImg.sprite = SpriteGenerator.RoundedRect;
+        togImg.color = initialState ? BtnTeal : new Color(0.72f, 0.70f, 0.65f);
+
+        var togLabelObj = new GameObject("TogLabel");
+        togLabelObj.transform.SetParent(togObj.transform, false);
+        var tlRect = togLabelObj.AddComponent<RectTransform>();
+        tlRect.anchorMin = Vector2.zero;
+        tlRect.anchorMax = Vector2.one;
+        tlRect.offsetMin = Vector2.zero;
+        tlRect.offsetMax = Vector2.zero;
+        var togTxt = togLabelObj.AddComponent<Text>();
+        togTxt.font = defaultFont;
+        togTxt.text = initialState ? "ON" : "OFF";
+        togTxt.fontSize = 26;
+        togTxt.fontStyle = FontStyle.Bold;
+        togTxt.alignment = TextAnchor.MiddleCenter;
+        togTxt.color = Color.white;
+
+        bool state = initialState;
+        var togBtn = togObj.AddComponent<Button>();
+        togBtn.targetGraphic = togImg;
+        togBtn.onClick.AddListener(() =>
+        {
+            state = !state;
+            togImg.color = state ? BtnTeal : new Color(0.72f, 0.70f, 0.65f);
+            togTxt.text = state ? "ON" : "OFF";
+            onChange(state);
+        });
+    }
+
+    private void ShowGameCenterMenu()
+    {
+        ShowSettingsPopup();
     }
 
 

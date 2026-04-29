@@ -16,6 +16,7 @@ public class GameManager : MonoBehaviour
     private TutorialController tutorialController;
     private iCloudSyncManager iCloudSync;
     private GameCenterManager gameCenterManager;
+    private HapticManager hapticManager;
     private int currentLevelIndex = 0;
     private bool isLevelTransitionRunning;
     private int hintPressedThisLevel;
@@ -69,6 +70,10 @@ public class GameManager : MonoBehaviour
         var gcObj = new GameObject("GameCenterManager");
         gcObj.transform.SetParent(transform);
         gameCenterManager = gcObj.AddComponent<GameCenterManager>();
+
+        var hapticObj = new GameObject("HapticManager");
+        hapticObj.transform.SetParent(transform);
+        hapticManager = hapticObj.AddComponent<HapticManager>();
 
         var uiObj = new GameObject("UIManager");
         uiObj.transform.SetParent(transform);
@@ -182,6 +187,7 @@ public class GameManager : MonoBehaviour
 
         IsLevelComplete = true;
         AudioManager.Instance?.OnLevelComplete();
+        HapticManager.Instance?.LevelComplete();
 
         if (currentGameMode == GameMode.Daily)
         {

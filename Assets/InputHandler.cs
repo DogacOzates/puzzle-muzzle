@@ -101,7 +101,10 @@ public class InputHandler : MonoBehaviour
                 if (!gridManager.HasActiveSelection)
                     AudioManager.Instance?.OnSegmentComplete();
                 else
+                {
                     AudioManager.Instance?.OnCellCollected();
+                    HapticManager.Instance?.CellCollected();
+                }
 
                 if (gridManager.IsLevelComplete())
                     gameManager.OnLevelComplete();
@@ -118,6 +121,7 @@ public class InputHandler : MonoBehaviour
                 AudioManager.Instance?.OnChainStarted();
                 gridManager.TryStartFromEmpty(cell);
                 AudioManager.Instance?.OnCellCollected();
+                HapticManager.Instance?.CellCollected();
                 break;
 
             case CellState.NumberTarget:
@@ -157,7 +161,10 @@ public class InputHandler : MonoBehaviour
                 if (!gridManager.HasActiveSelection)
                     AudioManager.Instance?.OnSegmentComplete();
                 else
+                {
                     AudioManager.Instance?.OnCellCollected();
+                    HapticManager.Instance?.CellCollected();
+                }
 
                 if (gridManager.IsLevelComplete())
                     gameManager.OnLevelComplete();
@@ -172,6 +179,7 @@ public class InputHandler : MonoBehaviour
                 AudioManager.Instance?.OnChainStarted();
                 gridManager.TryStartFromEmpty(cell);
                 AudioManager.Instance?.OnCellCollected();
+                HapticManager.Instance?.CellCollected();
                 return;
             }
         }

@@ -21,6 +21,10 @@ public class AudioManager : MonoBehaviour
     private float currentPitch = BasePitch;
     private int   chainLength  = 0;
 
+    private const string SoundMutedKey = "settings.sound_muted";
+
+    public bool IsMuted => PlayerPrefs.GetInt(SoundMutedKey, 0) == 1;
+
     private static AudioManager _instance;
     public static AudioManager Instance => _instance;
 
@@ -32,6 +36,7 @@ public class AudioManager : MonoBehaviour
         audioSource = gameObject.AddComponent<AudioSource>();
         audioSource.playOnAwake = false;
         audioSource.spatialBlend = 0f;
+        audioSource.mute = IsMuted;
 
         collectClip      = Resources.Load<AudioClip>("cell_collect")   ?? GenerateCollectClip(false);
         collectLongClip  = Resources.Load<AudioClip>("collect_long")   ?? GenerateCollectClip(true);
@@ -40,6 +45,13 @@ public class AudioManager : MonoBehaviour
     }
 
     // ── Public API ──────────────────────────────────────────────────────────
+
+    public void SetMuted(bool muted)
+    {
+        PlayerPrefs.SetInt(SoundMutedKey, muted ? 1 : 0);
+        PlayerPrefs.Save();
+        if (audioSource != null) audioSource.mute = muted;
+    }
 
     /// <summary>Call when a new chain is started (pitch resets).</summary>
     public void OnChainStarted()
