@@ -142,7 +142,9 @@ public class LevelGateAdsBridge
         {
             pendingInterstitialShowCallback = onFinished;
             LoadLevelGateAd();
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             Debug.Log("Level gate ad is not ready yet. Loading it now.");
+#endif
             return;
         }
 
@@ -173,7 +175,9 @@ public class LevelGateAdsBridge
         {
             pendingRewardedShowCallback = onRewardEarned;
             LoadRewardedHintAd();
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             Debug.Log("Rewarded hint ad is not ready yet. Loading it now.");
+#endif
             return;
         }
 

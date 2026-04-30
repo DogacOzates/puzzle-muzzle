@@ -160,7 +160,9 @@ public class GameManager : MonoBehaviour
     {
         if (index < 0 || index >= LevelDatabase.Levels.Length)
         {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             Debug.Log("All levels completed!");
+#endif
             return;
         }
 

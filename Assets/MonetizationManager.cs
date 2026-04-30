@@ -76,7 +76,9 @@ public class MonetizationManager : MonoBehaviour
     {
         if (!NoAdsPurchasesEnabled)
         {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             Debug.Log("No Ads purchase is temporarily disabled for builds.");
+#endif
             return;
         }
 
