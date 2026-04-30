@@ -50,10 +50,11 @@ public static class IOSPostBuild
         // Entitlements file path is relative to the Xcode project root
         const string entitlementsRelPath = "Unity-iPhone/Unity-iPhone.entitlements";
 
+        // GetUnityTargetName() is obsolete; the main app target is always "Unity-iPhone"
         var capManager = new ProjectCapabilityManager(
             projPath,
             entitlementsRelPath,
-            PBXProject.GetUnityTargetName()
+            "Unity-iPhone"
         );
 
         // Game Center
