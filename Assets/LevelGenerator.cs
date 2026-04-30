@@ -1489,95 +1489,105 @@ public static class LevelGenerator
     {
         CampaignConfig c = new CampaignConfig();
 
-        if (idx < 25)          // Tier 1: 5×5, Easy (levels 601-625)
+        if (idx < 20)          // Tier 1:  4×4  Intro  (601-620)
+        {
+            c.width = 4; c.height = 4;
+            c.minSegment = 2; c.maxSegment = 6; c.candidateCount = 20;
+            c.tierName = "6gen Intro";
+            c.rectanglePenalty = 3.5f; c.densePenalty = 2.5f;
+            c.straightPenalty = 2.0f; c.turnWeight = 1.2f;
+            c.squarePenalty = 1.5f; c.lateRectangleBonus = 0f;
+            c.minBlocked = 0; c.maxBlocked = 0;
+        }
+        else if (idx < 40)     // Tier 2:  4×5  Easy   (621-640)
+        {
+            SetRectangularBoard(ref c, 4, 5);
+            c.minSegment = 2; c.maxSegment = 7; c.candidateCount = 22;
+            c.tierName = "6gen Easy";
+            c.rectanglePenalty = 3.2f; c.densePenalty = 2.3f;
+            c.straightPenalty = 1.9f; c.turnWeight = 1.15f;
+            c.squarePenalty = 1.3f; c.lateRectangleBonus = 0f;
+            c.minBlocked = 0; c.maxBlocked = 0;
+        }
+        else if (idx < 65)     // Tier 3:  5×5  Easy+  (641-665)
         {
             c.width = 5; c.height = 5;
             c.minSegment = 3; c.maxSegment = 7; c.candidateCount = 24;
             c.tierName = "6gen Easy";
-            c.rectanglePenalty = 3.2f; c.densePenalty = 2.4f;
-            c.straightPenalty = 1.8f; c.turnWeight = 1.15f;
-            c.squarePenalty = 1.2f; c.lateRectangleBonus = 0f;
+            c.rectanglePenalty = 3.0f; c.densePenalty = 2.1f;
+            c.straightPenalty = 1.8f; c.turnWeight = 1.1f;
+            c.squarePenalty = 1.1f; c.lateRectangleBonus = 0f;
             c.minBlocked = 0; c.maxBlocked = 0;
         }
-        else if (idx < 60)     // Tier 2: 5×6, Easy+ (626-660)
+        else if (idx < 90)     // Tier 4:  5×6  Normal (666-690)
         {
             SetRectangularBoard(ref c, 5, 6);
-            c.minSegment = 3; c.maxSegment = 8; c.candidateCount = 26;
-            c.tierName = "6gen Easy";
-            c.rectanglePenalty = 2.9f; c.densePenalty = 2.2f;
-            c.straightPenalty = 1.7f; c.turnWeight = 1.1f;
-            c.squarePenalty = 1.0f; c.lateRectangleBonus = 0f;
-            c.minBlocked = 0; c.maxBlocked = 0;
-        }
-        else if (idx < 95)     // Tier 3: 6×6, Normal (661-695)
-        {
-            c.width = 6; c.height = 6;
-            c.minSegment = 4; c.maxSegment = 9; c.candidateCount = 26;
+            c.minSegment = 3; c.maxSegment = 8; c.candidateCount = 24;
             c.tierName = "6gen Normal";
-            c.rectanglePenalty = 2.5f; c.densePenalty = 1.9f;
-            c.straightPenalty = 1.5f; c.turnWeight = 1.05f;
-            c.squarePenalty = 0.85f; c.lateRectangleBonus = 0f;
-            c.minBlocked = 0; c.maxBlocked = 0;
-        }
-        else if (idx < 135)    // Tier 4: 6×7, Normal+ (696-735)
-        {
-            SetRectangularBoard(ref c, 6, 7);
-            c.minSegment = 4; c.maxSegment = 9; c.candidateCount = 26;
-            c.tierName = "6gen Normal";
-            c.rectanglePenalty = 2.1f; c.densePenalty = 1.6f;
-            c.straightPenalty = 1.3f; c.turnWeight = 0.98f;
-            c.squarePenalty = 0.7f; c.lateRectangleBonus = 0f;
+            c.rectanglePenalty = 2.6f; c.densePenalty = 1.9f;
+            c.straightPenalty = 1.6f; c.turnWeight = 1.05f;
+            c.squarePenalty = 0.9f; c.lateRectangleBonus = 0f;
             c.minBlocked = 0; c.maxBlocked = 1;
         }
-        else if (idx < 170)    // Tier 5: 6×8, Hard (736-770)
+        else if (idx < 120)    // Tier 5:  5×7  Normal+(691-720)
+        {
+            SetRectangularBoard(ref c, 5, 7);
+            c.minSegment = 3; c.maxSegment = 9; c.candidateCount = 26;
+            c.tierName = "6gen Normal";
+            c.rectanglePenalty = 2.2f; c.densePenalty = 1.7f;
+            c.straightPenalty = 1.4f; c.turnWeight = 1.0f;
+            c.squarePenalty = 0.75f; c.lateRectangleBonus = 0f;
+            c.minBlocked = 0; c.maxBlocked = 2;
+        }
+        else if (idx < 150)    // Tier 6:  6×7  Hard   (721-750)
+        {
+            SetRectangularBoard(ref c, 6, 7);
+            c.minSegment = 4; c.maxSegment = 10; c.candidateCount = 26;
+            c.tierName = "6gen Hard";
+            c.rectanglePenalty = 1.9f; c.densePenalty = 1.5f;
+            c.straightPenalty = 1.2f; c.turnWeight = 0.95f;
+            c.squarePenalty = 0.65f; c.lateRectangleBonus = 0.05f;
+            c.minBlocked = 1; c.maxBlocked = 3;
+        }
+        else if (idx < 185)    // Tier 7:  6×8  Hard+  (751-785)
         {
             SetRectangularBoard(ref c, 6, 8);
             c.minSegment = 4; c.maxSegment = 10; c.candidateCount = 28;
             c.tierName = "6gen Hard";
-            c.rectanglePenalty = 1.8f; c.densePenalty = 1.4f;
-            c.straightPenalty = 1.1f; c.turnWeight = 0.92f;
-            c.squarePenalty = 0.6f; c.lateRectangleBonus = 0.05f;
-            c.minBlocked = 1; c.maxBlocked = 2;
+            c.rectanglePenalty = 1.6f; c.densePenalty = 1.3f;
+            c.straightPenalty = 1.1f; c.turnWeight = 0.9f;
+            c.squarePenalty = 0.55f; c.lateRectangleBonus = 0.1f;
+            c.minBlocked = 2; c.maxBlocked = 4;
         }
-        else if (idx < 210)    // Tier 6: 6×9, Hard+ (771-810)
+        else if (idx < 220)    // Tier 8:  7×8  Advanced(786-820)
         {
-            SetRectangularBoard(ref c, 6, 9);
-            c.minSegment = 4; c.maxSegment = 10; c.candidateCount = 28;
-            c.tierName = "6gen Hard";
-            c.rectanglePenalty = 1.5f; c.densePenalty = 1.2f;
-            c.straightPenalty = 1.0f; c.turnWeight = 0.87f;
-            c.squarePenalty = 0.5f; c.lateRectangleBonus = 0.1f;
-            c.minBlocked = 2; c.maxBlocked = 3;
-        }
-        else if (idx < 245)    // Tier 7: 6×10, Advanced (811-845)
-        {
-            SetRectangularBoard(ref c, 6, 10);
-            c.minSegment = 5; c.maxSegment = 11; c.candidateCount = 28;
+            SetRectangularBoard(ref c, 7, 8);
+            c.minSegment = 4; c.maxSegment = 11; c.candidateCount = 28;
             c.tierName = "6gen Advanced";
-            c.rectanglePenalty = 1.2f; c.densePenalty = 0.95f;
-            c.straightPenalty = 0.9f; c.turnWeight = 0.82f;
-            c.squarePenalty = 0.4f; c.lateRectangleBonus = 0.15f;
-            c.minBlocked = 3; c.maxBlocked = 4;
+            c.rectanglePenalty = 1.3f; c.densePenalty = 1.0f;
+            c.straightPenalty = 0.95f; c.turnWeight = 0.85f;
+            c.squarePenalty = 0.45f; c.lateRectangleBonus = 0.15f;
+            c.minBlocked = 3; c.maxBlocked = 5;
         }
-        else if (idx < 275)    // Tier 8: 6×11, Expert (846-875)
+        else if (idx < 260)    // Tier 9:  7×9  Expert (821-860)
         {
-            SetRectangularBoard(ref c, 6, 11);
+            SetRectangularBoard(ref c, 7, 9);
             c.minSegment = 5; c.maxSegment = 12; c.candidateCount = 30;
             c.tierName = "6gen Expert";
-            c.rectanglePenalty = 1.0f; c.densePenalty = 0.75f;
-            c.straightPenalty = 0.85f; c.turnWeight = 0.77f;
-            c.squarePenalty = 0.3f; c.lateRectangleBonus = 0.2f;
-            c.minBlocked = 4; c.maxBlocked = 5;
+            c.rectanglePenalty = 1.0f; c.densePenalty = 0.8f;
+            c.straightPenalty = 0.85f; c.turnWeight = 0.78f;
+            c.squarePenalty = 0.35f; c.lateRectangleBonus = 0.2f;
+            c.minBlocked = 4; c.maxBlocked = 6;
         }
-        else                   // Tier 9: 6×12, Master (876-900)
+        else                   // Tier 10: 7×10 Master (861-900)
         {
-            SetRectangularBoard(ref c, 6, 12);
+            SetRectangularBoard(ref c, 7, 10);
             c.minSegment = 5; c.maxSegment = 12; c.candidateCount = 32;
             c.tierName = "6gen Master";
             c.rectanglePenalty = 0.8f; c.densePenalty = 0.6f;
             c.straightPenalty = 0.75f; c.turnWeight = 0.7f;
-            c.squarePenalty = 0.2f; c.lateRectangleBonus = 0.3f;
-            c.minBlocked = 5; c.maxBlocked = 6;
+            c.squarePenalty = 0.25f; c.lateRectangleBonus = 0.3f;
+            c.minBlocked = 5; c.maxBlocked = 7;
         }
 
         return c;
