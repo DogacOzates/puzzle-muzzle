@@ -1,6 +1,6 @@
 // IOSPostBuild.cs
 // Runs automatically after every Unity iOS build.
-// Injects required Info.plist keys that Unity doesn't expose in PlayerSettings UI.
+// Injects required Info.plist keys and Xcode capabilities.
 #if UNITY_EDITOR
 using UnityEditor;
 using UnityEditor.Callbacks;
@@ -18,6 +18,13 @@ public static class IOSPostBuild
         if (target != BuildTarget.iOS)
             return;
 
+        AddInfoPlistKeys(buildPath);
+        AddXcodeCapabilities(buildPath);
+    }
+
+    // ── Info.plist keys ───────────────────────────────────────────────────
+    private static void AddInfoPlistKeys(string buildPath)
+    {
         string plistPath = Path.Combine(buildPath, "Info.plist");
         var plist = new PlistDocument();
         plist.ReadFromFile(plistPath);
@@ -33,6 +40,33 @@ public static class IOSPostBuild
         }
 
         plist.WriteToFile(plistPath);
+    }
+
+    // ── Xcode Capabilities ────────────────────────────────────────────────
+    private static void AddXcodeCapabilities(string buildPath)
+    {
+        string projPath = PBXProject.GetPBXProjectPath(buildPath);
+
+        // Entitlements file path is relative to the Xcode project root
+        const string entitlementsRelPath = "Unity-iPhone/Unity-iPhone.entitlements";
+
+        var capManager = new ProjectCapabilityManager(
+            projPath,
+            entitlementsRelPath,
+            PBXProject.GetUnityTargetName()
+        );
+
+        // Game Center
+        capManager.AddGameCenter();
+
+        // In-App Purchase (no entitlement needed; adds the capability flag)
+        capManager.AddInAppPurchase();
+
+        // iCloud Key-Value Storage
+        // AddiCloud(cloudKit, kvStorage, iCloudDocument, useSharedContainer, containers)
+        capManager.AddiCloud(false, true, false, false, new string[] {});
+
+        capManager.WriteToFile();
     }
 #endif
 }
