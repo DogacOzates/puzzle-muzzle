@@ -96,6 +96,15 @@ public class GameManager : MonoBehaviour
         currentLevelIndex = LoadSavedLevelIndex();
         LoadLevel(currentLevelIndex);
         StartCoroutine(PeriodicPromoBannerCoroutine());
+        StartCoroutine(RequestATTThenInitAds());
+    }
+
+    // ATT must be shown after the app window is fully ready.
+    // A short delay ensures iOS doesn't silently drop the dialog.
+    private IEnumerator RequestATTThenInitAds()
+    {
+        yield return new WaitForSeconds(0.5f);
+        ATTManager.RequestAuthorization(_ => monetizationManager?.InitializeAds());
     }
 
     private void OnThemeChanged()

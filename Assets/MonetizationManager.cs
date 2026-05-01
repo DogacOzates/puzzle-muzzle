@@ -28,17 +28,23 @@ public class MonetizationManager : MonoBehaviour
         IsNoAdsPurchased = PlayerPrefs.GetInt(NoAdsPurchasedKey, 0) == 1;
 
         adsBridge = new LevelGateAdsBridge();
-        adsBridge.Initialize();
-        if (!IsNoAdsPurchased)
-        {
-            adsBridge.LoadLevelGateAd();
-            adsBridge.LoadRewardedHintAd();
-        }
+        // Ads are initialized later via InitializeAds() after ATT permission is granted.
 
         if (NoAdsPurchasesEnabled)
         {
             iapBridge = new NoAdsIapBridge(NoAdsProductId, OnNoAdsPurchased, OnNoAdsPriceUpdated);
             iapBridge.Initialize();
+        }
+    }
+
+    // Called from GameManager after the ATT dialog has been shown.
+    public void InitializeAds()
+    {
+        adsBridge.Initialize();
+        if (!IsNoAdsPurchased)
+        {
+            adsBridge.LoadLevelGateAd();
+            adsBridge.LoadRewardedHintAd();
         }
     }
 
