@@ -39,6 +39,15 @@ public static class IOSPostBuild
             );
         }
 
+        // Required by Google AdMob SDK — must match AdMob App ID
+        if (!root.values.ContainsKey("GADApplicationIdentifier"))
+        {
+            root.SetString(
+                "GADApplicationIdentifier",
+                "ca-app-pub-2933494287812005~7293120559"
+            );
+        }
+
         plist.WriteToFile(plistPath);
     }
 
