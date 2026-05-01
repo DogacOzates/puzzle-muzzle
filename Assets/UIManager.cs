@@ -1083,20 +1083,20 @@ public class UIManager : MonoBehaviour
 
         // Title
         var title = MakeCardText("Title", card.transform, new Vector2(0, 80), 42, FontStyle.Bold, TextDark);
-        title.text = "Puzzle Muzzle'ı beğendiniz mi?";
+        title.text = "Enjoying Puzzle Muzzle?";
         title.GetComponent<RectTransform>().sizeDelta = new Vector2(530f, 60f);
 
         // Subtitle
         var sub = MakeCardText("Subtitle", card.transform, new Vector2(0, 20), 28, FontStyle.Normal, TextMuted);
-        sub.text = "Değerlendirmeniz bize çok yardımcı olur!";
+        sub.text = "A quick rating helps us a lot!";
         sub.GetComponent<RectTransform>().sizeDelta = new Vector2(530f, 50f);
 
         // Rate button
-        var rateBtn = CreateCardButton("⭐  Değerlendir", card.transform, new Vector2(0, -80), BtnTeal);
+        var rateBtn = CreateCardButton("⭐  Rate Now", card.transform, new Vector2(0, -80), BtnTeal);
         rateBtn.onClick.AddListener(() => { HideRatePopup(); onRate?.Invoke(); });
 
         // Dismiss button
-        var dismissBtn = CreateCardButton("Şimdi Değil", card.transform, new Vector2(0, -170), new Color(0.88f, 0.86f, 0.84f));
+        var dismissBtn = CreateCardButton("Not Now", card.transform, new Vector2(0, -170), new Color(0.88f, 0.86f, 0.84f));
         var dismissText = dismissBtn.GetComponentInChildren<Text>();
         if (dismissText != null) { dismissText.color = TextMuted; dismissText.fontSize = 26; }
         dismissBtn.onClick.AddListener(() => { HideRatePopup(); onDismiss?.Invoke(); });
@@ -1516,10 +1516,10 @@ public class UIManager : MonoBehaviour
             : new Color(0.25f, 0.78f, 0.72f, 0.9f); // teal = available
 
         string streakSuffix = streak > 0 ? $"  🔥 {streak}" : "";
-        dailyChallengeCardMainText.text = completed ? $"✓ Tamamlandı!{streakSuffix}" : "📅 Günlük Görev";
+        dailyChallengeCardMainText.text = completed ? $"✓ Daily Complete!{streakSuffix}" : "📅 Daily Challenge";
         dailyChallengeCardSubText.text = completed
-            ? "Harika! Yarın yeni bir bölüm seni bekliyor 🎉"
-            : "Her gün yeni bir bölüm • Tamamla, 1 ipucu kazan 💡";
+            ? "Great job! Come back tomorrow 🎉"
+            : "A new puzzle every day • Complete to earn 1 hint 💡";
 
         if (dailyChallengeCardButton != null)
             dailyChallengeCardButton.interactable = !completed;
