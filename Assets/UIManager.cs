@@ -17,6 +17,8 @@ public class UIManager : MonoBehaviour
     private Button levelSelectToggleButton;
     private GameObject noAdsPurchasePopup;
     private GameObject ratePopup;
+    private GameObject hintFreeBadgeObj;
+    private Text hintFreeBadgeText;
     private Image hintButtonIcon;
     private Image noAdsButtonIcon;
     private Image restartButtonIcon;
@@ -291,6 +293,22 @@ public class UIManager : MonoBehaviour
         hRect.anchorMin = new Vector2(0, 0);
         hRect.anchorMax = new Vector2(0, 0);
         hintButton.onClick.AddListener(() => FindAnyObjectByType<GameManager>().UseHint());
+
+        // Free hint badge (top-right corner of hint button)
+        hintFreeBadgeObj = new GameObject("FreeBadge");
+        hintFreeBadgeObj.transform.SetParent(hintButton.transform, false);
+        var badgeRect = hintFreeBadgeObj.AddComponent<RectTransform>();
+        badgeRect.anchorMin = new Vector2(1f, 1f);
+        badgeRect.anchorMax = new Vector2(1f, 1f);
+        badgeRect.pivot = new Vector2(1f, 1f);
+        badgeRect.anchoredPosition = new Vector2(10f, 10f);
+        badgeRect.sizeDelta = new Vector2(34f, 34f);
+        var badgeImg = hintFreeBadgeObj.AddComponent<Image>();
+        badgeImg.sprite = SpriteGenerator.Circle;
+        badgeImg.color = new Color(0.95f, 0.35f, 0.25f);
+        hintFreeBadgeText = MakeText("Count", hintFreeBadgeObj.transform, Vector2.zero, 20, FontStyle.Bold, Color.white);
+        hintFreeBadgeText.alignment = TextAnchor.MiddleCenter;
+        hintFreeBadgeObj.SetActive(false);
 
         // Restart button (right) with icon
         restartButton = CreateIconButton("Restart", bar.transform, new Vector2(-100, 80), 70, "icons/reload");
@@ -1001,6 +1019,16 @@ public class UIManager : MonoBehaviour
         }
     }
 
+    // --- Free Hint Badge ---
+
+    public void UpdateHintBadge(int count)
+    {
+        if (hintFreeBadgeObj == null) return;
+        hintFreeBadgeObj.SetActive(count > 0);
+        if (hintFreeBadgeText != null)
+            hintFreeBadgeText.text = count.ToString();
+    }
+
     // --- Rate App Popup ---
 
     public void ShowRatePopup(System.Action onRate, System.Action onDismiss)
@@ -1488,8 +1516,10 @@ public class UIManager : MonoBehaviour
             : new Color(0.25f, 0.78f, 0.72f, 0.9f); // teal = available
 
         string streakSuffix = streak > 0 ? $"  🔥 {streak}" : "";
-        dailyChallengeCardMainText.text = completed ? $"✓ Daily Complete!{streakSuffix}" : "📅 Daily Challenge";
-        dailyChallengeCardSubText.text = completed ? "Come back tomorrow!" : levelName;
+        dailyChallengeCardMainText.text = completed ? $"✓ Tamamlandı!{streakSuffix}" : "📅 Günlük Görev";
+        dailyChallengeCardSubText.text = completed
+            ? "Harika! Yarın yeni bir bölüm seni bekliyor 🎉"
+            : "Her gün yeni bir bölüm • Tamamla, 1 ipucu kazan 💡";
 
         if (dailyChallengeCardButton != null)
             dailyChallengeCardButton.interactable = !completed;

@@ -90,6 +90,8 @@ public class GameManager : MonoBehaviour
 
         // Show streak on launch (may be 0, which hides the label)
         uiManager.UpdateStreakDisplay(DailyChallengeManager.GetStreak());
+        // Restore free hint badge if any hints were accumulated
+        uiManager.UpdateHintBadge(GetFreeHints());
 
         currentLevelIndex = LoadSavedLevelIndex();
         LoadLevel(currentLevelIndex);
@@ -215,6 +217,8 @@ public class GameManager : MonoBehaviour
             int streak = DailyChallengeManager.GetStreak();
             gameCenterManager?.ReportDailyCompleted(streak);
             uiManager?.UpdateStreakDisplay(streak);
+            // Award 1 free hint for completing today's daily challenge
+            AddFreeHints(1);
             // Restore currentLevelIndex immediately so GetHighestUnlockedLevelIndex()
             // never sees the daily level index again (e.g. during transition animation).
             currentLevelIndex = preDailyLevelIndex;
@@ -312,11 +316,40 @@ public class GameManager : MonoBehaviour
         TransitionToLevel(index, false);
     }
 
+    // --- Free Hint Helpers ---
+    private int GetFreeHints() => PlayerPrefs.GetInt("hints.free", 0);
+
+    private void AddFreeHints(int amount)
+    {
+        PlayerPrefs.SetInt("hints.free", GetFreeHints() + amount);
+        PlayerPrefs.Save();
+        uiManager?.UpdateHintBadge(GetFreeHints());
+    }
+
+    private void ConsumeFreeHint()
+    {
+        int current = GetFreeHints();
+        if (current > 0)
+        {
+            PlayerPrefs.SetInt("hints.free", current - 1);
+            PlayerPrefs.Save();
+            uiManager?.UpdateHintBadge(GetFreeHints());
+        }
+    }
+
     public void UseHint()
     {
         if (IsLevelComplete) return;
         if (monetizationManager == null)
             return;
+
+        // Free hints take priority — no ad needed
+        if (GetFreeHints() > 0)
+        {
+            ConsumeFreeHint();
+            GrantHint();
+            return;
+        }
 
         hintPressedThisLevel++;
 
