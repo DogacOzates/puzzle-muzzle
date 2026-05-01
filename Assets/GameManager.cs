@@ -131,6 +131,7 @@ public class GameManager : MonoBehaviour
     {
         Camera cam = Camera.main;
         if (cam == null) return;
+        if (gridManager == null) return;
 
         float gridW = gridManager.BoardVisualWidth;
         float gridH = gridManager.BoardVisualHeight;
@@ -355,7 +356,7 @@ public class GameManager : MonoBehaviour
 
         if (hintPressedThisLevel >= 2 && !monetizationManager.IsNoAdsPurchased)
         {
-            uiManager.ShowHintPromoPopup(
+            uiManager?.ShowHintPromoPopup(
                 () => monetizationManager.ShowRewardedHintAdIfNeeded(GrantHint),
                 () => PurchaseNoAds()
             );
@@ -407,11 +408,12 @@ public class GameManager : MonoBehaviour
 
     private void GrantHint()
     {
+        if (gridManager == null) return;
         LevelData level = LevelDatabase.Levels[currentLevelIndex];
         if (gridManager.SolveHint(level.solutions))
         {
-            if (!monetizationManager.IsNoAdsPurchased)
-                uiManager.ShowPromoTopBanner();
+            if (monetizationManager != null && !monetizationManager.IsNoAdsPurchased)
+                uiManager?.ShowPromoTopBanner();
             if (gridManager.IsLevelComplete())
                 OnLevelComplete();
         }
