@@ -87,10 +87,12 @@ public static class IOSPostBuild
         var proj = new PBXProject();
         proj.ReadFromFile(projPath);
 
-        string targetGuid = proj.GetUnityMainTargetGuid();
+        // ATTPlugin.mm is compiled into UnityFramework, so the framework
+        // must be linked there — not on the main Unity-iPhone target.
+        string frameworkTarget = proj.GetUnityFrameworkTargetGuid();
 
         // AppTrackingTransparency — required for ATT permission dialog (iOS 14+)
-        proj.AddFrameworkToProject(targetGuid, "AppTrackingTransparency.framework", false);
+        proj.AddFrameworkToProject(frameworkTarget, "AppTrackingTransparency.framework", false);
 
         proj.WriteToFile(projPath);
     }
