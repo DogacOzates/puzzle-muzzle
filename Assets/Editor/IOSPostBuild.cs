@@ -20,6 +20,7 @@ public static class IOSPostBuild
 
         AddInfoPlistKeys(buildPath);
         AddXcodeCapabilities(buildPath);
+        AddRequiredFrameworks(buildPath);
     }
 
     // ── Info.plist keys ───────────────────────────────────────────────────
@@ -77,6 +78,21 @@ public static class IOSPostBuild
         capManager.AddiCloud(false, true, false, false, new string[] {});
 
         capManager.WriteToFile();
+    }
+
+    // ── Extra Frameworks ─────────────────────────────────────────────────
+    private static void AddRequiredFrameworks(string buildPath)
+    {
+        string projPath = PBXProject.GetPBXProjectPath(buildPath);
+        var proj = new PBXProject();
+        proj.ReadFromFile(projPath);
+
+        string targetGuid = proj.GetUnityMainTargetGuid();
+
+        // AppTrackingTransparency — required for ATT permission dialog (iOS 14+)
+        proj.AddFrameworkToProject(targetGuid, "AppTrackingTransparency.framework", false);
+
+        proj.WriteToFile(projPath);
     }
 #endif
 }

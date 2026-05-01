@@ -38,6 +38,17 @@ public class LevelGateAdsBridge
     public void Initialize()
     {
 #if GOOGLE_MOBILE_ADS
+        // Request App Tracking Transparency permission before initializing AdMob.
+        // Required by Apple: dialog must appear before any tracking data is collected.
+        ATTManager.RequestAuthorization(_ => InitializeMobileAds());
+#else
+        Debug.Log("AdMob bridge is inactive. Import the Google Mobile Ads Unity plugin and add the GOOGLE_MOBILE_ADS scripting define to enable ads.");
+#endif
+    }
+
+#if GOOGLE_MOBILE_ADS
+    private void InitializeMobileAds()
+    {
         MobileAds.Initialize(_ =>
         {
             isInitialized = true;
@@ -52,10 +63,8 @@ public class LevelGateAdsBridge
                 LoadRewardedHintAd();
             }
         });
-#else
-        Debug.Log("AdMob bridge is inactive. Import the Google Mobile Ads Unity plugin and add the GOOGLE_MOBILE_ADS scripting define to enable ads.");
-#endif
     }
+#endif
 
     public void LoadLevelGateAd()
     {
