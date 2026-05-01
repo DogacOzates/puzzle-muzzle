@@ -16,6 +16,7 @@ public class UIManager : MonoBehaviour
     private Button noAdsButton;
     private Button levelSelectToggleButton;
     private GameObject noAdsPurchasePopup;
+    private GameObject ratePopup;
     private Image hintButtonIcon;
     private Image noAdsButtonIcon;
     private Image restartButtonIcon;
@@ -1000,7 +1001,89 @@ public class UIManager : MonoBehaviour
         }
     }
 
-    // --- No Ads Purchase Popup ---
+    // --- Rate App Popup ---
+
+    public void ShowRatePopup(System.Action onRate, System.Action onDismiss)
+    {
+        if (ratePopup != null) return;
+
+        ratePopup = new GameObject("RatePopup");
+        ratePopup.transform.SetParent(canvas.transform, false);
+        ratePopup.transform.SetAsLastSibling();
+
+        var popupRect = ratePopup.AddComponent<RectTransform>();
+        popupRect.anchorMin = Vector2.zero;
+        popupRect.anchorMax = Vector2.one;
+        popupRect.offsetMin = Vector2.zero;
+        popupRect.offsetMax = Vector2.zero;
+
+        var overlay = ratePopup.AddComponent<Image>();
+        overlay.color = new Color(0.10f, 0.08f, 0.14f, 0.62f);
+        var overlayBtn = ratePopup.AddComponent<Button>();
+        overlayBtn.targetGraphic = overlay;
+        overlayBtn.onClick.AddListener(() => { HideRatePopup(); onDismiss?.Invoke(); });
+
+        // Shadow
+        var shadowObj = new GameObject("Shadow");
+        shadowObj.transform.SetParent(ratePopup.transform, false);
+        var shadowRect = shadowObj.AddComponent<RectTransform>();
+        shadowRect.anchorMin = new Vector2(0.5f, 0.5f);
+        shadowRect.anchorMax = new Vector2(0.5f, 0.5f);
+        shadowRect.pivot = new Vector2(0.5f, 0.5f);
+        shadowRect.sizeDelta = new Vector2(636f, 436f);
+        shadowRect.anchoredPosition = new Vector2(4f, -8f);
+        var shadowImg = shadowObj.AddComponent<Image>();
+        shadowImg.sprite = SpriteGenerator.RoundedRect;
+        shadowImg.color = new Color(0f, 0f, 0f, 0.18f);
+
+        // Card
+        var card = new GameObject("Card");
+        card.transform.SetParent(ratePopup.transform, false);
+        var cardRect = card.AddComponent<RectTransform>();
+        cardRect.anchorMin = new Vector2(0.5f, 0.5f);
+        cardRect.anchorMax = new Vector2(0.5f, 0.5f);
+        cardRect.pivot = new Vector2(0.5f, 0.5f);
+        cardRect.sizeDelta = new Vector2(610f, 410f);
+        var cardImg = card.AddComponent<Image>();
+        cardImg.sprite = SpriteGenerator.RoundedRect;
+        cardImg.color = new Color(1f, 1f, 1f, 0.98f);
+
+        // Emoji
+        var emoji = MakeCardText("Emoji", card.transform, new Vector2(0, 148), 52, FontStyle.Normal, TextDark);
+        emoji.text = "⭐⭐⭐⭐⭐";
+        emoji.fontSize = 44;
+
+        // Title
+        var title = MakeCardText("Title", card.transform, new Vector2(0, 80), 42, FontStyle.Bold, TextDark);
+        title.text = "Puzzle Muzzle'ı beğendiniz mi?";
+        title.GetComponent<RectTransform>().sizeDelta = new Vector2(530f, 60f);
+
+        // Subtitle
+        var sub = MakeCardText("Subtitle", card.transform, new Vector2(0, 20), 28, FontStyle.Normal, TextMuted);
+        sub.text = "Değerlendirmeniz bize çok yardımcı olur!";
+        sub.GetComponent<RectTransform>().sizeDelta = new Vector2(530f, 50f);
+
+        // Rate button
+        var rateBtn = CreateCardButton("⭐  Değerlendir", card.transform, new Vector2(0, -80), BtnTeal);
+        rateBtn.onClick.AddListener(() => { HideRatePopup(); onRate?.Invoke(); });
+
+        // Dismiss button
+        var dismissBtn = CreateCardButton("Şimdi Değil", card.transform, new Vector2(0, -170), new Color(0.88f, 0.86f, 0.84f));
+        var dismissText = dismissBtn.GetComponentInChildren<Text>();
+        if (dismissText != null) { dismissText.color = TextMuted; dismissText.fontSize = 26; }
+        dismissBtn.onClick.AddListener(() => { HideRatePopup(); onDismiss?.Invoke(); });
+    }
+
+    public void HideRatePopup()
+    {
+        if (ratePopup != null)
+        {
+            Destroy(ratePopup);
+            ratePopup = null;
+        }
+    }
+
+
 
     private void ShowNoAdsPurchasePopup()
     {

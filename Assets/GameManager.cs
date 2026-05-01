@@ -242,21 +242,24 @@ public class GameManager : MonoBehaviour
 
     private void TryRequestReview()
     {
-        // Every 50 levels: level 50, 100, 150, ...
-        if ((currentLevelIndex + 1) % 50 != 0)
+        // Show at level 30, then every 100 levels (130, 230, ...)
+        int lvl = currentLevelIndex + 1;
+        if (lvl < 30 || (lvl - 30) % 100 != 0)
             return;
 
-        // Max 3 times per day
-        int today = int.Parse(System.DateTime.Now.ToString("yyyyMMdd"));
-        int storedDate = PlayerPrefs.GetInt("review.dailyDate", 0);
-        int dailyCount = (storedDate == today) ? PlayerPrefs.GetInt("review.dailyCount", 0) : 0;
-        if (dailyCount >= 3)
+        // Never show again if user already rated
+        if (PlayerPrefs.GetInt("review.given", 0) == 1)
             return;
 
-        PlayerPrefs.SetInt("review.dailyDate", today);
-        PlayerPrefs.SetInt("review.dailyCount", dailyCount + 1);
-        PlayerPrefs.Save();
-        StartCoroutine(RequestReviewAfterDelay(2f));
+        uiManager?.ShowRatePopup(
+            onRate: () =>
+            {
+                PlayerPrefs.SetInt("review.given", 1);
+                PlayerPrefs.Save();
+                StartCoroutine(RequestReviewAfterDelay(0.5f));
+            },
+            onDismiss: () => { }
+        );
     }
 
     private IEnumerator RequestReviewAfterDelay(float delay)

@@ -49,7 +49,7 @@ public class MonetizationManager : MonoBehaviour
 
         int lvl = currentLevelIndex + 1; // 1-based level number just completed
 
-        if (lvl <= 10)   return false;           // levels 1-10: no ads
+        if (lvl <= 20)   return false;           // levels 1-20: no ads
         if (lvl <= 100)  return lvl % 5 == 0;    // levels 11-100: every 5 levels
         if (lvl <= 150)  return lvl % 4 == 0;    // levels 101-150: every 4 levels
         if (lvl <= 200)  return lvl % 3 == 0;    // levels 151-200: every 3 levels
