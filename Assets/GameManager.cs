@@ -242,9 +242,9 @@ public class GameManager : MonoBehaviour
 
     private void TryRequestReview()
     {
-        // Show at level 30, then every 100 levels (130, 230, ...)
+        // Show at level 29, then every 100 levels (129, 229, ...)
         int lvl = currentLevelIndex + 1;
-        if (lvl < 30 || (lvl - 30) % 100 != 0)
+        if (lvl < 29 || (lvl - 29) % 100 != 0)
             return;
 
         // Never show again if user already rated
