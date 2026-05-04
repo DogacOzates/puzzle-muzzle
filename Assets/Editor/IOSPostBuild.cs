@@ -100,18 +100,12 @@ public static class IOSPostBuild
         var proj = new PBXProject();
         proj.ReadFromFile(projPath);
 
-        string mainTarget      = proj.GetUnityMainTargetGuid();
+        // ATTPlugin.mm is compiled into UnityFramework, so the framework
+        // must be linked there — not on the main Unity-iPhone target.
         string frameworkTarget = proj.GetUnityFrameworkTargetGuid();
 
         // AppTrackingTransparency — required for ATT permission dialog (iOS 14+)
         proj.AddFrameworkToProject(frameworkTarget, "AppTrackingTransparency.framework", false);
-
-        // AdMob static libraries are compiled for arm64 (device) only.
-        // Exclude arm64 from simulator builds to prevent linker errors.
-        // Ads simply won't load on simulator — this is expected behaviour.
-        const string excludedArchs = "EXCLUDED_ARCHS[sdk=iphonesimulator*]";
-        proj.SetBuildProperty(mainTarget,      excludedArchs, "arm64");
-        proj.SetBuildProperty(frameworkTarget, excludedArchs, "arm64");
 
         proj.WriteToFile(projPath);
     }
