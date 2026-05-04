@@ -55,11 +55,9 @@ public class MonetizationManager : MonoBehaviour
 
         int lvl = currentLevelIndex + 1; // 1-based level number just completed
 
-        if (lvl <= 29)   return false;           // levels 1-29: no ads (first ad at level 30)
-        if (lvl <= 100)  return lvl % 5 == 0;    // levels 11-100: every 5 levels
-        if (lvl <= 150)  return lvl % 4 == 0;    // levels 101-150: every 4 levels
-        if (lvl <= 200)  return lvl % 3 == 0;    // levels 151-200: every 3 levels
-        return lvl % 2 == 0;                     // levels 201-300: every 2 levels
+        if (lvl <= 29)   return false;        // levels 1-29: no ads
+        if (lvl <= 300)  return lvl % 10 == 0; // levels 30-300: every 10 levels
+        return lvl % 5 == 0;                   // levels 301+: every 5 levels
     }
 
     public void ShowScheduledLevelGateAdIfNeeded(int currentLevelIndex, Action onFinished)
