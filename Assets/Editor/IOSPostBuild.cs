@@ -49,6 +49,19 @@ public static class IOSPostBuild
             );
         }
 
+        // Lock orientation to Portrait only on both iPhone and iPad.
+        // Unity may generate PortraitUpsideDown in the iPad plist even when disabled —
+        // override explicitly to prevent the app appearing upside-down on iPad.
+        var iPhoneOrientations = root.CreateArray("UISupportedInterfaceOrientations");
+        iPhoneOrientations.AddString("UIInterfaceOrientationPortrait");
+
+        var iPadOrientations = root.CreateArray("UISupportedInterfaceOrientations~ipad");
+        iPadOrientations.AddString("UIInterfaceOrientationPortrait");
+
+        // Require full screen on iPad (disables Slide Over / Split View).
+        // Without this, iPadOS may force landscape when entering multitasking.
+        root.SetBoolean("UIRequiresFullScreen", true);
+
         plist.WriteToFile(plistPath);
     }
 
