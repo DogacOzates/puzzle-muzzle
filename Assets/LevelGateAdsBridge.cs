@@ -145,6 +145,13 @@ public class LevelGateAdsBridge
     public void ShowLevelGateAd(Action onFinished)
     {
 #if GOOGLE_MOBILE_ADS
+        // AdMob not ready (offline at startup or slow init) — skip ad, let game proceed.
+        if (!isInitialized)
+        {
+            onFinished?.Invoke();
+            return;
+        }
+
         if (interstitialAd == null || !interstitialAd.CanShowAd())
         {
             pendingInterstitialShowCallback = onFinished;
@@ -178,6 +185,10 @@ public class LevelGateAdsBridge
     public void ShowRewardedHintAd(Action onRewardEarned)
     {
 #if GOOGLE_MOBILE_ADS
+        // AdMob not ready (offline) — skip ad, no reward granted.
+        if (!isInitialized)
+            return;
+
         if (rewardedAd == null || !rewardedAd.CanShowAd())
         {
             pendingRewardedShowCallback = onRewardEarned;
