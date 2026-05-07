@@ -20,14 +20,14 @@ public class TutorialController : MonoBehaviour
 
     public bool IsRunning { get; private set; }
 
-    public void Run(GridManager grid, GameManager game)
+    public void Run(GridManager grid, GameManager game, bool preMode = false)
     {
         gridManager = grid;
         gameManager = game;
         CreateHand();
         CreateHintText();
         IsRunning = true;
-        StartCoroutine(PlayTutorial());
+        StartCoroutine(preMode ? PlayPreTutorial() : PlayMainTutorial());
     }
 
     // Load pointer.png and create the hand object
@@ -89,9 +89,7 @@ public class TutorialController : MonoBehaviour
         rect.sizeDelta = new Vector2(900, 180);
 
         var text = hintTextObj.AddComponent<UnityEngine.UI.Text>();
-        text.text = "Tap where the hand points.\n"
-            + "Make a path that ends on a number.\n"
-            + "Fill all cells to win!";
+        text.text = "";  // set by each tutorial coroutine
         // Create font at high atlas resolution for crisp rendering on retina
         text.font = Font.CreateDynamicFontFromOSFont("Georgia", 72);
         if (text.font == null)
@@ -167,31 +165,48 @@ public class TutorialController : MonoBehaviour
 
     // ===== Main Flow =====
 
-    private IEnumerator PlayTutorial()
+    private IEnumerator PlayPreTutorial()
     {
         LevelData level = LevelDatabase.Levels[0];
 
-        yield return new WaitForSeconds(0.6f);
+        SetHintText("Tap each cell the hand points to!\nMake a path that ends on the number.");
+        yield return new WaitForSeconds(0.8f);
 
-        // Guided play: hand points, player taps
         yield return StartCoroutine(GuidedPhase(level));
 
-        // Hide hand briefly
+        handObj.SetActive(false);
+        SetHintText("The number shows how many cells to connect!");
+        yield return new WaitForSeconds(1.8f);
+
+        if (hintTextObj != null) Destroy(hintTextObj);
+        IsRunning = false;
+        gameManager.OnTutorialComplete();
+        gameManager.SaveProgressTo(1);
+        yield return new WaitForSeconds(0.3f);
+        gameManager.NextLevel();
+    }
+
+    private IEnumerator PlayMainTutorial()
+    {
+        LevelData level = LevelDatabase.Levels[1];
+
+        SetHintText("Follow the hand!\nFill ALL cells to complete the level.");
+        yield return new WaitForSeconds(0.6f);
+
+        yield return StartCoroutine(GuidedPhase(level));
+
         handObj.SetActive(false);
         yield return new WaitForSeconds(0.4f);
 
-        // Explain buttons with pointer + text
         yield return StartCoroutine(ShowButtonExplanations());
 
-        // "Have Fun!" before starting
         SetHintText("Have Fun!");
         yield return new WaitForSeconds(1.5f);
 
-        // Done — advance to level 2
         if (hintTextObj != null) Destroy(hintTextObj);
         handObj.SetActive(false);
         IsRunning = false;
-        gameManager.OnTutorialComplete();
+        gameManager.OnMainTutorialComplete();
         yield return new WaitForSeconds(0.3f);
         gameManager.NextLevel();
     }

@@ -81,11 +81,12 @@ public static class LevelDatabase
             if (_levels == null)
             {
                 _levels = new LevelData[TotalLevels];
-                _levels[0] = TutorialLevel();
-                _levels[1] = SecondLevel();
-                LevelData[] generatedLevels = LevelGenerator.GenerateCampaign(298);
-                for (int i = 2; i < 300; i++)
-                    _levels[i] = generatedLevels[i - 2];
+                _levels[0] = PreTutorialLevel();
+                _levels[1] = TutorialLevel();
+                _levels[2] = SecondLevel();
+                LevelData[] generatedLevels = LevelGenerator.GenerateCampaign(297);
+                for (int i = 3; i < 300; i++)
+                    _levels[i] = generatedLevels[i - 3];
                 LevelData[] pentagonLevels = LevelGenerator.GeneratePentagonCampaign(300);
                 for (int i = 0; i < 300; i++)
                     _levels[300 + i] = pentagonLevels[i];
@@ -95,6 +96,19 @@ public static class LevelDatabase
             }
             return _levels;
         }
+    }
+
+    static LevelData PreTutorialLevel()
+    {
+        // 4 cells in a horizontal row; rightmost cell is the number "4"
+        return new LevelData("Intro", 4, 1, new NumberCellData[]
+        {
+            new NumberCellData(3, 0, 4),
+        },
+        new SolutionPath[]
+        {
+            new SolutionPath(0,0, 1,0, 2,0, 3,0),
+        });
     }
 
     static LevelData TutorialLevel()

@@ -193,22 +193,42 @@ public class GameManager : MonoBehaviour
         uiManager.HideLevelSelect();
 
         if (index == 0)
-            StartTutorial();
+            StartTutorial(true);
+        else if (index == 1 && PlayerPrefs.GetInt("tutorial.done", 0) == 0)
+            StartTutorial(false);
     }
 
-    private void StartTutorial()
+    private void StartTutorial(bool isPreTutorial = false)
     {
         if (tutorialController != null) tutorialController.Cleanup();
         var obj = new GameObject("TutorialController");
         obj.transform.SetParent(transform);
         tutorialController = obj.AddComponent<TutorialController>();
         uiManager.SetTutorialMode(true);
-        tutorialController.Run(gridManager, this);
+        tutorialController.Run(gridManager, this, isPreTutorial);
     }
 
     public void OnTutorialComplete()
     {
         uiManager.SetTutorialMode(false);
+    }
+
+    public void OnMainTutorialComplete()
+    {
+        PlayerPrefs.SetInt("tutorial.done", 1);
+        PlayerPrefs.Save();
+        OnTutorialComplete();
+    }
+
+    public void SaveProgressTo(int toIndex)
+    {
+        int maxLevelIndex = LevelDatabase.Levels.Length - 1;
+        toIndex = Mathf.Clamp(toIndex, 0, maxLevelIndex);
+        if (toIndex > PlayerPrefs.GetInt(SavedLevelIndexKey, 0))
+        {
+            PlayerPrefs.SetInt(SavedLevelIndexKey, toIndex);
+            PlayerPrefs.Save();
+        }
     }
 
     public void OnLevelComplete()
