@@ -7,6 +7,11 @@
 /[Ll]ogs/
 /[Uu]ser[Ss]ettings/
 
+# iOS Xcode build outputs
+/IOS\ Build/
+/IOS\ Build\ Test/
+/IOS\ Build\ Simulator/
+
 # MemoryCaptures
 /[Mm]emoryCaptures/
 
