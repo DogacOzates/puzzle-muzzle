@@ -1593,7 +1593,7 @@ public static class LevelGenerator
         return c;
     }
 
-    // --- 8gen campaign (flat-top column-offset hex with circle cells) ---
+    // --- 8gen campaign (square grid with octagon cells) ---
 
     public static LevelData[] GenerateEightGenCampaign(int count)
     {
@@ -1613,8 +1613,8 @@ public static class LevelGenerator
             for (int ci = 0; ci < config.candidateCount; ci++)
             {
                 var candidateRng = new System.Random(rng.Next());
-                HashSet<Vector2Int> blocked = GenerateBlockedCells(config, candidateRng, hexMode: false, colHexMode: true);
-                List<Vector2Int> path = HamiltonianPath(config.width, config.height, blocked, candidateRng, hexMode: false, colHexMode: true);
+                HashSet<Vector2Int> blocked = GenerateBlockedCells(config, candidateRng, hexMode: false, colHexMode: false);
+                List<Vector2Int> path = HamiltonianPath(config.width, config.height, blocked, candidateRng, hexMode: false, colHexMode: false);
                 if (path == null) continue;
                 List<List<Vector2Int>> segments = SplitPath(path, config, candidateRng);
                 if (segments == null || segments.Count == 0) continue;
@@ -1657,8 +1657,8 @@ public static class LevelGenerator
                 for (int extra = 0; extra < extraAttempts; extra++)
                 {
                     var xRng = new System.Random((i + 2000) * 9001 + 31 + (extra + 1) * 1013);
-                    HashSet<Vector2Int> xBlocked = GenerateBlockedCells(config, xRng, hexMode: false, colHexMode: true);
-                    List<Vector2Int> xPath = HamiltonianPath(config.width, config.height, xBlocked, xRng, hexMode: false, colHexMode: true);
+                    HashSet<Vector2Int> xBlocked = GenerateBlockedCells(config, xRng, hexMode: false, colHexMode: false);
+                    List<Vector2Int> xPath = HamiltonianPath(config.width, config.height, xBlocked, xRng, hexMode: false, colHexMode: false);
                     if (xPath == null) continue;
                     List<List<Vector2Int>> xSegs = SplitPath(xPath, config, xRng);
                     if (xSegs == null || xSegs.Count == 0) continue;

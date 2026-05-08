@@ -64,9 +64,10 @@ public class GridManager : MonoBehaviour
         GridHeight = level.gridHeight;
         isPentagonMode = level.cellShape == CellShape.Pentagon;
         isEightGenMode = level.cellShape == CellShape.EightGen;
-        isHexagonMode  = level.cellShape == CellShape.Hexagon || isEightGenMode;
-        // EightGen reuses flat-top hex grid layout; same visual size as 6gen so cells pack tightly
-        CellVisualSize = (isPentagonMode || isHexagonMode) ? HexCellVisualSize : 0.9f;
+        isHexagonMode  = level.cellShape == CellShape.Hexagon; // EightGen uses square grid, NOT hex
+        // EightGen on square grid: octagon apothem = 1.1*(126/256)*cos(22.5°) ≈ 0.5 → flat edges just touch
+        CellVisualSize = isEightGenMode ? 1.1f
+                       : (isPentagonMode || isHexagonMode) ? HexCellVisualSize : 0.9f;
         if (isHexagonMode)
         {
             // Flat-top column-offset: ColSpacing=√3/2, RowSpacing=1.0
