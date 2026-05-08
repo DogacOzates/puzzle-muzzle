@@ -65,8 +65,8 @@ public class GridManager : MonoBehaviour
         isPentagonMode = level.cellShape == CellShape.Pentagon;
         isSevenGenMode = level.cellShape == CellShape.SevenGen;
         isHexagonMode  = level.cellShape == CellShape.Hexagon || isSevenGenMode;
-        // SevenGen uses hex grid layout but with heptagon sprite — slightly smaller to show cell boundaries
-        CellVisualSize = isSevenGenMode ? 1.05f : ((isPentagonMode || isHexagonMode) ? HexCellVisualSize : 0.9f);
+        // SevenGen reuses flat-top hex grid layout; same visual size as 6gen so cells pack tightly
+        CellVisualSize = (isPentagonMode || isHexagonMode) ? HexCellVisualSize : 0.9f;
         if (isHexagonMode)
         {
             // Flat-top column-offset: ColSpacing=√3/2, RowSpacing=1.0

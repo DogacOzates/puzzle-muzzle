@@ -226,7 +226,7 @@ public static class SpriteGenerator
 
         var pixels = new Color32[w * h];
         float cx = w * 0.5f, cy = h * 0.5f;
-        float r = 120f;
+        float r = 126f;
 
         // Regular heptagon, pointy top: 7 vertices starting from 90°
         var vx = new float[7];
