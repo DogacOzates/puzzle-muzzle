@@ -48,6 +48,15 @@ public class UIManager : MonoBehaviour
     private Text transitionOverlayText;
     private RectTransform transitionSquaresRoot;
     private Image[] transitionSquares;
+    private int _lsActiveGroup;
+    private Image[] _lsGroupTabBgs = new Image[4];
+    private Text[] _lsGroupTabIcons = new Text[4];
+    private Text[] _lsGroupTabRanges = new Text[4];
+    private Text _lsHeaderTitle;
+    private Image _lsProgressBarFill;
+    private Text _lsProgressCountText;
+    private Text[] _lsLockLabels;
+    private Transform[] _lsGroupGridRoots = new Transform[4];
 
     private Canvas canvas;
     private RectTransform safeAreaRect;
@@ -72,6 +81,15 @@ public class UIManager : MonoBehaviour
     private static readonly Color TransitionSquareA = new Color(0.25f, 0.78f, 0.72f, 0.92f);
     private static readonly Color TransitionSquareB = new Color(0.30f, 0.75f, 0.48f, 0.90f);
     private static readonly Color TransitionSquareC = new Color(0.91f, 0.40f, 0.35f, 0.88f);
+
+    private static readonly Color[] GrpAccent = {
+        new Color(0.92f, 0.68f, 0.12f),
+        new Color(0.55f, 0.30f, 0.86f),
+        new Color(0.20f, 0.72f, 0.67f),
+        new Color(0.88f, 0.22f, 0.52f),
+    };
+    private static readonly string[] GrpIcon  = { "□", "⬟", "⬡", "△" };
+    private static readonly string[] GrpRange = { "1-300", "301-600", "601-900", "901-1200" };
 
     public void Initialize()
     {
@@ -118,12 +136,6 @@ public class UIManager : MonoBehaviour
         // Level progress text
         if (levelProgressText != null)
             levelProgressText.color = tm.TextPrimary;
-
-        // Level select card & frame
-        if (levelSelectCardBg != null)
-            levelSelectCardBg.color = tm.CardBg;
-        if (levelSelectFrameBg != null)
-            levelSelectFrameBg.color = tm.LevelSelectFrame;
 
         // Level select buttons — re-apply section-specific colors using stored state
         if (levelSelectButtonImages != null && _lsTotalLevels > 0)
@@ -500,113 +512,92 @@ public class UIManager : MonoBehaviour
 
     private void CreateLevelSelectPanel()
     {
+        // Full-screen, parented to safeAreaRect so notch/home-indicator are respected
         var panelObj = new GameObject("LevelSelectPanel");
-        panelObj.transform.SetParent(canvas.transform, false);
+        panelObj.transform.SetParent(safeAreaRect, false);
 
         var panelRect = panelObj.AddComponent<RectTransform>();
         panelRect.anchorMin = Vector2.zero;
         panelRect.anchorMax = Vector2.one;
-        panelRect.offsetMin = Vector2.zero;
+        panelRect.offsetMin = new Vector2(0, 160f);  // expose bottom bar (160px)
         panelRect.offsetMax = Vector2.zero;
 
-        var overlay = panelObj.AddComponent<Image>();
-        overlay.color = new Color(0.16f, 0.15f, 0.18f, 0.42f);
-        var overlayButton = panelObj.AddComponent<Button>();
-        overlayButton.targetGraphic = overlay;
-        overlayButton.onClick.AddListener(HideLevelSelect);
+        var panelBg = panelObj.AddComponent<Image>();
+        panelBg.color = new Color(0.931f, 0.914f, 0.894f, 1f); // warm cream — NOT via levelSelectCardBg
 
-        // Card shadow
-        var cardShadow = new GameObject("CardShadow");
-        cardShadow.transform.SetParent(panelObj.transform, false);
-        var shadowRect = cardShadow.AddComponent<RectTransform>();
-        shadowRect.anchorMin = new Vector2(0.5f, 0.5f);
-        shadowRect.anchorMax = new Vector2(0.5f, 0.5f);
-        shadowRect.pivot = new Vector2(0.5f, 0.5f);
-        shadowRect.sizeDelta = new Vector2(900, 1316);
-        shadowRect.anchoredPosition = new Vector2(0, -8);
-        var shadowImage = cardShadow.AddComponent<Image>();
-        shadowImage.sprite = SpriteGenerator.RoundedRect;
-        shadowImage.color = new Color(0f, 0f, 0f, 0.12f);
+        // ── Header (fixed, 120px tall) ──────────────────────────────────────────────
+        var header = new GameObject("Header");
+        header.transform.SetParent(panelObj.transform, false);
+        var hRect = header.AddComponent<RectTransform>();
+        hRect.anchorMin = new Vector2(0f, 1f);
+        hRect.anchorMax = new Vector2(1f, 1f);
+        hRect.pivot     = new Vector2(0.5f, 1f);
+        hRect.sizeDelta = new Vector2(0f, 120f);
+        hRect.anchoredPosition = Vector2.zero;
 
-        // Main card (880 × 1300)
-        var card = new GameObject("Card");
-        card.transform.SetParent(panelObj.transform, false);
-        var cardRect = card.AddComponent<RectTransform>();
-        cardRect.anchorMin = new Vector2(0.5f, 0.5f);
-        cardRect.anchorMax = new Vector2(0.5f, 0.5f);
-        cardRect.pivot = new Vector2(0.5f, 0.5f);
-        cardRect.sizeDelta = new Vector2(880, 1300);
-        var cardImage = card.AddComponent<Image>();
-        cardImage.sprite = SpriteGenerator.RoundedRect;
-        cardImage.color = ThemeManager.Instance != null ? ThemeManager.Instance.CardBg : new Color(1f, 1f, 1f, 0.97f);
-        levelSelectCardBg = cardImage;
+        // Back button
+        var backObj = new GameObject("BackBtn");
+        backObj.transform.SetParent(header.transform, false);
+        var backRect = backObj.AddComponent<RectTransform>();
+        backRect.anchorMin = new Vector2(0f, 0.5f);
+        backRect.anchorMax = new Vector2(0f, 0.5f);
+        backRect.pivot = new Vector2(0f, 0.5f);
+        backRect.anchoredPosition = new Vector2(20f, 0f);
+        backRect.sizeDelta = new Vector2(80f, 80f);
+        var backImg = backObj.AddComponent<Image>();
+        backImg.color = Color.clear;
+        var backBtn = backObj.AddComponent<Button>();
+        backBtn.targetGraphic = backImg;
+        backBtn.onClick.AddListener(HideLevelSelect);
+        var backArrow = new GameObject("Arrow");
+        backArrow.transform.SetParent(backObj.transform, false);
+        var baRect = backArrow.AddComponent<RectTransform>();
+        baRect.anchorMin = Vector2.zero; baRect.anchorMax = Vector2.one;
+        baRect.offsetMin = Vector2.zero; baRect.offsetMax = Vector2.zero;
+        var baTxt = backArrow.AddComponent<Text>();
+        baTxt.font = defaultFont; baTxt.text = "‹"; baTxt.fontSize = 60;
+        baTxt.fontStyle = FontStyle.Bold; baTxt.alignment = TextAnchor.MiddleCenter;
+        baTxt.color = TextDark;
 
-        // "LEVELS" title
-        var titleObj = new GameObject("LevelsTitle");
-        titleObj.transform.SetParent(card.transform, false);
-        var titleRect = titleObj.AddComponent<RectTransform>();
-        titleRect.anchorMin = new Vector2(0f, 1f);
-        titleRect.anchorMax = new Vector2(1f, 1f);
-        titleRect.pivot = new Vector2(0.5f, 1f);
-        titleRect.offsetMin = new Vector2(52f, -84f);
-        titleRect.offsetMax = new Vector2(-52f, -16f);
-        var titleText = titleObj.AddComponent<Text>();
-        titleText.font = defaultFont;
-        titleText.fontSize = 44;
-        titleText.fontStyle = FontStyle.Bold;
-        titleText.alignment = TextAnchor.MiddleCenter;
-        titleText.color = TextDark;
-        titleText.text = "LEVELS";
+        // Title "Level X / Y"
+        var georgiaFont = Font.CreateDynamicFontFromOSFont("Georgia", 72);
+        var titleObj = new GameObject("Title");
+        titleObj.transform.SetParent(header.transform, false);
+        var tRect = titleObj.AddComponent<RectTransform>();
+        tRect.anchorMin = new Vector2(0.12f, 0f); tRect.anchorMax = new Vector2(0.88f, 1f);
+        tRect.offsetMin = Vector2.zero; tRect.offsetMax = Vector2.zero;
+        _lsHeaderTitle = titleObj.AddComponent<Text>();
+        _lsHeaderTitle.font = georgiaFont ?? defaultFont;
+        _lsHeaderTitle.fontSize = 40; _lsHeaderTitle.fontStyle = FontStyle.Italic;
+        _lsHeaderTitle.alignment = TextAnchor.MiddleCenter; _lsHeaderTitle.color = TextDark;
+        _lsHeaderTitle.text = "Level 1 / 1200";
 
-        // Daily challenge card
-        var dcCard = new GameObject("DailyCard");
-        dcCard.transform.SetParent(card.transform, false);
-        var dcRect = dcCard.AddComponent<RectTransform>();
-        dcRect.anchorMin = new Vector2(0f, 1f);
-        dcRect.anchorMax = new Vector2(1f, 1f);
-        dcRect.pivot = new Vector2(0.5f, 1f);
-        dcRect.offsetMax = new Vector2(-52f, -(16f + 68f));       // 16 top pad + 68 title
-        dcRect.offsetMin = new Vector2(52f, -(16f + 68f + 160f)); // 160px tall
-        dailyChallengeCardImage = dcCard.AddComponent<Image>();
-        dailyChallengeCardImage.sprite = SpriteGenerator.RoundedRect;
-        dailyChallengeCardImage.color = new Color(0.25f, 0.78f, 0.72f, 0.9f);
-        var dcBtn = dcCard.AddComponent<Button>();
-        var dcColors = dcBtn.colors;
-        dcColors.highlightedColor = new Color(0.8f, 0.97f, 0.96f, 1f);
-        dcColors.pressedColor = new Color(0.6f, 0.9f, 0.88f, 1f);
-        dcColors.disabledColor = new Color(0.7f, 0.82f, 0.80f, 0.7f);
-        dcBtn.colors = dcColors;
-        dcBtn.targetGraphic = dailyChallengeCardImage;
-        dcBtn.onClick.AddListener(() => FindAnyObjectByType<GameManager>().PlayDailyChallenge());
-        dailyChallengeCardButton = dcBtn;
-        dailyChallengeCardMainText = MakeText("DailyMain", dcCard.transform, new Vector2(0, -44), 36, FontStyle.Bold, Color.white);
-        dailyChallengeCardMainText.alignment = TextAnchor.MiddleCenter;
-        dailyChallengeCardMainText.text = "📅 Daily Challenge";
-        dailyChallengeCardSubText = MakeText("DailySub", dcCard.transform, new Vector2(0, -108), 28, FontStyle.Normal, new Color(1f, 1f, 1f, 0.88f));
-        dailyChallengeCardSubText.alignment = TextAnchor.MiddleCenter;
-        dailyChallengeCardSubText.text = "";
+        // Settings gear (right)
+        var gearObj = new GameObject("GearBtn");
+        gearObj.transform.SetParent(header.transform, false);
+        var gRect = gearObj.AddComponent<RectTransform>();
+        gRect.anchorMin = new Vector2(1f, 0.5f); gRect.anchorMax = new Vector2(1f, 0.5f);
+        gRect.pivot = new Vector2(1f, 0.5f);
+        gRect.anchoredPosition = new Vector2(-20f, 0f); gRect.sizeDelta = new Vector2(80f, 80f);
+        var gImg = gearObj.AddComponent<Image>(); gImg.color = Color.clear;
+        var gBtn = gearObj.AddComponent<Button>(); gBtn.targetGraphic = gImg;
+        gBtn.onClick.AddListener(ShowSettingsPopup);
+        var gearTxt = new GameObject("Icon");
+        gearTxt.transform.SetParent(gearObj.transform, false);
+        var gtRect = gearTxt.AddComponent<RectTransform>();
+        gtRect.anchorMin = Vector2.zero; gtRect.anchorMax = Vector2.one;
+        gtRect.offsetMin = Vector2.zero; gtRect.offsetMax = Vector2.zero;
+        var gtTxt = gearTxt.AddComponent<Text>();
+        gtTxt.font = defaultFont; gtTxt.text = "⚙"; gtTxt.fontSize = 44;
+        gtTxt.alignment = TextAnchor.MiddleCenter;
+        gtTxt.color = new Color(0.80f, 0.64f, 0.20f, 1f);
 
-        // Scrollable level grid frame (below title + daily card)
-        // Top offset: 16 pad + 68 title + 160 daily card + 12 gap = 256
-        var frame = new GameObject("LevelGridFrame");
-        frame.transform.SetParent(card.transform, false);
-        var frameRect = frame.AddComponent<RectTransform>();
-        frameRect.anchorMin = new Vector2(0f, 0f);
-        frameRect.anchorMax = new Vector2(1f, 1f);
-        frameRect.offsetMin = new Vector2(40f, 40f);
-        frameRect.offsetMax = new Vector2(-40f, -(16f + 68f + 160f + 12f));
-        var frameImage = frame.AddComponent<Image>();
-        frameImage.sprite = SpriteGenerator.RoundedRect;
-        frameImage.color = ThemeManager.Instance != null ? ThemeManager.Instance.LevelSelectFrame : new Color(0.97f, 0.96f, 0.95f, 0.95f);
-        levelSelectFrameBg = frameImage;
-
+        // ── ScrollView (fills below header) ────────────────────────────────────────
         var scrollObj = new GameObject("ScrollView");
-        scrollObj.transform.SetParent(frame.transform, false);
-        var scrollRectTransform = scrollObj.AddComponent<RectTransform>();
-        scrollRectTransform.anchorMin = Vector2.zero;
-        scrollRectTransform.anchorMax = Vector2.one;
-        scrollRectTransform.offsetMin = new Vector2(8f, 8f);
-        scrollRectTransform.offsetMax = new Vector2(-8f, -8f);
+        scrollObj.transform.SetParent(panelObj.transform, false);
+        var scrollRT = scrollObj.AddComponent<RectTransform>();
+        scrollRT.anchorMin = Vector2.zero; scrollRT.anchorMax = Vector2.one;
+        scrollRT.offsetMin = Vector2.zero; scrollRT.offsetMax = new Vector2(0f, -121f);
         var scrollRect = scrollObj.AddComponent<ScrollRect>();
         scrollRect.horizontal = false;
         scrollRect.movementType = ScrollRect.MovementType.Clamped;
@@ -615,210 +606,456 @@ public class UIManager : MonoBehaviour
 
         var viewport = new GameObject("Viewport");
         viewport.transform.SetParent(scrollObj.transform, false);
-        var viewportRect = viewport.AddComponent<RectTransform>();
-        viewportRect.anchorMin = Vector2.zero;
-        viewportRect.anchorMax = Vector2.one;
-        viewportRect.offsetMin = Vector2.zero;
-        viewportRect.offsetMax = Vector2.zero;
-        var viewportImage = viewport.AddComponent<Image>();
-        viewportImage.color = new Color(1f, 1f, 1f, 0.01f);
-        var viewportMask = viewport.AddComponent<Mask>();
-        viewportMask.showMaskGraphic = true;
+        var vpRect = viewport.AddComponent<RectTransform>();
+        vpRect.anchorMin = Vector2.zero; vpRect.anchorMax = Vector2.one;
+        vpRect.offsetMin = Vector2.zero; vpRect.offsetMax = Vector2.zero;
+        var vpImg = viewport.AddComponent<Image>();
+        vpImg.color = new Color(1f, 1f, 1f, 0.01f);
+        var vpMask = viewport.AddComponent<Mask>();
+        vpMask.showMaskGraphic = true;
 
-        // Content: VerticalLayoutGroup containing three level sections
         var content = new GameObject("Content");
         content.transform.SetParent(viewport.transform, false);
-        var contentRect = content.AddComponent<RectTransform>();
-        contentRect.anchorMin = new Vector2(0f, 1f);
-        contentRect.anchorMax = new Vector2(1f, 1f);
-        contentRect.pivot = new Vector2(0.5f, 1f);
-        contentRect.offsetMin = Vector2.zero;
-        contentRect.offsetMax = Vector2.zero;
+        var cRect = content.AddComponent<RectTransform>();
+        cRect.anchorMin = new Vector2(0f, 1f); cRect.anchorMax = new Vector2(1f, 1f);
+        cRect.pivot = new Vector2(0.5f, 1f);
+        cRect.offsetMin = Vector2.zero; cRect.offsetMax = Vector2.zero;
         var vlg = content.AddComponent<VerticalLayoutGroup>();
-        vlg.spacing = 14f;
-        vlg.padding = new RectOffset(6, 6, 8, 24);
-        vlg.childForceExpandWidth = true;
-        vlg.childForceExpandHeight = false;
-        vlg.childControlWidth = true;
-        vlg.childControlHeight = true;
-        var fitter = content.AddComponent<ContentSizeFitter>();
-        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-        fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        vlg.spacing = 0f;
+        vlg.padding = new RectOffset(0, 0, 12, 48);
+        vlg.childForceExpandWidth = true; vlg.childForceExpandHeight = false;
+        vlg.childControlWidth = true; vlg.childControlHeight = true;
+        var cFitter = content.AddComponent<ContentSizeFitter>();
+        cFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        cFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        scrollRect.viewport = vpRect;
+        scrollRect.content = cRect;
 
-        scrollRect.viewport = viewportRect;
-        scrollRect.content = contentRect;
+        // ── Daily Challenge Card ────────────────────────────────────────────────────
+        LsBuildDailyChallengeCard(content.transform);
 
-        levelSelectButtons = new Button[LevelDatabase.TotalLevels];
+        // ── Group Tabs ──────────────────────────────────────────────────────────────
+        LsBuildGroupTabsRow(content.transform);
+
+        // ── Progress Row ────────────────────────────────────────────────────────────
+        LsBuildProgressRow(content.transform);
+
+        // ── Level Button Grids ──────────────────────────────────────────────────────
+        levelSelectButtons      = new Button[LevelDatabase.TotalLevels];
         levelSelectButtonImages = new Image[LevelDatabase.TotalLevels];
         levelSelectButtonLabels = new Text[LevelDatabase.TotalLevels];
+        _lsLockLabels           = new Text[LevelDatabase.TotalLevels];
 
-        // Three visually distinct sections
-        CreateLevelSection(content.transform, "■  Square",   "1 – 300",
-            new Color(0.92f, 0.68f, 0.12f, 1f), SpriteGenerator.RoundedRect,   0,   299);
-        CreateLevelSection(content.transform, "⬟  Pentagon", "301 – 600",
-            new Color(0.55f, 0.30f, 0.86f, 1f), SpriteGenerator.Pentagon,      300, 599);
-        CreateLevelSection(content.transform, "⬡  Hexagon",  "601 – 900",
-            new Color(0.20f, 0.72f, 0.67f, 1f), SpriteGenerator.FlatHexagon,   600, 899);
-        CreateLevelSection(content.transform, "△  3gen",     "901 – 1200",
-            new Color(0.88f, 0.22f, 0.52f, 1f), SpriteGenerator.Triangle,     900, 1199);
+        LsBuildGroupGrid(content.transform, 0, SpriteGenerator.RoundedRect,   0,   299);
+        LsBuildGroupGrid(content.transform, 1, SpriteGenerator.Pentagon,      300, 599);
+        LsBuildGroupGrid(content.transform, 2, SpriteGenerator.FlatHexagon,   600, 899);
+        LsBuildGroupGrid(content.transform, 3, SpriteGenerator.Triangle,      900, 1199);
 
         levelSelectPanel = panelObj;
         levelSelectPanel.SetActive(false);
     }
 
-    private void CreateLevelSection(Transform parent, string label, string rangeStr,
-        Color accentColor, Sprite btnSprite, int startIdx, int endIdx)
+    private void LsBuildDailyChallengeCard(Transform parent)
     {
-        // Section container with vertical layout
-        var block = new GameObject($"Section_{startIdx}");
-        block.transform.SetParent(parent, false);
-        var blockVlg = block.AddComponent<VerticalLayoutGroup>();
-        blockVlg.spacing = 0f;
-        blockVlg.padding = new RectOffset(0, 0, 0, 4);
-        blockVlg.childForceExpandWidth = true;
-        blockVlg.childForceExpandHeight = false;
-        blockVlg.childControlWidth = true;
-        blockVlg.childControlHeight = true;
-        var blockFitter = block.AddComponent<ContentSizeFitter>();
-        blockFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-        blockFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        var card = new GameObject("DailyCard");
+        card.transform.SetParent(parent, false);
+        var le = card.AddComponent<LayoutElement>();
+        le.preferredHeight = 148f; le.minHeight = 148f; le.flexibleWidth = 1f;
 
-        // Section header bar
-        var header = new GameObject("Header");
-        header.transform.SetParent(block.transform, false);
-        var headerImg = header.AddComponent<Image>();
-        headerImg.sprite = SpriteGenerator.RoundedRect;
-        headerImg.color = accentColor;
-        var headerLE = header.AddComponent<LayoutElement>();
-        headerLE.preferredHeight = 70f;
-        headerLE.minHeight = 70f;
-        headerLE.flexibleWidth = 1f;
-        var headerHlg = header.AddComponent<HorizontalLayoutGroup>();
-        headerHlg.padding = new RectOffset(24, 24, 0, 0);
-        headerHlg.spacing = 0f;
-        headerHlg.childAlignment = TextAnchor.MiddleLeft;
-        headerHlg.childForceExpandWidth = false;
-        headerHlg.childForceExpandHeight = true;
-        headerHlg.childControlWidth = false;
-        headerHlg.childControlHeight = true;
+        var outer = new GameObject("Outer");
+        outer.transform.SetParent(card.transform, false);
+        var outerRect = outer.AddComponent<RectTransform>();
+        outerRect.anchorMin = Vector2.zero; outerRect.anchorMax = Vector2.one;
+        outerRect.offsetMin = new Vector2(20f, 10f); outerRect.offsetMax = new Vector2(-20f, -10f);
+        dailyChallengeCardImage = outer.AddComponent<Image>();
+        dailyChallengeCardImage.sprite = SpriteGenerator.RoundedRect;
+        dailyChallengeCardImage.color = new Color(0.875f, 0.924f, 0.913f, 1f);
+        var dcBtn = outer.AddComponent<Button>();
+        var dcColors = dcBtn.colors;
+        dcColors.highlightedColor = new Color(0.83f, 0.90f, 0.88f, 1f);
+        dcColors.pressedColor     = new Color(0.75f, 0.85f, 0.83f, 1f);
+        dcBtn.colors = dcColors; dcBtn.targetGraphic = dailyChallengeCardImage;
+        dcBtn.onClick.AddListener(() => FindAnyObjectByType<GameManager>().PlayDailyChallenge());
+        dailyChallengeCardButton = dcBtn;
 
-        var labelObj = new GameObject("Label");
-        labelObj.transform.SetParent(header.transform, false);
-        var labelLE = labelObj.AddComponent<LayoutElement>();
-        labelLE.preferredWidth = 460f;
-        labelLE.flexibleWidth = 1f;
-        var labelTxt = labelObj.AddComponent<Text>();
-        labelTxt.font = defaultFont;
-        labelTxt.fontSize = 34;
-        labelTxt.fontStyle = FontStyle.Bold;
-        labelTxt.color = Color.white;
-        labelTxt.text = label;
-        labelTxt.alignment = TextAnchor.MiddleLeft;
+        // Gift icon left
+        var giftObj = new GameObject("Gift");
+        giftObj.transform.SetParent(outer.transform, false);
+        var giftRect = giftObj.AddComponent<RectTransform>();
+        giftRect.anchorMin = new Vector2(0f, 0.5f); giftRect.anchorMax = new Vector2(0f, 0.5f);
+        giftRect.pivot = new Vector2(0f, 0.5f);
+        giftRect.anchoredPosition = new Vector2(16f, 0f); giftRect.sizeDelta = new Vector2(76f, 76f);
+        var giftTxt = giftObj.AddComponent<Text>();
+        giftTxt.font = defaultFont; giftTxt.text = "🎁"; giftTxt.fontSize = 46;
+        giftTxt.alignment = TextAnchor.MiddleCenter;
 
-        var rangeObj = new GameObject("Range");
-        rangeObj.transform.SetParent(header.transform, false);
-        var rangeLE = rangeObj.AddComponent<LayoutElement>();
-        rangeLE.preferredWidth = 150f;
-        var rangeTxt = rangeObj.AddComponent<Text>();
-        rangeTxt.font = defaultFont;
-        rangeTxt.fontSize = 26;
-        rangeTxt.fontStyle = FontStyle.Normal;
-        rangeTxt.color = new Color(1f, 1f, 1f, 0.78f);
-        rangeTxt.text = rangeStr;
-        rangeTxt.alignment = TextAnchor.MiddleRight;
+        // Arrow right
+        var arrObj = new GameObject("Arrow");
+        arrObj.transform.SetParent(outer.transform, false);
+        var arrRect = arrObj.AddComponent<RectTransform>();
+        arrRect.anchorMin = new Vector2(1f, 0.5f); arrRect.anchorMax = new Vector2(1f, 0.5f);
+        arrRect.pivot = new Vector2(1f, 0.5f);
+        arrRect.anchoredPosition = new Vector2(-16f, 0f); arrRect.sizeDelta = new Vector2(36f, 56f);
+        var arrTxt = arrObj.AddComponent<Text>();
+        arrTxt.font = defaultFont; arrTxt.text = "›"; arrTxt.fontSize = 44;
+        arrTxt.fontStyle = FontStyle.Bold; arrTxt.alignment = TextAnchor.MiddleCenter;
+        arrTxt.color = TextMuted;
 
-        // Grid of level buttons (5 columns)
-        var gridObj = new GameObject("Grid");
-        gridObj.transform.SetParent(block.transform, false);
-        var gridLE = gridObj.AddComponent<LayoutElement>();
-        gridLE.flexibleWidth = 1f;
-        var grid = gridObj.AddComponent<GridLayoutGroup>();
-        grid.cellSize = new Vector2(116f, 116f);
-        grid.spacing = new Vector2(10f, 10f);
-        grid.padding = new RectOffset(10, 10, 12, 12);
-        grid.childAlignment = TextAnchor.UpperCenter;
-        grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-        grid.constraintCount = 5;
-        var gridFitter = gridObj.AddComponent<ContentSizeFitter>();
-        gridFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-        gridFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        // Text area
+        var ta = new GameObject("TextArea");
+        ta.transform.SetParent(outer.transform, false);
+        var taRect = ta.AddComponent<RectTransform>();
+        taRect.anchorMin = new Vector2(0f, 0f); taRect.anchorMax = new Vector2(1f, 1f);
+        taRect.offsetMin = new Vector2(100f, 0f); taRect.offsetMax = new Vector2(-52f, 0f);
+        var taVlg = ta.AddComponent<VerticalLayoutGroup>();
+        taVlg.spacing = 4f;
+        taVlg.padding = new RectOffset(0, 0, 14, 14);
+        taVlg.childForceExpandWidth = true; taVlg.childForceExpandHeight = false;
+        taVlg.childControlWidth = true; taVlg.childControlHeight = true;
+        taVlg.childAlignment = TextAnchor.MiddleLeft;
 
-        for (int i = startIdx; i <= endIdx; i++)
+        dailyChallengeCardMainText = LsMakeVlgText("DCTitle", ta.transform, 34, FontStyle.Bold,
+            new Color(0.15f, 0.52f, 0.48f, 1f), "Daily Challenge");
+        dailyChallengeCardSubText = LsMakeVlgText("DCSub1", ta.transform, 26, FontStyle.Normal,
+            TextMuted, "A new puzzle every day");
+        LsMakeVlgText("DCSub2", ta.transform, 26, FontStyle.Normal,
+            TextMuted, "Complete to earn 1 hint");
+    }
+
+    private Text LsMakeVlgText(string name, Transform parent, int size, FontStyle style, Color color, string text)
+    {
+        var obj = new GameObject(name);
+        obj.transform.SetParent(parent, false);
+        var le = obj.AddComponent<LayoutElement>();
+        le.preferredHeight = size + 12f; le.minHeight = size + 4f;
+        var t = obj.AddComponent<Text>();
+        t.font = defaultFont; t.fontSize = size; t.fontStyle = style;
+        t.alignment = TextAnchor.MiddleLeft; t.color = color; t.text = text;
+        return t;
+    }
+
+    private void LsBuildGroupTabsRow(Transform parent)
+    {
+        var row = new GameObject("GroupTabs");
+        row.transform.SetParent(parent, false);
+        var rowLE = row.AddComponent<LayoutElement>();
+        rowLE.preferredHeight = 100f; rowLE.minHeight = 100f; rowLE.flexibleWidth = 1f;
+        var hlg = row.AddComponent<HorizontalLayoutGroup>();
+        hlg.spacing = 8f;
+        hlg.padding = new RectOffset(20, 20, 12, 8);
+        hlg.childForceExpandWidth = true; hlg.childForceExpandHeight = false;
+        hlg.childControlWidth = true; hlg.childControlHeight = false;
+        hlg.childAlignment = TextAnchor.MiddleCenter;
+
+        for (int g = 0; g < 4; g++)
         {
-            int levelIndex = i;
-            var btnObj = new GameObject($"L{levelIndex + 1}");
-            btnObj.transform.SetParent(gridObj.transform, false);
-            btnObj.AddComponent<RectTransform>().sizeDelta = new Vector2(116f, 116f);
+            int grp = g;
+            var tab = new GameObject($"Tab{g}");
+            tab.transform.SetParent(row.transform, false);
+            var tabLE = tab.AddComponent<LayoutElement>();
+            tabLE.flexibleWidth = 1f; tabLE.preferredHeight = 76f; tabLE.minHeight = 76f;
+            var tabRT = tab.AddComponent<RectTransform>();
+            tabRT.sizeDelta = new Vector2(0f, 76f);
+            var tabImg = tab.AddComponent<Image>();
+            tabImg.sprite = SpriteGenerator.RoundedRect;
+            tabImg.color = (g == 0) ? BtnTeal : new Color(0.87f, 0.85f, 0.82f, 1f);
+            _lsGroupTabBgs[g] = tabImg;
+            var tabBtn = tab.AddComponent<Button>();
+            tabBtn.targetGraphic = tabImg;
+            var tc = tabBtn.colors;
+            tc.highlightedColor = new Color(0.95f, 0.93f, 0.90f, 1f);
+            tc.pressedColor = new Color(0.82f, 0.80f, 0.77f, 1f);
+            tabBtn.colors = tc;
+            tabBtn.onClick.AddListener(() => LsSwitchGroupTab(grp));
 
-            var shadowObj = new GameObject("S");
-            shadowObj.transform.SetParent(btnObj.transform, false);
-            var shadowObjRect = shadowObj.AddComponent<RectTransform>();
-            shadowObjRect.anchorMin = new Vector2(0.5f, 0.5f);
-            shadowObjRect.anchorMax = new Vector2(0.5f, 0.5f);
-            shadowObjRect.pivot = new Vector2(0.5f, 0.5f);
-            shadowObjRect.sizeDelta = new Vector2(110f, 110f);
-            shadowObjRect.anchoredPosition = new Vector2(0f, -2f);
-            var shadowImg = shadowObj.AddComponent<Image>();
-            shadowImg.sprite = btnSprite;
-            shadowImg.color = new Color(0f, 0f, 0f, 0.07f);
+            var tabVlg = tab.AddComponent<VerticalLayoutGroup>();
+            tabVlg.spacing = 2f;
+            tabVlg.padding = new RectOffset(4, 4, 8, 8);
+            tabVlg.childForceExpandWidth = true; tabVlg.childForceExpandHeight = false;
+            tabVlg.childControlWidth = true; tabVlg.childControlHeight = true;
+            tabVlg.childAlignment = TextAnchor.MiddleCenter;
 
-            var btnImg = btnObj.AddComponent<Image>();
-            btnImg.sprite = btnSprite;
-            btnImg.color = new Color(0.93f, 0.96f, 0.92f, 1f);
+            var iconObj = new GameObject("Icon");
+            iconObj.transform.SetParent(tab.transform, false);
+            var iconLE = iconObj.AddComponent<LayoutElement>();
+            iconLE.preferredHeight = 34f; iconLE.minHeight = 34f;
+            _lsGroupTabIcons[g] = iconObj.AddComponent<Text>();
+            _lsGroupTabIcons[g].font = defaultFont; _lsGroupTabIcons[g].text = GrpIcon[g];
+            _lsGroupTabIcons[g].fontSize = 26; _lsGroupTabIcons[g].alignment = TextAnchor.MiddleCenter;
+            _lsGroupTabIcons[g].color = (g == 0) ? Color.white : TextMuted;
 
-            var btn = btnObj.AddComponent<Button>();
-            var colors = btn.colors;
-            colors.highlightedColor = new Color(0.97f, 0.97f, 0.97f, 1f);
-            colors.pressedColor = new Color(0.86f, 0.86f, 0.86f, 1f);
-            colors.disabledColor = new Color(0.88f, 0.88f, 0.88f, 0.95f);
-            btn.colors = colors;
-            btn.onClick.AddListener(() => FindAnyObjectByType<GameManager>().SelectLevel(levelIndex));
+            var rangeObj = new GameObject("Range");
+            rangeObj.transform.SetParent(tab.transform, false);
+            var rangeLE = rangeObj.AddComponent<LayoutElement>();
+            rangeLE.preferredHeight = 24f; rangeLE.minHeight = 20f;
+            _lsGroupTabRanges[g] = rangeObj.AddComponent<Text>();
+            _lsGroupTabRanges[g].font = defaultFont; _lsGroupTabRanges[g].text = GrpRange[g];
+            _lsGroupTabRanges[g].fontSize = 18; _lsGroupTabRanges[g].alignment = TextAnchor.MiddleCenter;
+            _lsGroupTabRanges[g].color = (g == 0) ? new Color(1f, 1f, 1f, 0.85f) : TextMuted;
+        }
+    }
 
-            var lblObj = new GameObject("N");
-            lblObj.transform.SetParent(btnObj.transform, false);
-            var lblRect = lblObj.AddComponent<RectTransform>();
-            lblRect.anchorMin = new Vector2(0.5f, 0.5f);
-            lblRect.anchorMax = new Vector2(0.5f, 0.5f);
-            lblRect.pivot = new Vector2(0.5f, 0.5f);
-            lblRect.anchoredPosition = Vector2.zero;
-            lblRect.sizeDelta = new Vector2(100f, 50f);
-            var lbl = lblObj.AddComponent<Text>();
-            lbl.font = defaultFont;
-            lbl.fontSize = 32;
-            lbl.fontStyle = FontStyle.Bold;
-            lbl.alignment = TextAnchor.MiddleCenter;
-            lbl.color = TextDark;
-            lbl.text = (levelIndex + 1).ToString();
+    private void LsBuildProgressRow(Transform parent)
+    {
+        var row = new GameObject("ProgressRow");
+        row.transform.SetParent(parent, false);
+        var rowLE = row.AddComponent<LayoutElement>();
+        rowLE.preferredHeight = 64f; rowLE.minHeight = 64f; rowLE.flexibleWidth = 1f;
+        var hlg = row.AddComponent<HorizontalLayoutGroup>();
+        hlg.spacing = 10f;
+        hlg.padding = new RectOffset(24, 24, 12, 8);
+        hlg.childForceExpandWidth = false; hlg.childForceExpandHeight = false;
+        hlg.childControlWidth = true; hlg.childControlHeight = false;
+        hlg.childAlignment = TextAnchor.MiddleLeft;
 
-            levelSelectButtons[i] = btn;
-            levelSelectButtonImages[i] = btnImg;
-            levelSelectButtonLabels[i] = lbl;
+        // Star
+        var starObj = new GameObject("Star");
+        starObj.transform.SetParent(row.transform, false);
+        var starLE = starObj.AddComponent<LayoutElement>();
+        starLE.preferredWidth = 36f; starLE.minWidth = 36f;
+        var starRT = starObj.AddComponent<RectTransform>(); starRT.sizeDelta = new Vector2(36f, 36f);
+        var starTxt = starObj.AddComponent<Text>();
+        starTxt.font = defaultFont; starTxt.text = "★"; starTxt.fontSize = 32;
+        starTxt.alignment = TextAnchor.MiddleCenter;
+        starTxt.color = new Color(0.92f, 0.72f, 0.18f, 1f);
+
+        // Count
+        var cntObj = new GameObject("Count");
+        cntObj.transform.SetParent(row.transform, false);
+        var cntLE = cntObj.AddComponent<LayoutElement>();
+        cntLE.preferredWidth = 108f; cntLE.minWidth = 80f;
+        var cntRT = cntObj.AddComponent<RectTransform>(); cntRT.sizeDelta = new Vector2(108f, 40f);
+        _lsProgressCountText = cntObj.AddComponent<Text>();
+        _lsProgressCountText.font = defaultFont; _lsProgressCountText.text = "0/300";
+        _lsProgressCountText.fontSize = 30; _lsProgressCountText.fontStyle = FontStyle.Bold;
+        _lsProgressCountText.alignment = TextAnchor.MiddleLeft; _lsProgressCountText.color = TextDark;
+
+        // Bar bg (flexible)
+        var barBg = new GameObject("BarBg");
+        barBg.transform.SetParent(row.transform, false);
+        var barBgLE = barBg.AddComponent<LayoutElement>();
+        barBgLE.flexibleWidth = 1f; barBgLE.preferredWidth = 0f; barBgLE.minWidth = 60f;
+        var barBgRT = barBg.AddComponent<RectTransform>(); barBgRT.sizeDelta = new Vector2(0f, 14f);
+        var barBgImg = barBg.AddComponent<Image>();
+        barBgImg.sprite = SpriteGenerator.Circle;
+        barBgImg.color = new Color(0.80f, 0.77f, 0.73f, 1f);
+
+        // Fill (child of barBg, left-anchored)
+        var fillObj = new GameObject("Fill");
+        fillObj.transform.SetParent(barBg.transform, false);
+        var fillRect = fillObj.AddComponent<RectTransform>();
+        fillRect.anchorMin = Vector2.zero; fillRect.anchorMax = new Vector2(0f, 1f);
+        fillRect.offsetMin = Vector2.zero; fillRect.offsetMax = Vector2.zero;
+        _lsProgressBarFill = fillObj.AddComponent<Image>();
+        _lsProgressBarFill.sprite = SpriteGenerator.Circle;
+        _lsProgressBarFill.color = BtnTeal;
+
+        // Gift btn
+        var giftBtnObj = new GameObject("GiftBtn");
+        giftBtnObj.transform.SetParent(row.transform, false);
+        var giftBtnLE = giftBtnObj.AddComponent<LayoutElement>();
+        giftBtnLE.preferredWidth = 56f; giftBtnLE.minWidth = 56f;
+        var giftBtnRT = giftBtnObj.AddComponent<RectTransform>(); giftBtnRT.sizeDelta = new Vector2(56f, 40f);
+        var giftBtnImg = giftBtnObj.AddComponent<Image>();
+        giftBtnImg.sprite = SpriteGenerator.RoundedRect;
+        giftBtnImg.color = new Color(0.86f, 0.84f, 0.81f, 1f);
+        var giftBtnComp = giftBtnObj.AddComponent<Button>(); giftBtnComp.targetGraphic = giftBtnImg;
+        var giftBtnTxtObj = new GameObject("T");
+        giftBtnTxtObj.transform.SetParent(giftBtnObj.transform, false);
+        var gbtRect = giftBtnTxtObj.AddComponent<RectTransform>();
+        gbtRect.anchorMin = Vector2.zero; gbtRect.anchorMax = Vector2.one;
+        gbtRect.offsetMin = Vector2.zero; gbtRect.offsetMax = Vector2.zero;
+        var gbtTxt = giftBtnTxtObj.AddComponent<Text>();
+        gbtTxt.font = defaultFont; gbtTxt.text = "🎁"; gbtTxt.fontSize = 26;
+        gbtTxt.alignment = TextAnchor.MiddleCenter; gbtTxt.color = TextMuted;
+    }
+
+    private void LsBuildGroupGrid(Transform parent, int groupIndex, Sprite btnSprite, int startIdx, int endIdx)
+    {
+        const float BtnSize = 148f;
+        const float ConnW   = 26f;
+        const float ConnH   = 3f;
+        var connColor = new Color(0.78f, 0.75f, 0.71f, 0.9f);
+
+        var wrapper = new GameObject($"Group{groupIndex}");
+        wrapper.transform.SetParent(parent, false);
+        var wLE = wrapper.AddComponent<LayoutElement>();
+        wLE.flexibleWidth = 1f;
+        var wVlg = wrapper.AddComponent<VerticalLayoutGroup>();
+        wVlg.spacing = 12f;
+        wVlg.padding = new RectOffset(0, 0, 8, 12);
+        wVlg.childForceExpandWidth = true; wVlg.childForceExpandHeight = false;
+        wVlg.childControlWidth = true; wVlg.childControlHeight = true;
+        var wFitter = wrapper.AddComponent<ContentSizeFitter>();
+        wFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        wFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        _lsGroupGridRoots[groupIndex] = wrapper.transform;
+        wrapper.SetActive(groupIndex == 0);
+
+        int count   = endIdx - startIdx + 1;
+        const int Cols = 4;
+
+        for (int row = 0; row * Cols < count; row++)
+        {
+            var rowObj = new GameObject($"R{row}");
+            rowObj.transform.SetParent(wrapper.transform, false);
+            var rowLE = rowObj.AddComponent<LayoutElement>();
+            rowLE.preferredHeight = BtnSize; rowLE.minHeight = BtnSize; rowLE.flexibleWidth = 1f;
+            var rowHlg = rowObj.AddComponent<HorizontalLayoutGroup>();
+            rowHlg.spacing = 0f;
+            rowHlg.padding = new RectOffset(0, 0, 0, 0);
+            rowHlg.childForceExpandWidth = false; rowHlg.childForceExpandHeight = false;
+            rowHlg.childControlWidth = true; rowHlg.childControlHeight = false;
+            rowHlg.childAlignment = TextAnchor.MiddleCenter;
+
+            // Leading flexible spacer
+            var lsp = new GameObject("LS"); lsp.transform.SetParent(rowObj.transform, false);
+            var lspLE = lsp.AddComponent<LayoutElement>(); lspLE.flexibleWidth = 1f;
+            var lspRT = lsp.AddComponent<RectTransform>(); lspRT.sizeDelta = Vector2.zero;
+
+            for (int col = 0; col < Cols; col++)
+            {
+                int idx = startIdx + row * Cols + col;
+                if (idx > endIdx) break;
+
+                if (col > 0)
+                {
+                    // Connector line
+                    var conn = new GameObject("C");
+                    conn.transform.SetParent(rowObj.transform, false);
+                    var connLE = conn.AddComponent<LayoutElement>();
+                    connLE.preferredWidth = ConnW; connLE.minWidth = ConnW;
+                    var connRT = conn.AddComponent<RectTransform>();
+                    connRT.sizeDelta = new Vector2(ConnW, ConnH);
+                    var connImg = conn.AddComponent<Image>();
+                    connImg.color = connColor;
+                }
+
+                // Button cell
+                int levelIndex = idx;
+                var cell = new GameObject($"L{idx + 1}");
+                cell.transform.SetParent(rowObj.transform, false);
+                var cellLE = cell.AddComponent<LayoutElement>();
+                cellLE.preferredWidth = BtnSize; cellLE.minWidth = BtnSize;
+                var cellRT = cell.AddComponent<RectTransform>();
+                cellRT.sizeDelta = new Vector2(BtnSize, BtnSize);
+
+                // Shadow
+                var sh = new GameObject("S"); sh.transform.SetParent(cell.transform, false);
+                var shRect = sh.AddComponent<RectTransform>();
+                shRect.anchorMin = new Vector2(0.5f, 0.5f); shRect.anchorMax = new Vector2(0.5f, 0.5f);
+                shRect.pivot = new Vector2(0.5f, 0.5f);
+                shRect.sizeDelta = new Vector2(BtnSize - 8f, BtnSize - 8f);
+                shRect.anchoredPosition = new Vector2(0f, -3f);
+                var shImg = sh.AddComponent<Image>();
+                shImg.sprite = btnSprite; shImg.color = new Color(0f, 0f, 0f, 0.06f);
+
+                // Button image
+                var btnImg = cell.AddComponent<Image>();
+                btnImg.sprite = btnSprite;
+                btnImg.color = new Color(0.93f, 0.91f, 0.88f, 1f);
+
+                var btn = cell.AddComponent<Button>();
+                var bc = btn.colors;
+                bc.highlightedColor = new Color(0.97f, 0.97f, 0.97f);
+                bc.pressedColor     = new Color(0.86f, 0.86f, 0.86f);
+                bc.disabledColor    = new Color(0.88f, 0.88f, 0.88f, 0.85f);
+                btn.colors = bc;
+                btn.onClick.AddListener(() => FindAnyObjectByType<GameManager>().SelectLevel(levelIndex));
+
+                // Number label
+                var lblObj = new GameObject("N"); lblObj.transform.SetParent(cell.transform, false);
+                var lblRect = lblObj.AddComponent<RectTransform>();
+                lblRect.anchorMin = new Vector2(0.5f, 0.5f); lblRect.anchorMax = new Vector2(0.5f, 0.5f);
+                lblRect.pivot = new Vector2(0.5f, 0.5f);
+                lblRect.anchoredPosition = new Vector2(0f, 10f);
+                lblRect.sizeDelta = new Vector2(BtnSize - 12f, 44f);
+                var lbl = lblObj.AddComponent<Text>();
+                lbl.font = defaultFont; lbl.fontSize = 30; lbl.fontStyle = FontStyle.Bold;
+                lbl.alignment = TextAnchor.MiddleCenter; lbl.color = TextDark;
+                lbl.text = (idx + 1).ToString();
+
+                // Lock label (hidden by default)
+                var lockObj = new GameObject("Lock"); lockObj.transform.SetParent(cell.transform, false);
+                var lockRect = lockObj.AddComponent<RectTransform>();
+                lockRect.anchorMin = new Vector2(0.5f, 0.5f); lockRect.anchorMax = new Vector2(0.5f, 0.5f);
+                lockRect.pivot = new Vector2(0.5f, 0.5f);
+                lockRect.anchoredPosition = new Vector2(0f, -22f);
+                lockRect.sizeDelta = new Vector2(40f, 30f);
+                var lockTxt = lockObj.AddComponent<Text>();
+                lockTxt.font = defaultFont; lockTxt.text = "🔒"; lockTxt.fontSize = 20;
+                lockTxt.alignment = TextAnchor.MiddleCenter; lockTxt.color = TextMuted;
+                lockObj.SetActive(false);
+                _lsLockLabels[idx] = lockTxt;
+
+                levelSelectButtons[idx]      = btn;
+                levelSelectButtonImages[idx] = btnImg;
+                levelSelectButtonLabels[idx] = lbl;
+            }
+
+            // Trailing flexible spacer
+            var rsp = new GameObject("RS"); rsp.transform.SetParent(rowObj.transform, false);
+            var rspLE = rsp.AddComponent<LayoutElement>(); rspLE.flexibleWidth = 1f;
+            var rspRT = rsp.AddComponent<RectTransform>(); rspRT.sizeDelta = Vector2.zero;
+        }
+    }
+
+    private void LsSwitchGroupTab(int g)
+    {
+        _lsActiveGroup = g;
+        for (int i = 0; i < 4; i++)
+        {
+            bool active = (i == g);
+            if (_lsGroupTabBgs[i]    != null) _lsGroupTabBgs[i].color    = active ? BtnTeal : new Color(0.87f, 0.85f, 0.82f, 1f);
+            if (_lsGroupTabIcons[i]  != null) _lsGroupTabIcons[i].color  = active ? Color.white : TextMuted;
+            if (_lsGroupTabRanges[i] != null) _lsGroupTabRanges[i].color = active ? new Color(1f, 1f, 1f, 0.85f) : TextMuted;
+            if (_lsGroupGridRoots[i] != null) _lsGroupGridRoots[i].gameObject.SetActive(active);
+        }
+        LsRefreshProgressBar(g);
+        // Scroll to top when switching tabs
+        if (levelSelectScrollRect != null)
+            levelSelectScrollRect.verticalNormalizedPosition = 1f;
+    }
+
+    private void LsRefreshProgressBar(int g)
+    {
+        int groupStart    = g * 300;
+        int completed     = Mathf.Clamp(_lsHighestUnlocked - groupStart, 0, 300);
+        float fillFraction = 300 > 0 ? Mathf.Clamp01(completed / 300f) : 0f;
+
+        if (_lsProgressCountText != null)
+            _lsProgressCountText.text = $"{completed}/300";
+        if (_lsProgressBarFill != null)
+        {
+            var fillRect = _lsProgressBarFill.GetComponent<RectTransform>();
+            fillRect.anchorMax = new Vector2(fillFraction, 1f);
         }
     }
 
     private void RefreshLevelSelectButtons(int currentLevelIndex, int highestUnlockedLevelIndex, int totalLevels)
     {
-        // Square section (0-299): amber palette
-        Color sqU = new Color(1.00f, 0.92f, 0.72f, 1f);
-        Color sqC = new Color(0.92f, 0.68f, 0.12f, 1f);
-        Color sqL = new Color(0.92f, 0.90f, 0.87f, 1f);
-        // Pentagon section (300-599): purple palette
-        Color pgU = new Color(0.90f, 0.82f, 0.98f, 1f);
-        Color pgC = new Color(0.55f, 0.30f, 0.86f, 1f);
-        Color pgL = new Color(0.90f, 0.87f, 0.93f, 1f);
-        // Hexagon section (600-899): teal palette
-        Color hxU = new Color(0.78f, 0.96f, 0.92f, 1f);
-        Color hxC = new Color(0.20f, 0.72f, 0.67f, 1f);
-        Color hxL = new Color(0.86f, 0.90f, 0.89f, 1f);
-        // Triangle / 3gen section (900-1199): rose palette
-        Color cgU = new Color(0.98f, 0.80f, 0.88f, 1f);
-        Color cgC = new Color(0.88f, 0.22f, 0.52f, 1f);
-        Color cgL = new Color(0.92f, 0.87f, 0.89f, 1f);
+        // Per-group palette: unlocked, current, locked
+        Color[] colU = {
+            new Color(1.00f, 0.93f, 0.76f, 1f),  // square  unlocked
+            new Color(0.91f, 0.83f, 0.98f, 1f),  // pentagon
+            new Color(0.80f, 0.96f, 0.93f, 1f),  // hexagon
+            new Color(0.98f, 0.82f, 0.90f, 1f),  // triangle
+        };
+        Color[] colC = {
+            BtnTeal, BtnTeal, BtnTeal, BtnTeal,  // current always teal
+        };
+        Color[] colL = {
+            new Color(0.90f, 0.88f, 0.85f, 1f),  // locked (same for all groups)
+            new Color(0.90f, 0.88f, 0.85f, 1f),
+            new Color(0.90f, 0.88f, 0.85f, 1f),
+            new Color(0.90f, 0.88f, 0.85f, 1f),
+        };
 
         for (int i = 0; i < levelSelectButtons.Length; i++)
         {
-            bool exists = i < totalLevels;
-            bool unlocked = exists && i <= highestUnlockedLevelIndex;
+            if (levelSelectButtons[i] == null) continue;
+            bool exists    = i < totalLevels;
+            bool unlocked  = exists && i <= highestUnlockedLevelIndex;
             bool isCurrent = i == currentLevelIndex;
 
             levelSelectButtons[i].gameObject.SetActive(exists);
@@ -827,28 +1064,31 @@ public class UIManager : MonoBehaviour
             levelSelectButtons[i].interactable = unlocked;
             levelSelectButtonLabels[i].text = (i + 1).ToString();
 
-            Color colU, colC, colL;
-            if (i < 300)      { colU = sqU; colC = sqC; colL = sqL; }
-            else if (i < 600) { colU = pgU; colC = pgC; colL = pgL; }
-            else if (i < 900) { colU = hxU; colC = hxC; colL = hxL; }
-            else              { colU = cgU; colC = cgC; colL = cgL; }
+            int grp = i / 300;
 
             if (isCurrent)
             {
-                levelSelectButtonImages[i].color = colC;
+                levelSelectButtonImages[i].color = colC[grp];
                 levelSelectButtonLabels[i].color = Color.white;
             }
             else if (unlocked)
             {
-                levelSelectButtonImages[i].color = colU;
+                levelSelectButtonImages[i].color = colU[grp];
                 levelSelectButtonLabels[i].color = TextDark;
             }
             else
             {
-                levelSelectButtonImages[i].color = colL;
+                levelSelectButtonImages[i].color = colL[grp];
                 levelSelectButtonLabels[i].color = TextMuted;
             }
+
+            // Lock icon
+            if (_lsLockLabels != null && _lsLockLabels[i] != null)
+                _lsLockLabels[i].gameObject.SetActive(!unlocked);
         }
+
+        // Refresh progress bar for active tab
+        LsRefreshProgressBar(_lsActiveGroup);
     }
 
     private void CreateLevelCompletePanel()
@@ -1597,24 +1837,29 @@ public class UIManager : MonoBehaviour
 
     public void UpdateDailyChallengeCard()
     {
+        RefreshDailyChallenge();
+    }
+
+    public void RefreshDailyChallenge()
+    {
         if (dailyChallengeCardImage == null) return;
 
         bool completed = DailyChallengeManager.IsTodayCompleted();
         int dailyIndex = DailyChallengeManager.GetDailyLevelIndex();
-        string levelName = (dailyIndex >= 0 && dailyIndex < LevelDatabase.Levels.Length)
-            ? LevelDatabase.Levels[dailyIndex].levelName
-            : $"Level {dailyIndex + 1}";
         int streak = DailyChallengeManager.GetStreak();
 
         dailyChallengeCardImage.color = completed
-            ? new Color(0.30f, 0.75f, 0.48f, 0.9f) // green = done
-            : new Color(0.25f, 0.78f, 0.72f, 0.9f); // teal = available
+            ? new Color(0.860f, 0.940f, 0.890f, 1f)
+            : new Color(0.875f, 0.924f, 0.913f, 1f);
+        dailyChallengeCardMainText.color = completed
+            ? new Color(0.18f, 0.58f, 0.35f, 1f)
+            : new Color(0.15f, 0.52f, 0.48f, 1f);
 
         string streakSuffix = streak > 0 ? $"  🔥 {streak}" : "";
-        dailyChallengeCardMainText.text = completed ? $"✓ Daily Complete!{streakSuffix}" : "📅 Daily Challenge";
-        dailyChallengeCardSubText.text = completed
+        dailyChallengeCardMainText.text = completed ? $"✓ Daily Complete!{streakSuffix}" : "Daily Challenge";
+        dailyChallengeCardSubText.text  = completed
             ? "Great job! Come back tomorrow 🎉"
-            : "A new puzzle every day • Complete to earn 1 hint 💡";
+            : "A new puzzle every day";
 
         if (dailyChallengeCardButton != null)
             dailyChallengeCardButton.interactable = !completed;
@@ -1818,12 +2063,17 @@ public class UIManager : MonoBehaviour
 
     public void ShowLevelSelect(int currentLevelIndex, int highestUnlockedLevelIndex, int totalLevels)
     {
-        if (levelSelectPanel == null)
-            return;
+        if (levelSelectPanel == null) return;
 
-        _lsCurrentIdx = currentLevelIndex;
-        _lsHighestUnlocked = highestUnlockedLevelIndex;
-        _lsTotalLevels = totalLevels;
+        _lsCurrentIdx       = currentLevelIndex;
+        _lsHighestUnlocked  = highestUnlockedLevelIndex;
+        _lsTotalLevels      = totalLevels;
+
+        if (_lsHeaderTitle != null)
+            _lsHeaderTitle.text = $"Level {currentLevelIndex + 1} / {totalLevels}";
+
+        int targetGroup = Mathf.Clamp(currentLevelIndex / 300, 0, 3);
+        LsSwitchGroupTab(targetGroup);
 
         RefreshLevelSelectButtons(currentLevelIndex, highestUnlockedLevelIndex, totalLevels);
         levelSelectPanel.SetActive(true);
@@ -2029,5 +2279,22 @@ public class UIManager : MonoBehaviour
         if (noAdsButton != null)          noAdsButton.interactable          = !isTutorial;
         if (restartButton != null)        restartButton.interactable        = !isTutorial;
         if (levelSelectToggleButton != null) levelSelectToggleButton.interactable = !isTutorial;
+    }
+
+    public void UpdateLevelProgress(int currentIndex, int total)
+    {
+        if (levelProgressText != null)
+            levelProgressText.text = $"Level {currentIndex + 1} / {total}";
+    }
+
+    public void SetHintCount(int count)
+    {
+        UpdateHintBadge(count);
+    }
+
+    public void SetNoAdsPurchased(bool purchased)
+    {
+        if (noAdsButton != null)
+            noAdsButton.gameObject.SetActive(!purchased);
     }
 }
