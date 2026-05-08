@@ -98,6 +98,7 @@ public class GameManager : MonoBehaviour
         // Restore free hint badge if any hints were accumulated
         uiManager.UpdateHintBadge(GetFreeHints());
 
+        MigrateProgressIfNeeded();
         currentLevelIndex = LoadSavedLevelIndex();
         LoadLevel(currentLevelIndex);
         StartCoroutine(PeriodicPromoBannerCoroutine());
@@ -479,6 +480,28 @@ public class GameManager : MonoBehaviour
     {
         int maxLevelIndex = LevelDatabase.Levels.Length - 1;
         return Mathf.Clamp(PlayerPrefs.GetInt(SavedLevelIndexKey, 0), 0, maxLevelIndex);
+    }
+
+    // v1.12: PreTutorial was inserted at index 0, shifting all square levels (0-299) up by 1.
+    // Existing players who upgraded from v1.11 must have their saved progress offset by 1
+    // so they continue from the same level they were on (not an earlier one).
+    private void MigrateProgressIfNeeded()
+    {
+        const string SchemaKey = "schema.version";
+        if (PlayerPrefs.GetInt(SchemaKey, 1) >= 2) return;
+
+        int savedIndex = PlayerPrefs.GetInt(SavedLevelIndexKey, 0);
+        // Shift square levels (1–299) forward by 1 to account for PreTutorial insertion.
+        // savedIndex == 0 means fresh install or player is at the very first level — no shift needed.
+        // savedIndex >= 300 means pentagon/hexagon levels — indices there are unchanged.
+        if (savedIndex > 0 && savedIndex < 300)
+        {
+            int maxLevelIndex = LevelDatabase.Levels.Length - 1;
+            PlayerPrefs.SetInt(SavedLevelIndexKey, Mathf.Min(savedIndex + 1, maxLevelIndex));
+        }
+
+        PlayerPrefs.SetInt(SchemaKey, 2);
+        PlayerPrefs.Save();
     }
 
     private int GetHighestUnlockedLevelIndex()
