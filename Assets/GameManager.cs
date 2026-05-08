@@ -42,6 +42,11 @@ public class GameManager : MonoBehaviour
 
     void Awake()
     {
+        // Cap at 60fps — prevents 120Hz ProMotion devices (iPhone 16/16 Pro) from
+        // running at 120fps, which doubles GPU/CPU load and causes thermal throttling.
+        Application.targetFrameRate = 60;
+        QualitySettings.vSyncCount = 0;
+
         SetupCamera();
 
         var audioObj = new GameObject("AudioManager");

@@ -5,6 +5,7 @@ public class InputHandler : MonoBehaviour
 {
     private GridManager gridManager;
     private GameManager gameManager;
+    private Camera _camera;
 
     private Cell _lastDragCell;
 
@@ -12,6 +13,7 @@ public class InputHandler : MonoBehaviour
     {
         gridManager = grid;
         gameManager = game;
+        _camera = Camera.main;
     }
 
     void Update()
@@ -47,8 +49,8 @@ public class InputHandler : MonoBehaviour
         if (pointer == null) return Vector3.zero;
 
         Vector2 screenPos = pointer.position.ReadValue();
-        Vector3 pos = new Vector3(screenPos.x, screenPos.y, -Camera.main.transform.position.z);
-        return Camera.main.ScreenToWorldPoint(pos);
+        Vector3 pos = new Vector3(screenPos.x, screenPos.y, -_camera.transform.position.z);
+        return _camera.ScreenToWorldPoint(pos);
     }
 
     private void OnTap()
