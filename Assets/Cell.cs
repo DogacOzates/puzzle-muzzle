@@ -350,12 +350,9 @@ public class Cell : MonoBehaviour
             int tdx = other.GridX - GridX;
             int tdy = other.GridY - GridY;
             if (Mathf.Abs(tdx) == 1 && tdy == 0) return true;
-            if (tdx == 0)
-            {
-                bool isUp = (GridX + GridY) % 2 == 0;
-                return isUp ? (tdy == -1) : (tdy == 1);
-            }
-            return false;
+            // ▲ connects to the ▽ below (base shared), ▽ connects to the ▲ above (base shared)
+            bool isUp = (GridX + GridY) % 2 == 0;
+            return isUp ? (tdy == 1) : (tdy == -1);
         }
 
         if (!_isPentagonMode && !_isHexagonMode)

@@ -534,9 +534,10 @@ public class GridManager : MonoBehaviour
     {
         if (isThreeGenMode)
         {
-            // ▲ (isUp) centroid is 1/3 row-height from top; ▽ (isDown) is 2/3 row-height from top
+            // ▲ (isUp) centroid is 2/3 row-height from top (apex touches strip top);
+            // ▽ (isDown) centroid is 1/3 row-height from top (base at strip top).
             bool isUp = (x + y) % 2 == 0;
-            float yIntra = isUp ? RowSpacing / 3f : 2f * RowSpacing / 3f;
+            float yIntra = isUp ? 2f * RowSpacing / 3f : RowSpacing / 3f;
             return new Vector3(
                 GridOrigin.x + x * CellSpacing,
                 GridOrigin.y - (y * RowSpacing + yIntra),

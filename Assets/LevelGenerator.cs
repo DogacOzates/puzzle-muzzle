@@ -947,7 +947,7 @@ public static class LevelGenerator
             {
                 // Triangle: only one vertical neighbor (▲ connects up, ▽ connects down)
                 bool isUp = (cur.x + cur.y) % 2 == 0;
-                neighbors.Add(new Vector2Int(cur.x, cur.y + (isUp ? -1 : 1)));
+                neighbors.Add(new Vector2Int(cur.x, cur.y + (isUp ? 1 : -1)));
             }
             else
             {
@@ -1175,15 +1175,15 @@ public static class LevelGenerator
     }
 
     // 3-directional neighbors for equilateral triangle grid.
-    // ▲ cells (isUp=(x+y)%2==0): horizontal left/right + one cell directly ABOVE (y-1).
-    // ▽ cells (isDown=(x+y)%2==1): horizontal left/right + one cell directly BELOW (y+1).
+    // ▲ cells (isUp=(x+y)%2==0): horizontal left/right + one cell directly BELOW (y+1).
+    // ▽ cells (isDown=(x+y)%2==1): horizontal left/right + one cell directly ABOVE (y-1).
     private static List<Vector2Int> TriangleNeighbors(int x, int y, int width, int height, bool[,] visited)
     {
         var result = new List<Vector2Int>(3);
         if (x > 0 && !visited[y, x - 1]) result.Add(new Vector2Int(x - 1, y));
         if (x < width - 1 && !visited[y, x + 1]) result.Add(new Vector2Int(x + 1, y));
         bool isUp = (x + y) % 2 == 0;
-        int vy = y + (isUp ? -1 : 1);
+        int vy = y + (isUp ? 1 : -1);
         if (vy >= 0 && vy < height && !visited[vy, x]) result.Add(new Vector2Int(x, vy));
         return result;
     }
@@ -1200,7 +1200,7 @@ public static class LevelGenerator
                 if (x > 0 && !visited[y, x - 1]) options++;
                 if (x < width - 1 && !visited[y, x + 1]) options++;
                 bool isUp = (x + y) % 2 == 0;
-                int vy = y + (isUp ? -1 : 1);
+                int vy = y + (isUp ? 1 : -1);
                 if (vy >= 0 && vy < height && !visited[vy, x]) options++;
                 if (options == 0) deadEnds += 3;
                 else if (options == 1) deadEnds++;
@@ -1210,17 +1210,17 @@ public static class LevelGenerator
     }
 
     // Snake fallback path for triangle grids with even width.
-    // Even row: L→R, ending at (W-1,r) which is ▽ → connects to (W-1,r+1).
-    // Odd row:  R→L, ending at (0,r) which is ▽   → connects to (0,r+1).
+    // Even rows go R→L, ending at (0,r) which is ▲ → connects DOWN to (0,r+1).
+    // Odd rows go L→R, ending at (W-1,r) which is ▲ → connects DOWN to (W-1,r+1).
     private static List<Vector2Int> TriangleSnakePath(int width, int height)
     {
         var path = new List<Vector2Int>(width * height);
         for (int y = 0; y < height; y++)
         {
             if (y % 2 == 0)
-                for (int x = 0; x < width; x++) path.Add(new Vector2Int(x, y));
-            else
                 for (int x = width - 1; x >= 0; x--) path.Add(new Vector2Int(x, y));
+            else
+                for (int x = 0; x < width; x++) path.Add(new Vector2Int(x, y));
         }
         return path;
     }
