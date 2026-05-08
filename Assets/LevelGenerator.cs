@@ -1669,7 +1669,7 @@ public static class LevelGenerator
 
         for (int i = 0; i < count; i++)
         {
-            var rng = new System.Random((i + 2000) * 9001 + 31);
+            var rng = new System.Random((i + 3000) * 7331 + 41);
             CampaignConfig config = GetThreeGenConfig(i);
             LevelCandidate bestCandidate = null;
 
@@ -1719,7 +1719,7 @@ public static class LevelGenerator
             {
                 for (int extra = 0; extra < extraAttempts; extra++)
                 {
-                    var xRng = new System.Random((i + 2000) * 9001 + 31 + (extra + 1) * 1013);
+                    var xRng = new System.Random((i + 3000) * 7331 + 41 + (extra + 1) * 997);
                     HashSet<Vector2Int> xBlocked = GenerateBlockedCells(config, xRng, triMode: true);
                     List<Vector2Int> xPath = HamiltonianPath(config.width, config.height, xBlocked, xRng, triMode: true);
                     if (xPath == null) continue;

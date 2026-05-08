@@ -47,6 +47,9 @@ public class GameManager : MonoBehaviour
         Application.targetFrameRate = 60;
         QualitySettings.vSyncCount = 0;
 
+        // Flush cached levels so any generation-logic fix is always picked up.
+        LevelDatabase.InvalidateCache();
+
         SetupCamera();
 
         var audioObj = new GameObject("AudioManager");

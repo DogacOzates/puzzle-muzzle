@@ -74,6 +74,9 @@ public static class LevelDatabase
 
     private static LevelData[] _levels;
 
+    // Call this whenever generation logic changes to flush the in-memory cache.
+    public static void InvalidateCache() => _levels = null;
+
     public static LevelData[] Levels
     {
         get
