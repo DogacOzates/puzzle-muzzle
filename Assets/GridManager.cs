@@ -19,8 +19,9 @@ public class GridManager : MonoBehaviour
     // CellVisualSize = 2/√3 ≈ 1.1547: hexagon apothem = r*cos(30°) = 0.5*0.866; 2*apothem*CVS = 1.0 → no gaps
     private const float HexCellVisualSize = 1.1547f;
     // Triangle: circumradius R=120 in 256px texture; touching distance = 1/√3 world units (CellSpacing=0.5)
-    // CellVisualSize * (R/256) = 1/√3 → CellVisualSize = 256/(120*√3) ≈ 1.232f
-    private const float TriangleCVS = 1.232f;
+    // CellVisualSize = 256/(120*√3) ≈ 1.232 makes cells touch edge-to-edge exactly.
+    // 1.16 ≈ 94% of that → ~0.036 world unit gap between adjacent cell edges (≈ 5 px on screen).
+    private const float TriangleCVS = 1.16f;
 
     public float BoardVisualWidth => isHexagonMode
         ? (GridWidth - 1) * CellSpacing + CellVisualSize
