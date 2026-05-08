@@ -79,7 +79,8 @@ public class Cell : MonoBehaviour
         var numObj = new GameObject("Number");
         numObj.transform.SetParent(transform);
         numObj.transform.localPosition = new Vector3(0, 0, -0.01f);
-        numObj.transform.localScale = new Vector3(0.5f, 0.5f, 1f);
+        numObj.transform.localScale = new Vector3(isTriangleMode ? 0.42f : 0.5f,
+                                                   isTriangleMode ? 0.42f : 0.5f, 1f);
         numberRenderer = numObj.AddComponent<SpriteRenderer>();
         numberRenderer.sortingOrder = 15;
         numberRenderer.sharedMaterial = SpriteGenerator.UnlitMaterial;

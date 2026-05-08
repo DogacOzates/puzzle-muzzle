@@ -226,22 +226,30 @@ public static class SpriteGenerator
 
         var pixels = new Color32[w * h];
         float cx = w * 0.5f, cy = h * 0.5f;
-        float R = 120f; // circumradius
 
-        // Equilateral triangle, apex up: vertices at 90°, 210°, 330°
+        // Rounded equilateral triangle via Minkowski erosion:
+        // Erode triangle by rr per edge (inradius shrinks by rr → circumradius shrinks by 2*rr),
+        // then visually dilate back by rr using the SDF.  Result: corners have radius rr,
+        // edges remain at the original inradius distance from centre.
+        const float rr = 14f;         // corner-rounding radius in pixels
+        const float R  = 120f;        // original circumradius
+        const float Ri = R - 2f * rr; // shrunken circumradius (= 92)
+
+        // Apex-up equilateral triangle: vertices at 90°, 210°, 330°
         var vx = new float[3];
         var vy = new float[3];
         for (int k = 0; k < 3; k++)
         {
             float angle = Mathf.PI / 2f - k * 2f * Mathf.PI / 3f;
-            vx[k] = cx + R * Mathf.Cos(angle);
-            vy[k] = cy + R * Mathf.Sin(angle);
+            vx[k] = cx + Ri * Mathf.Cos(angle);
+            vy[k] = cy + Ri * Mathf.Sin(angle);
         }
 
         for (int y = 0; y < h; y++)
             for (int x = 0; x < w; x++)
             {
-                float d = PolygonSdf(x, y, vx, vy);
+                // Rounded SDF: edges kept at original boundary; corners rounded with radius rr
+                float d = PolygonSdf(x, y, vx, vy) - rr;
                 float a = Mathf.Clamp01(0.5f - d);
                 pixels[y * w + x] = new Color32(255, 255, 255, (byte)(a * 255));
             }
