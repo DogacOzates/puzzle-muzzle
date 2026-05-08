@@ -352,8 +352,9 @@ public class Cell : MonoBehaviour
             int tdy = other.GridY - GridY;
             if (Mathf.Abs(tdx) == 1 && tdy == 0) return true;
             // ▲ connects to the ▽ below (base shared), ▽ connects to the ▲ above (base shared)
+            // tdx MUST be 0 — only same-column vertical neighbours share an edge.
             bool isUp = (GridX + GridY) % 2 == 0;
-            return isUp ? (tdy == 1) : (tdy == -1);
+            return tdx == 0 && (isUp ? (tdy == 1) : (tdy == -1));
         }
 
         if (!_isPentagonMode && !_isHexagonMode)
