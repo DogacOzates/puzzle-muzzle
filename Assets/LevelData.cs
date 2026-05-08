@@ -1,6 +1,6 @@
 using System;
 
-public enum CellShape { Square, Pentagon, Hexagon, SevenGen }
+public enum CellShape { Square, Pentagon, Hexagon, EightGen }
 
 [Serializable]
 public class BlockedCellData
@@ -93,9 +93,9 @@ public static class LevelDatabase
                 LevelData[] hexagonLevels = LevelGenerator.GenerateHexagonCampaign(300);
                 for (int i = 0; i < 300; i++)
                     _levels[600 + i] = hexagonLevels[i];
-                LevelData[] sevenGenLevels = LevelGenerator.GenerateSevenGenCampaign(300);
+                LevelData[] eightGenLevels = LevelGenerator.GenerateEightGenCampaign(300);
                 for (int i = 0; i < 300; i++)
-                    _levels[900 + i] = sevenGenLevels[i];
+                    _levels[900 + i] = eightGenLevels[i];
             }
             return _levels;
         }

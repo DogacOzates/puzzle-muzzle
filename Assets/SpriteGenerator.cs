@@ -8,7 +8,7 @@ public static class SpriteGenerator
     private static Sprite _pentagon;
     private static Sprite _hexagon;
     private static Sprite _flatHexagon;
-    private static Sprite _heptagon;
+    private static Sprite _octagon;
     private static readonly Dictionary<int, Sprite> numberSpriteCache = new Dictionary<int, Sprite>();
     private static Material _unlitMaterial;
 
@@ -207,17 +207,17 @@ public static class SpriteGenerator
         return Sprite.Create(tex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f), w);
     }
 
-    public static Sprite Heptagon
+    public static Sprite Octagon
     {
         get
         {
-            if (_heptagon == null)
-                _heptagon = CreateHeptagon();
-            return _heptagon;
+            if (_octagon == null)
+                _octagon = CreateOctagon();
+            return _octagon;
         }
     }
 
-    private static Sprite CreateHeptagon()
+    private static Sprite CreateOctagon()
     {
         int w = 256, h = 256;
         var tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
@@ -228,12 +228,12 @@ public static class SpriteGenerator
         float cx = w * 0.5f, cy = h * 0.5f;
         float r = 126f;
 
-        // Regular heptagon, pointy top: 7 vertices starting from 90°
-        var vx = new float[7];
-        var vy = new float[7];
-        for (int k = 0; k < 7; k++)
+        // Regular octagon, flat-top: 8 vertices starting from 22.5° offset so flat edges face hex-grid neighbors
+        var vx = new float[8];
+        var vy = new float[8];
+        for (int k = 0; k < 8; k++)
         {
-            float angle = Mathf.PI / 2f - k * 2f * Mathf.PI / 7f;
+            float angle = Mathf.PI / 8f + k * 2f * Mathf.PI / 8f;
             vx[k] = cx + r * Mathf.Cos(angle);
             vy[k] = cy + r * Mathf.Sin(angle);
         }

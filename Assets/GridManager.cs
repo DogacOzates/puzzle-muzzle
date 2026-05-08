@@ -15,7 +15,7 @@ public class GridManager : MonoBehaviour
 
     private bool isPentagonMode;
     private bool isHexagonMode;
-    private bool isSevenGenMode;
+    private bool isEightGenMode;
     // CellVisualSize = 2/√3 ≈ 1.1547: hexagon apothem = r*cos(30°) = 0.5*0.866; 2*apothem*CVS = 1.0 → no gaps
     private const float HexCellVisualSize = 1.1547f;
 
@@ -63,9 +63,9 @@ public class GridManager : MonoBehaviour
         GridWidth = level.gridWidth;
         GridHeight = level.gridHeight;
         isPentagonMode = level.cellShape == CellShape.Pentagon;
-        isSevenGenMode = level.cellShape == CellShape.SevenGen;
-        isHexagonMode  = level.cellShape == CellShape.Hexagon || isSevenGenMode;
-        // SevenGen reuses flat-top hex grid layout; same visual size as 6gen so cells pack tightly
+        isEightGenMode = level.cellShape == CellShape.EightGen;
+        isHexagonMode  = level.cellShape == CellShape.Hexagon || isEightGenMode;
+        // EightGen reuses flat-top hex grid layout; same visual size as 6gen so cells pack tightly
         CellVisualSize = (isPentagonMode || isHexagonMode) ? HexCellVisualSize : 0.9f;
         if (isHexagonMode)
         {
@@ -166,7 +166,7 @@ public class GridManager : MonoBehaviour
 
     private void CreateCells(LevelData level)
     {
-        Sprite cellSprite = isSevenGenMode ? SpriteGenerator.Heptagon
+        Sprite cellSprite = isEightGenMode ? SpriteGenerator.Octagon
             : (isHexagonMode ? SpriteGenerator.FlatHexagon
             : (isPentagonMode ? SpriteGenerator.Hexagon : SpriteGenerator.RoundedRect));
 

@@ -1593,9 +1593,9 @@ public static class LevelGenerator
         return c;
     }
 
-    // --- 7gen campaign (flat-top column-offset hex with circle cells) ---
+    // --- 8gen campaign (flat-top column-offset hex with circle cells) ---
 
-    public static LevelData[] GenerateSevenGenCampaign(int count)
+    public static LevelData[] GenerateEightGenCampaign(int count)
     {
         var levels = new LevelData[count];
         var recentSignatures = new Queue<string>();
@@ -1607,7 +1607,7 @@ public static class LevelGenerator
         for (int i = 0; i < count; i++)
         {
             var rng = new System.Random((i + 2000) * 9001 + 31);
-            CampaignConfig config = GetSevenGenConfig(i);
+            CampaignConfig config = GetEightGenConfig(i);
             LevelCandidate bestCandidate = null;
 
             for (int ci = 0; ci < config.candidateCount; ci++)
@@ -1679,7 +1679,7 @@ public static class LevelGenerator
             }
 
             LevelData ld = BuildLevelData(config, bestCandidate.segments, bestCandidate.blocked);
-            ld.cellShape = CellShape.SevenGen;
+            ld.cellShape = CellShape.EightGen;
             levels[i] = ld;
 
             recentSignatures.Enqueue(bestCandidate.signature);
@@ -1706,7 +1706,7 @@ public static class LevelGenerator
         return levels;
     }
 
-    private static CampaignConfig GetSevenGenConfig(int idx)
+    private static CampaignConfig GetEightGenConfig(int idx)
     {
         CampaignConfig c = new CampaignConfig();
 
@@ -1714,7 +1714,7 @@ public static class LevelGenerator
         {
             c.width = 4; c.height = 4;
             c.minSegment = 2; c.maxSegment = 6; c.candidateCount = 20;
-            c.tierName = "7gen Intro";
+            c.tierName = "8gen Intro";
             c.rectanglePenalty = 3.5f; c.densePenalty = 2.5f;
             c.straightPenalty = 2.0f; c.turnWeight = 1.2f;
             c.squarePenalty = 1.5f; c.lateRectangleBonus = 0f;
@@ -1724,7 +1724,7 @@ public static class LevelGenerator
         {
             SetRectangularBoard(ref c, 4, 5);
             c.minSegment = 2; c.maxSegment = 7; c.candidateCount = 22;
-            c.tierName = "7gen Easy";
+            c.tierName = "8gen Easy";
             c.rectanglePenalty = 3.2f; c.densePenalty = 2.3f;
             c.straightPenalty = 1.9f; c.turnWeight = 1.15f;
             c.squarePenalty = 1.3f; c.lateRectangleBonus = 0f;
@@ -1734,7 +1734,7 @@ public static class LevelGenerator
         {
             c.width = 5; c.height = 5;
             c.minSegment = 3; c.maxSegment = 7; c.candidateCount = 24;
-            c.tierName = "7gen Easy";
+            c.tierName = "8gen Easy";
             c.rectanglePenalty = 3.0f; c.densePenalty = 2.1f;
             c.straightPenalty = 1.8f; c.turnWeight = 1.1f;
             c.squarePenalty = 1.1f; c.lateRectangleBonus = 0f;
@@ -1744,7 +1744,7 @@ public static class LevelGenerator
         {
             SetRectangularBoard(ref c, 5, 6);
             c.minSegment = 3; c.maxSegment = 8; c.candidateCount = 24;
-            c.tierName = "7gen Normal";
+            c.tierName = "8gen Normal";
             c.rectanglePenalty = 2.6f; c.densePenalty = 1.9f;
             c.straightPenalty = 1.6f; c.turnWeight = 1.05f;
             c.squarePenalty = 0.9f; c.lateRectangleBonus = 0f;
@@ -1754,7 +1754,7 @@ public static class LevelGenerator
         {
             SetRectangularBoard(ref c, 5, 7);
             c.minSegment = 3; c.maxSegment = 9; c.candidateCount = 26;
-            c.tierName = "7gen Normal";
+            c.tierName = "8gen Normal";
             c.rectanglePenalty = 2.2f; c.densePenalty = 1.7f;
             c.straightPenalty = 1.4f; c.turnWeight = 1.0f;
             c.squarePenalty = 0.75f; c.lateRectangleBonus = 0f;
@@ -1764,7 +1764,7 @@ public static class LevelGenerator
         {
             SetRectangularBoard(ref c, 6, 7);
             c.minSegment = 4; c.maxSegment = 10; c.candidateCount = 26;
-            c.tierName = "7gen Hard";
+            c.tierName = "8gen Hard";
             c.rectanglePenalty = 1.9f; c.densePenalty = 1.5f;
             c.straightPenalty = 1.2f; c.turnWeight = 0.95f;
             c.squarePenalty = 0.65f; c.lateRectangleBonus = 0.05f;
@@ -1774,7 +1774,7 @@ public static class LevelGenerator
         {
             SetRectangularBoard(ref c, 6, 8);
             c.minSegment = 4; c.maxSegment = 10; c.candidateCount = 28;
-            c.tierName = "7gen Hard";
+            c.tierName = "8gen Hard";
             c.rectanglePenalty = 1.6f; c.densePenalty = 1.3f;
             c.straightPenalty = 1.1f; c.turnWeight = 0.9f;
             c.squarePenalty = 0.55f; c.lateRectangleBonus = 0.1f;
@@ -1784,7 +1784,7 @@ public static class LevelGenerator
         {
             SetRectangularBoard(ref c, 7, 8);
             c.minSegment = 4; c.maxSegment = 11; c.candidateCount = 28;
-            c.tierName = "7gen Advanced";
+            c.tierName = "8gen Advanced";
             c.rectanglePenalty = 1.3f; c.densePenalty = 1.0f;
             c.straightPenalty = 0.95f; c.turnWeight = 0.85f;
             c.squarePenalty = 0.45f; c.lateRectangleBonus = 0.15f;
@@ -1794,7 +1794,7 @@ public static class LevelGenerator
         {
             SetRectangularBoard(ref c, 7, 9);
             c.minSegment = 5; c.maxSegment = 12; c.candidateCount = 30;
-            c.tierName = "7gen Expert";
+            c.tierName = "8gen Expert";
             c.rectanglePenalty = 1.0f; c.densePenalty = 0.8f;
             c.straightPenalty = 0.85f; c.turnWeight = 0.78f;
             c.squarePenalty = 0.35f; c.lateRectangleBonus = 0.2f;
@@ -1804,7 +1804,7 @@ public static class LevelGenerator
         {
             SetRectangularBoard(ref c, 7, 10);
             c.minSegment = 5; c.maxSegment = 12; c.candidateCount = 32;
-            c.tierName = "7gen Master";
+            c.tierName = "8gen Master";
             c.rectanglePenalty = 0.8f; c.densePenalty = 0.6f;
             c.straightPenalty = 0.75f; c.turnWeight = 0.7f;
             c.squarePenalty = 0.25f; c.lateRectangleBonus = 0.3f;
