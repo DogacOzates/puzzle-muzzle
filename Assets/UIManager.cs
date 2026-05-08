@@ -808,17 +808,6 @@ public class UIManager : MonoBehaviour
         hlg.childControlWidth = true; hlg.childControlHeight = false;
         hlg.childAlignment = TextAnchor.MiddleLeft;
 
-        // Star
-        var starObj = new GameObject("Star");
-        starObj.transform.SetParent(row.transform, false);
-        var starRT = starObj.AddComponent<RectTransform>(); starRT.sizeDelta = new Vector2(36f, 36f);
-        var starLE = starObj.AddComponent<LayoutElement>();
-        starLE.preferredWidth = 36f; starLE.minWidth = 36f;
-        var starTxt = starObj.AddComponent<Text>();
-        starTxt.font = defaultFont; starTxt.text = "★"; starTxt.fontSize = 32;
-        starTxt.alignment = TextAnchor.MiddleCenter;
-        starTxt.color = new Color(0.92f, 0.72f, 0.18f, 1f);
-
         // Count
         var cntObj = new GameObject("Count");
         cntObj.transform.SetParent(row.transform, false);
