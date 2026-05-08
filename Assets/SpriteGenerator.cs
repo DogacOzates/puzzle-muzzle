@@ -8,7 +8,7 @@ public static class SpriteGenerator
     private static Sprite _pentagon;
     private static Sprite _hexagon;
     private static Sprite _flatHexagon;
-    private static Sprite _octagon;
+    private static Sprite _triangle;
     private static readonly Dictionary<int, Sprite> numberSpriteCache = new Dictionary<int, Sprite>();
     private static Material _unlitMaterial;
 
@@ -207,17 +207,17 @@ public static class SpriteGenerator
         return Sprite.Create(tex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f), w);
     }
 
-    public static Sprite Octagon
+    public static Sprite Triangle
     {
         get
         {
-            if (_octagon == null)
-                _octagon = CreateOctagon();
-            return _octagon;
+            if (_triangle == null)
+                _triangle = CreateTriangle();
+            return _triangle;
         }
     }
 
-    private static Sprite CreateOctagon()
+    private static Sprite CreateTriangle()
     {
         int w = 256, h = 256;
         var tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
@@ -226,16 +226,16 @@ public static class SpriteGenerator
 
         var pixels = new Color32[w * h];
         float cx = w * 0.5f, cy = h * 0.5f;
-        float r = 126f;
+        float R = 120f; // circumradius
 
-        // Regular octagon, flat-top: 8 vertices starting from 22.5° offset so flat edges face hex-grid neighbors
-        var vx = new float[8];
-        var vy = new float[8];
-        for (int k = 0; k < 8; k++)
+        // Equilateral triangle, apex up: vertices at 90°, 210°, 330°
+        var vx = new float[3];
+        var vy = new float[3];
+        for (int k = 0; k < 3; k++)
         {
-            float angle = Mathf.PI / 8f + k * 2f * Mathf.PI / 8f;
-            vx[k] = cx + r * Mathf.Cos(angle);
-            vy[k] = cy + r * Mathf.Sin(angle);
+            float angle = Mathf.PI / 2f - k * 2f * Mathf.PI / 3f;
+            vx[k] = cx + R * Mathf.Cos(angle);
+            vy[k] = cy + R * Mathf.Sin(angle);
         }
 
         for (int y = 0; y < h; y++)

@@ -659,8 +659,8 @@ public class UIManager : MonoBehaviour
             new Color(0.55f, 0.30f, 0.86f, 1f), SpriteGenerator.Pentagon,      300, 599);
         CreateLevelSection(content.transform, "⬡  Hexagon",  "601 – 900",
             new Color(0.20f, 0.72f, 0.67f, 1f), SpriteGenerator.FlatHexagon,   600, 899);
-        CreateLevelSection(content.transform, "⬡  8gen",     "901 – 1200",
-            new Color(0.88f, 0.22f, 0.52f, 1f), SpriteGenerator.Octagon,      900, 1199);
+        CreateLevelSection(content.transform, "△  3gen",     "901 – 1200",
+            new Color(0.88f, 0.22f, 0.52f, 1f), SpriteGenerator.Triangle,     900, 1199);
 
         levelSelectPanel = panelObj;
         levelSelectPanel.SetActive(false);
@@ -810,7 +810,7 @@ public class UIManager : MonoBehaviour
         Color hxU = new Color(0.78f, 0.96f, 0.92f, 1f);
         Color hxC = new Color(0.20f, 0.72f, 0.67f, 1f);
         Color hxL = new Color(0.86f, 0.90f, 0.89f, 1f);
-        // Circle / 8gen section (900-1199): rose palette
+        // Triangle / 3gen section (900-1199): rose palette
         Color cgU = new Color(0.98f, 0.80f, 0.88f, 1f);
         Color cgC = new Color(0.88f, 0.22f, 0.52f, 1f);
         Color cgL = new Color(0.92f, 0.87f, 0.89f, 1f);

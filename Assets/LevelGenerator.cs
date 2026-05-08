@@ -327,7 +327,7 @@ public static class LevelGenerator
         config.height = Mathf.Max(a, b);
     }
 
-    private static List<Vector2Int> HamiltonianPath(int width, int height, HashSet<Vector2Int> blocked, System.Random rng, bool hexMode = false, bool colHexMode = false)
+    private static List<Vector2Int> HamiltonianPath(int width, int height, HashSet<Vector2Int> blocked, System.Random rng, bool hexMode = false, bool colHexMode = false, bool triMode = false)
     {
         int total = width * height - blocked.Count;
 
@@ -347,11 +347,13 @@ public static class LevelGenerator
             while (path.Count < total)
             {
                 Vector2Int current = path[path.Count - 1];
-                List<Vector2Int> neighbors = colHexMode
-                    ? HexColNeighbors(current.x, current.y, width, height, visited)
-                    : (hexMode
-                        ? HexNeighbors(current.x, current.y, width, height, visited)
-                        : Neighbors(current.x, current.y, width, height, visited));
+                List<Vector2Int> neighbors = triMode
+                    ? TriangleNeighbors(current.x, current.y, width, height, visited)
+                    : (colHexMode
+                        ? HexColNeighbors(current.x, current.y, width, height, visited)
+                        : (hexMode
+                            ? HexNeighbors(current.x, current.y, width, height, visited)
+                            : Neighbors(current.x, current.y, width, height, visited)));
                 if (neighbors.Count == 0)
                 {
                     stuck = true;
@@ -368,11 +370,13 @@ public static class LevelGenerator
                 for (int i = 0; i < neighbors.Count; i++)
                 {
                     Vector2Int next = neighbors[i];
-                    int onwardMoves = colHexMode
-                        ? HexColNeighbors(next.x, next.y, width, height, visited).Count
-                        : (hexMode
-                            ? HexNeighbors(next.x, next.y, width, height, visited).Count
-                            : Neighbors(next.x, next.y, width, height, visited).Count);
+                    int onwardMoves = triMode
+                        ? TriangleNeighbors(next.x, next.y, width, height, visited).Count
+                        : (colHexMode
+                            ? HexColNeighbors(next.x, next.y, width, height, visited).Count
+                            : (hexMode
+                                ? HexNeighbors(next.x, next.y, width, height, visited).Count
+                                : Neighbors(next.x, next.y, width, height, visited).Count));
                     int edgeDistance = Mathf.Min(
                         Mathf.Min(next.x, width - 1 - next.x),
                         Mathf.Min(next.y, height - 1 - next.y));
@@ -385,11 +389,13 @@ public static class LevelGenerator
                     float score = onwardMoves * 3f;
                     score += nearEnd ? edgeDistance * 0.1f : edgeDistance * 0.35f;
                     score += changesDirection ? -0.7f : 0.45f;
-                    score += (colHexMode
-                        ? CountColHexFutureDeadEnds(next, width, height, visited)
-                        : (hexMode
-                            ? CountHexFutureDeadEnds(next, width, height, visited)
-                            : CountFutureDeadEnds(next, width, height, visited))) * 1.3f;
+                    score += (triMode
+                        ? CountTriangleFutureDeadEnds(next, width, height, visited)
+                        : (colHexMode
+                            ? CountColHexFutureDeadEnds(next, width, height, visited)
+                            : (hexMode
+                                ? CountHexFutureDeadEnds(next, width, height, visited)
+                                : CountFutureDeadEnds(next, width, height, visited)))) * 1.3f;
                     score += (float)rng.NextDouble() * 0.35f;
 
                     if (score < bestScore)
@@ -408,7 +414,7 @@ public static class LevelGenerator
         }
 
         // Snake fallback only works without holes (adjacency would break otherwise)
-        if (blocked.Count == 0) return SnakePath(width, height);
+        if (blocked.Count == 0) return triMode ? TriangleSnakePath(width, height) : SnakePath(width, height);
         return null;
     }
 
@@ -835,7 +841,7 @@ public static class LevelGenerator
         return config.width + "x" + config.height + ":" + string.Join("|", parts) + blockedStr;
     }
 
-    private static HashSet<Vector2Int> GenerateBlockedCells(CampaignConfig config, System.Random rng, bool hexMode = false, bool colHexMode = false)
+    private static HashSet<Vector2Int> GenerateBlockedCells(CampaignConfig config, System.Random rng, bool hexMode = false, bool colHexMode = false, bool triMode = false)
     {
         if (config.maxBlocked == 0) return new HashSet<Vector2Int>();
 
@@ -867,7 +873,7 @@ public static class LevelGenerator
         {
             if (blocked.Count >= count) break;
             blocked.Add(candidate);
-            if (!IsGridConnected(config.width, config.height, blocked, hexMode, colHexMode))
+            if (!IsGridConnected(config.width, config.height, blocked, hexMode, colHexMode, triMode))
                 blocked.Remove(candidate);
         }
 
@@ -883,7 +889,7 @@ public static class LevelGenerator
         }
     }
 
-    private static bool IsGridConnected(int width, int height, HashSet<Vector2Int> blocked, bool hexMode = false, bool colHexMode = false)
+    private static bool IsGridConnected(int width, int height, HashSet<Vector2Int> blocked, bool hexMode = false, bool colHexMode = false, bool triMode = false)
     {
         int total = width * height - blocked.Count;
         if (total <= 1) return true;
@@ -936,6 +942,12 @@ public static class LevelGenerator
                     neighbors.Add(new Vector2Int(cur.x,     cur.y + 1));
                     neighbors.Add(new Vector2Int(cur.x + 1, cur.y + 1));
                 }
+            }
+            else if (triMode)
+            {
+                // Triangle: only one vertical neighbor (▲ connects up, ▽ connects down)
+                bool isUp = (cur.x + cur.y) % 2 == 0;
+                neighbors.Add(new Vector2Int(cur.x, cur.y + (isUp ? -1 : 1)));
             }
             else
             {
@@ -1160,6 +1172,57 @@ public static class LevelGenerator
             }
         visited[next.y, next.x] = false;
         return deadEnds;
+    }
+
+    // 3-directional neighbors for equilateral triangle grid.
+    // ▲ cells (isUp=(x+y)%2==0): horizontal left/right + one cell directly ABOVE (y-1).
+    // ▽ cells (isDown=(x+y)%2==1): horizontal left/right + one cell directly BELOW (y+1).
+    private static List<Vector2Int> TriangleNeighbors(int x, int y, int width, int height, bool[,] visited)
+    {
+        var result = new List<Vector2Int>(3);
+        if (x > 0 && !visited[y, x - 1]) result.Add(new Vector2Int(x - 1, y));
+        if (x < width - 1 && !visited[y, x + 1]) result.Add(new Vector2Int(x + 1, y));
+        bool isUp = (x + y) % 2 == 0;
+        int vy = y + (isUp ? -1 : 1);
+        if (vy >= 0 && vy < height && !visited[vy, x]) result.Add(new Vector2Int(x, vy));
+        return result;
+    }
+
+    private static int CountTriangleFutureDeadEnds(Vector2Int next, int width, int height, bool[,] visited)
+    {
+        int deadEnds = 0;
+        visited[next.y, next.x] = true;
+        for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+            {
+                if (visited[y, x]) continue;
+                int options = 0;
+                if (x > 0 && !visited[y, x - 1]) options++;
+                if (x < width - 1 && !visited[y, x + 1]) options++;
+                bool isUp = (x + y) % 2 == 0;
+                int vy = y + (isUp ? -1 : 1);
+                if (vy >= 0 && vy < height && !visited[vy, x]) options++;
+                if (options == 0) deadEnds += 3;
+                else if (options == 1) deadEnds++;
+            }
+        visited[next.y, next.x] = false;
+        return deadEnds;
+    }
+
+    // Snake fallback path for triangle grids with even width.
+    // Even row: L→R, ending at (W-1,r) which is ▽ → connects to (W-1,r+1).
+    // Odd row:  R→L, ending at (0,r) which is ▽   → connects to (0,r+1).
+    private static List<Vector2Int> TriangleSnakePath(int width, int height)
+    {
+        var path = new List<Vector2Int>(width * height);
+        for (int y = 0; y < height; y++)
+        {
+            if (y % 2 == 0)
+                for (int x = 0; x < width; x++) path.Add(new Vector2Int(x, y));
+            else
+                for (int x = width - 1; x >= 0; x--) path.Add(new Vector2Int(x, y));
+        }
+        return path;
     }
 
     public static LevelData[] GeneratePentagonCampaign(int count)
@@ -1593,9 +1656,9 @@ public static class LevelGenerator
         return c;
     }
 
-    // --- 8gen campaign (square grid with octagon cells) ---
+    // --- 3gen campaign (triangle grid — equilateral triangles tile perfectly) ---
 
-    public static LevelData[] GenerateEightGenCampaign(int count)
+    public static LevelData[] GenerateThreeGenCampaign(int count)
     {
         var levels = new LevelData[count];
         var recentSignatures = new Queue<string>();
@@ -1607,14 +1670,14 @@ public static class LevelGenerator
         for (int i = 0; i < count; i++)
         {
             var rng = new System.Random((i + 2000) * 9001 + 31);
-            CampaignConfig config = GetEightGenConfig(i);
+            CampaignConfig config = GetThreeGenConfig(i);
             LevelCandidate bestCandidate = null;
 
             for (int ci = 0; ci < config.candidateCount; ci++)
             {
                 var candidateRng = new System.Random(rng.Next());
-                HashSet<Vector2Int> blocked = GenerateBlockedCells(config, candidateRng, hexMode: false, colHexMode: false);
-                List<Vector2Int> path = HamiltonianPath(config.width, config.height, blocked, candidateRng, hexMode: false, colHexMode: false);
+                HashSet<Vector2Int> blocked = GenerateBlockedCells(config, candidateRng, triMode: true);
+                List<Vector2Int> path = HamiltonianPath(config.width, config.height, blocked, candidateRng, triMode: true);
                 if (path == null) continue;
                 List<List<Vector2Int>> segments = SplitPath(path, config, candidateRng);
                 if (segments == null || segments.Count == 0) continue;
@@ -1639,7 +1702,7 @@ public static class LevelGenerator
             if (bestCandidate == null)
             {
                 var emptyBlocked = new List<Vector2Int>();
-                List<Vector2Int> fallbackPath = SnakePath(config.width, config.height);
+                List<Vector2Int> fallbackPath = TriangleSnakePath(config.width, config.height);
                 List<List<Vector2Int>> fallbackSegs = SplitPath(fallbackPath, config, rng)
                     ?? UniformSplit(fallbackPath, config.minSegment);
                 bestCandidate = new LevelCandidate
@@ -1657,8 +1720,8 @@ public static class LevelGenerator
                 for (int extra = 0; extra < extraAttempts; extra++)
                 {
                     var xRng = new System.Random((i + 2000) * 9001 + 31 + (extra + 1) * 1013);
-                    HashSet<Vector2Int> xBlocked = GenerateBlockedCells(config, xRng, hexMode: false, colHexMode: false);
-                    List<Vector2Int> xPath = HamiltonianPath(config.width, config.height, xBlocked, xRng, hexMode: false, colHexMode: false);
+                    HashSet<Vector2Int> xBlocked = GenerateBlockedCells(config, xRng, triMode: true);
+                    List<Vector2Int> xPath = HamiltonianPath(config.width, config.height, xBlocked, xRng, triMode: true);
                     if (xPath == null) continue;
                     List<List<Vector2Int>> xSegs = SplitPath(xPath, config, xRng);
                     if (xSegs == null || xSegs.Count == 0) continue;
@@ -1679,7 +1742,7 @@ public static class LevelGenerator
             }
 
             LevelData ld = BuildLevelData(config, bestCandidate.segments, bestCandidate.blocked);
-            ld.cellShape = CellShape.EightGen;
+            ld.cellShape = CellShape.ThreeGen;
             levels[i] = ld;
 
             recentSignatures.Enqueue(bestCandidate.signature);
@@ -1706,105 +1769,105 @@ public static class LevelGenerator
         return levels;
     }
 
-    private static CampaignConfig GetEightGenConfig(int idx)
+    private static CampaignConfig GetThreeGenConfig(int idx)
     {
         CampaignConfig c = new CampaignConfig();
 
-        if (idx < 20)          // Tier 1:  4×4  Intro   (901-920)
+        if (idx < 20)          // Tier 1: 6×4  Intro   (901-920)
         {
-            c.width = 4; c.height = 4;
+            c.width = 6; c.height = 4;
             c.minSegment = 2; c.maxSegment = 6; c.candidateCount = 20;
-            c.tierName = "8gen Intro";
+            c.tierName = "3gen Intro";
             c.rectanglePenalty = 3.5f; c.densePenalty = 2.5f;
             c.straightPenalty = 2.0f; c.turnWeight = 1.2f;
             c.squarePenalty = 1.5f; c.lateRectangleBonus = 0f;
             c.minBlocked = 0; c.maxBlocked = 0;
         }
-        else if (idx < 45)     // Tier 2:  4×5  Easy    (921-945)
+        else if (idx < 45)     // Tier 2: 8×4  Easy    (921-945)
         {
-            SetRectangularBoard(ref c, 4, 5);
+            c.width = 8; c.height = 4;
             c.minSegment = 2; c.maxSegment = 7; c.candidateCount = 22;
-            c.tierName = "8gen Easy";
+            c.tierName = "3gen Easy";
             c.rectanglePenalty = 3.2f; c.densePenalty = 2.3f;
             c.straightPenalty = 1.9f; c.turnWeight = 1.15f;
             c.squarePenalty = 1.3f; c.lateRectangleBonus = 0f;
             c.minBlocked = 0; c.maxBlocked = 0;
         }
-        else if (idx < 75)     // Tier 3:  5×5  Easy+   (946-975)
+        else if (idx < 75)     // Tier 3: 8×5  Easy+   (946-975)
         {
-            c.width = 5; c.height = 5;
+            c.width = 8; c.height = 5;
             c.minSegment = 3; c.maxSegment = 7; c.candidateCount = 24;
-            c.tierName = "8gen Easy";
+            c.tierName = "3gen Easy";
             c.rectanglePenalty = 3.0f; c.densePenalty = 2.1f;
             c.straightPenalty = 1.8f; c.turnWeight = 1.1f;
             c.squarePenalty = 1.1f; c.lateRectangleBonus = 0f;
             c.minBlocked = 0; c.maxBlocked = 0;
         }
-        else if (idx < 105)    // Tier 4:  5×6  Normal  (976-1005)
+        else if (idx < 105)    // Tier 4: 10×5  Normal  (976-1005)
         {
-            SetRectangularBoard(ref c, 5, 6);
+            c.width = 10; c.height = 5;
             c.minSegment = 3; c.maxSegment = 8; c.candidateCount = 24;
-            c.tierName = "8gen Normal";
+            c.tierName = "3gen Normal";
             c.rectanglePenalty = 2.6f; c.densePenalty = 1.9f;
             c.straightPenalty = 1.6f; c.turnWeight = 1.05f;
             c.squarePenalty = 0.9f; c.lateRectangleBonus = 0f;
             c.minBlocked = 0; c.maxBlocked = 1;
         }
-        else if (idx < 140)    // Tier 5:  5×7  Normal+ (1006-1040)
+        else if (idx < 140)    // Tier 5: 10×6  Normal+ (1006-1040)
         {
-            SetRectangularBoard(ref c, 5, 7);
+            c.width = 10; c.height = 6;
             c.minSegment = 3; c.maxSegment = 9; c.candidateCount = 26;
-            c.tierName = "8gen Normal";
+            c.tierName = "3gen Normal";
             c.rectanglePenalty = 2.2f; c.densePenalty = 1.7f;
             c.straightPenalty = 1.4f; c.turnWeight = 1.0f;
             c.squarePenalty = 0.75f; c.lateRectangleBonus = 0f;
             c.minBlocked = 0; c.maxBlocked = 2;
         }
-        else if (idx < 175)    // Tier 6:  6×7  Hard    (1041-1075)
+        else if (idx < 175)    // Tier 6: 12×6  Hard    (1041-1075)
         {
-            SetRectangularBoard(ref c, 6, 7);
+            c.width = 12; c.height = 6;
             c.minSegment = 4; c.maxSegment = 10; c.candidateCount = 26;
-            c.tierName = "8gen Hard";
+            c.tierName = "3gen Hard";
             c.rectanglePenalty = 1.9f; c.densePenalty = 1.5f;
             c.straightPenalty = 1.2f; c.turnWeight = 0.95f;
             c.squarePenalty = 0.65f; c.lateRectangleBonus = 0.05f;
             c.minBlocked = 1; c.maxBlocked = 3;
         }
-        else if (idx < 215)    // Tier 7:  6×8  Hard+   (1076-1115)
+        else if (idx < 215)    // Tier 7: 12×7  Hard+   (1076-1115)
         {
-            SetRectangularBoard(ref c, 6, 8);
+            c.width = 12; c.height = 7;
             c.minSegment = 4; c.maxSegment = 10; c.candidateCount = 28;
-            c.tierName = "8gen Hard";
+            c.tierName = "3gen Hard";
             c.rectanglePenalty = 1.6f; c.densePenalty = 1.3f;
             c.straightPenalty = 1.1f; c.turnWeight = 0.9f;
             c.squarePenalty = 0.55f; c.lateRectangleBonus = 0.1f;
             c.minBlocked = 2; c.maxBlocked = 4;
         }
-        else if (idx < 255)    // Tier 8:  7×8  Advanced(1116-1155)
+        else if (idx < 255)    // Tier 8: 14×7  Advanced(1116-1155)
         {
-            SetRectangularBoard(ref c, 7, 8);
+            c.width = 14; c.height = 7;
             c.minSegment = 4; c.maxSegment = 11; c.candidateCount = 28;
-            c.tierName = "8gen Advanced";
+            c.tierName = "3gen Advanced";
             c.rectanglePenalty = 1.3f; c.densePenalty = 1.0f;
             c.straightPenalty = 0.95f; c.turnWeight = 0.85f;
             c.squarePenalty = 0.45f; c.lateRectangleBonus = 0.15f;
             c.minBlocked = 3; c.maxBlocked = 5;
         }
-        else if (idx < 275)    // Tier 9:  7×9  Expert  (1156-1175)
+        else if (idx < 275)    // Tier 9: 14×8  Expert  (1156-1175)
         {
-            SetRectangularBoard(ref c, 7, 9);
+            c.width = 14; c.height = 8;
             c.minSegment = 5; c.maxSegment = 12; c.candidateCount = 30;
-            c.tierName = "8gen Expert";
+            c.tierName = "3gen Expert";
             c.rectanglePenalty = 1.0f; c.densePenalty = 0.8f;
             c.straightPenalty = 0.85f; c.turnWeight = 0.78f;
             c.squarePenalty = 0.35f; c.lateRectangleBonus = 0.2f;
             c.minBlocked = 4; c.maxBlocked = 6;
         }
-        else                   // Tier 10: 7×10 Master  (1176-1200)
+        else                   // Tier 10: 14×9 Master  (1176-1200)
         {
-            SetRectangularBoard(ref c, 7, 10);
+            c.width = 14; c.height = 9;
             c.minSegment = 5; c.maxSegment = 12; c.candidateCount = 32;
-            c.tierName = "8gen Master";
+            c.tierName = "3gen Master";
             c.rectanglePenalty = 0.8f; c.densePenalty = 0.6f;
             c.straightPenalty = 0.75f; c.turnWeight = 0.7f;
             c.squarePenalty = 0.25f; c.lateRectangleBonus = 0.3f;

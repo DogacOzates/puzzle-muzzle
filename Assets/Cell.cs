@@ -23,6 +23,7 @@ public class Cell : MonoBehaviour
     private bool _isBlocked;
     private bool _isPentagonMode;
     private bool _isHexagonMode;
+    private bool _isTriangleMode;
     private SpriteRenderer bgRenderer;
     private SpriteRenderer shadowRenderer;
     private SpriteRenderer numberRenderer;
@@ -35,7 +36,7 @@ public class Cell : MonoBehaviour
     private static readonly Color SelectingColor = new Color(0.25f, 0.78f, 0.72f);
     private static readonly Color LastSelectedColor = new Color(0.16f, 0.88f, 0.52f);
 
-    public void Initialize(int x, int y, int targetNumber, Sprite bgSprite, bool isBlocked = false, bool isPentagonMode = false, bool isHexagonMode = false)
+    public void Initialize(int x, int y, int targetNumber, Sprite bgSprite, bool isBlocked = false, bool isPentagonMode = false, bool isHexagonMode = false, bool isTriangleMode = false)
     {
         GridX = x;
         GridY = y;
@@ -43,6 +44,7 @@ public class Cell : MonoBehaviour
         _isBlocked = isBlocked;
         _isPentagonMode = isPentagonMode;
         _isHexagonMode = isHexagonMode;
+        _isTriangleMode = isTriangleMode;
         State = isBlocked ? CellState.Blocked : (targetNumber > 0 ? CellState.NumberTarget : CellState.Empty);
         baseScale = transform.localScale;
 
@@ -56,11 +58,22 @@ public class Cell : MonoBehaviour
         shadowRenderer.sortingOrder = 0;
         shadowRenderer.sharedMaterial = SpriteGenerator.UnlitMaterial;
 
-        // Cell background
-        bgRenderer = gameObject.AddComponent<SpriteRenderer>();
+        // Cell background (child object so it can be independently rotated for triangle cells)
+        var bgObj = new GameObject("Background");
+        bgObj.transform.SetParent(transform);
+        bgObj.transform.localPosition = Vector3.zero;
+        bgObj.transform.localScale = Vector3.one;
+        bgRenderer = bgObj.AddComponent<SpriteRenderer>();
         bgRenderer.sprite = bgSprite;
         bgRenderer.sortingOrder = 1;
         bgRenderer.sharedMaterial = SpriteGenerator.UnlitMaterial;
+
+        // Rotate shadow and background 180° for down-pointing triangle cells (▽)
+        if (isTriangleMode && (x + y) % 2 == 1)
+        {
+            shadowObj.transform.localEulerAngles = new Vector3(0f, 0f, 180f);
+            bgObj.transform.localEulerAngles = new Vector3(0f, 0f, 180f);
+        }
 
         // Number
         var numObj = new GameObject("Number");
@@ -332,6 +345,21 @@ public class Cell : MonoBehaviour
 
     public bool IsAdjacentTo(Cell other)
     {
+        if (_isTriangleMode)
+        {
+            int dx = other.GridX - GridX;
+            int dy = other.GridY - GridY;
+            // Horizontal neighbors are always adjacent
+            if (Mathf.Abs(dx) == 1 && dy == 0) return true;
+            // Vertical neighbor: direction depends on whether this cell is UP or DOWN
+            if (dx == 0)
+            {
+                bool isUp = (GridX + GridY) % 2 == 0;
+                return isUp ? (dy == -1) : (dy == 1);
+            }
+            return false;
+        }
+
         if (!_isPentagonMode && !_isHexagonMode)
             return Mathf.Abs(GridX - other.GridX) + Mathf.Abs(GridY - other.GridY) == 1;
 

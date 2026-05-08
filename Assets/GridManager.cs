@@ -15,9 +15,12 @@ public class GridManager : MonoBehaviour
 
     private bool isPentagonMode;
     private bool isHexagonMode;
-    private bool isEightGenMode;
+    private bool isThreeGenMode;
     // CellVisualSize = 2/√3 ≈ 1.1547: hexagon apothem = r*cos(30°) = 0.5*0.866; 2*apothem*CVS = 1.0 → no gaps
     private const float HexCellVisualSize = 1.1547f;
+    // Triangle: circumradius R=120 in 256px texture; touching distance = 1/√3 world units (CellSpacing=0.5)
+    // CellVisualSize * (R/256) = 1/√3 → CellVisualSize = 256/(120*√3) ≈ 1.232f
+    private const float TriangleCVS = 1.232f;
 
     public float BoardVisualWidth => isHexagonMode
         ? (GridWidth - 1) * CellSpacing + CellVisualSize
@@ -26,7 +29,9 @@ public class GridManager : MonoBehaviour
             : (GridWidth - 1) * CellSpacing + CellVisualSize);
     public float BoardVisualHeight => isHexagonMode
         ? (GridHeight - 0.5f) * RowSpacing + CellVisualSize
-        : (GridHeight - 1) * RowSpacing + CellVisualSize;
+        : (isThreeGenMode
+            ? GridHeight * RowSpacing + CellVisualSize * 0.5f
+            : (GridHeight - 1) * RowSpacing + CellVisualSize);
 
     private Cell[,] cells;
     private GameObject gridContainer;
@@ -63,16 +68,21 @@ public class GridManager : MonoBehaviour
         GridWidth = level.gridWidth;
         GridHeight = level.gridHeight;
         isPentagonMode = level.cellShape == CellShape.Pentagon;
-        isEightGenMode = level.cellShape == CellShape.EightGen;
-        isHexagonMode  = level.cellShape == CellShape.Hexagon; // EightGen uses square grid, NOT hex
-        // EightGen on square grid: octagon apothem = 1.1*(126/256)*cos(22.5°) ≈ 0.5 → flat edges just touch
-        CellVisualSize = isEightGenMode ? 1.1f
+        isThreeGenMode = level.cellShape == CellShape.ThreeGen;
+        isHexagonMode  = level.cellShape == CellShape.Hexagon;
+        CellVisualSize = isThreeGenMode ? TriangleCVS
                        : (isPentagonMode || isHexagonMode) ? HexCellVisualSize : 0.9f;
         if (isHexagonMode)
         {
             // Flat-top column-offset: ColSpacing=√3/2, RowSpacing=1.0
             CellSpacing = Mathf.Sqrt(3f) / 2f;
             RowSpacing = 1.0f;
+        }
+        else if (isThreeGenMode)
+        {
+            // Triangle grid: CellSpacing=0.5 (half side), RowSpacing=√3/2 (triangle height)
+            CellSpacing = 0.5f;
+            RowSpacing = Mathf.Sqrt(3f) / 2f;
         }
         else
         {
@@ -105,6 +115,12 @@ public class GridManager : MonoBehaviour
             gridWorldWidth = (GridWidth - 0.5f) * CellSpacing;
             gridWorldHeight = (GridHeight - 1) * RowSpacing;
         }
+        else if (isThreeGenMode)
+        {
+            // Triangle: cols span (GridWidth-1)*0.5 in X; full row height = GridHeight*RowSpacing
+            gridWorldWidth = (GridWidth - 1) * CellSpacing;
+            gridWorldHeight = GridHeight * RowSpacing;
+        }
         else
         {
             gridWorldWidth = (GridWidth - 1) * CellSpacing;
@@ -130,6 +146,11 @@ public class GridManager : MonoBehaviour
         {
             bgWidth = (GridWidth - 0.5f) * CellSpacing + CellVisualSize;
             bgHeight = (GridHeight - 1) * RowSpacing + CellVisualSize;
+        }
+        else if (isThreeGenMode)
+        {
+            bgWidth  = (GridWidth - 1) * CellSpacing + CellVisualSize;
+            bgHeight = GridHeight * RowSpacing + CellVisualSize * 0.5f;
         }
         else
         {
@@ -163,27 +184,11 @@ public class GridManager : MonoBehaviour
         bgObj.transform.position = bgCenter;
         bgObj.transform.localScale = bgScale;
         gridBgRenderer = renderer;
-
-        // For 8gen: add a cell-colored fill panel behind the cells so corner gaps between
-        // octagons blend with the background rather than showing the white card.
-        if (isEightGenMode)
-        {
-            Color fillColor = ThemeManager.Instance != null ? ThemeManager.Instance.CellEmptyColor : new Color(0.85f, 0.82f, 0.78f);
-            var fillObj = new GameObject("GridFill");
-            fillObj.transform.SetParent(gridContainer.transform);
-            var fillR = fillObj.AddComponent<SpriteRenderer>();
-            fillR.sprite = SpriteGenerator.RoundedRect;
-            fillR.color = fillColor;
-            fillR.sortingOrder = 0;
-            fillR.sharedMaterial = SpriteGenerator.UnlitMaterial;
-            fillObj.transform.position = new Vector3(0f, GridCenterY, 0.05f);
-            fillObj.transform.localScale = new Vector3(bgWidth, bgHeight, 1f);
-        }
     }
 
     private void CreateCells(LevelData level)
     {
-        Sprite cellSprite = isEightGenMode ? SpriteGenerator.Octagon
+        Sprite cellSprite = isThreeGenMode ? SpriteGenerator.Triangle
             : (isHexagonMode ? SpriteGenerator.FlatHexagon
             : (isPentagonMode ? SpriteGenerator.Hexagon : SpriteGenerator.RoundedRect));
 
@@ -221,7 +226,7 @@ public class GridManager : MonoBehaviour
                 cellObj.transform.localScale = new Vector3(CellVisualSize, CellVisualSize, 1f);
 
                 var cell = cellObj.AddComponent<Cell>();
-                cell.Initialize(x, y, number, cellSprite, isBlocked, isPentagonMode, isHexagonMode);
+                cell.Initialize(x, y, number, cellSprite, isBlocked, isPentagonMode, isHexagonMode, isThreeGenMode);
                 cells[x, y] = cell;
             }
         }
@@ -527,6 +532,17 @@ public class GridManager : MonoBehaviour
 
     public Vector3 GridToWorld(int x, int y)
     {
+        if (isThreeGenMode)
+        {
+            // ▲ (isUp) centroid is 1/3 row-height from top; ▽ (isDown) is 2/3 row-height from top
+            bool isUp = (x + y) % 2 == 0;
+            float yIntra = isUp ? RowSpacing / 3f : 2f * RowSpacing / 3f;
+            return new Vector3(
+                GridOrigin.x + x * CellSpacing,
+                GridOrigin.y - (y * RowSpacing + yIntra),
+                0f
+            );
+        }
         if (isHexagonMode)
         {
             // Flat-top column-offset: odd columns shift down 0.5*RowSpacing
@@ -547,6 +563,23 @@ public class GridManager : MonoBehaviour
 
     public Vector2Int WorldToGrid(Vector3 worldPos)
     {
+        if (isThreeGenMode)
+        {
+            int approxX = Mathf.RoundToInt((worldPos.x - GridOrigin.x) / CellSpacing);
+            int approxY = Mathf.RoundToInt((GridOrigin.y - worldPos.y) / RowSpacing);
+            float bestDist2 = float.MaxValue;
+            Vector2Int bestCell = Vector2Int.zero;
+            for (int cy = Mathf.Max(0, approxY - 1); cy <= Mathf.Min(GridHeight - 1, approxY + 1); cy++)
+                for (int cx = Mathf.Max(0, approxX - 2); cx <= Mathf.Min(GridWidth - 1, approxX + 2); cx++)
+                {
+                    Vector3 cw = GridToWorld(cx, cy);
+                    float dx = worldPos.x - cw.x, dy = worldPos.y - cw.y;
+                    float dist2 = dx * dx + dy * dy;
+                    if (dist2 < bestDist2) { bestDist2 = dist2; bestCell = new Vector2Int(cx, cy); }
+                }
+            return bestCell;
+        }
+
         if (!isPentagonMode && !isHexagonMode)
         {
             int x = Mathf.RoundToInt((worldPos.x - GridOrigin.x) / CellSpacing);
