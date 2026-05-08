@@ -410,12 +410,50 @@ public class GridManager : MonoBehaviour
 
     // --- Hint System ---
 
-    // Auto-solve one unsolved target. Returns true if a hint was applied.
+    // Resets all player-made moves without destroying the grid structure.
+    public void ResetPlayerMoves()
+    {
+        if (HasActiveSelection) CancelSelection();
+        foreach (var block in completedBlocks)
+            foreach (var c in block)
+                c.ResetToOriginal();
+        completedBlocks.Clear();
+        nextBlockId = 0;
+    }
+
+    // Returns true if every unsolved solution path still has all its cells available.
+    // Solution paths never share cells, so this is an exact solvability check.
+    private bool IsSolvable(SolutionPath[] solutions)
+    {
+        if (solutions == null) return false;
+        foreach (var path in solutions)
+        {
+            int targetX = path.GetX(path.Length - 1);
+            int targetY = path.GetY(path.Length - 1);
+            Cell targetCell = GetCell(targetX, targetY);
+            if (targetCell == null || targetCell.State != CellState.NumberTarget) continue; // already solved
+
+            for (int i = 0; i < path.Length - 1; i++)
+            {
+                Cell c = GetCell(path.GetX(i), path.GetY(i));
+                if (c == null || c.State != CellState.Empty) return false; // cell blocked
+            }
+        }
+        return true;
+    }
+
+    // Auto-solve one unsolved path. If the board is stuck (can't be completed),
+    // resets all player moves first, then hints from the first path.
+    // Returns true if a hint was applied.
     public bool SolveHint(SolutionPath[] solutions)
     {
         if (solutions == null) return false;
 
         CancelSelection();
+
+        // If the board is no longer solvable (wrong moves blocked a path), reset and restart hint.
+        if (!IsSolvable(solutions))
+            ResetPlayerMoves();
 
         foreach (var path in solutions)
         {
