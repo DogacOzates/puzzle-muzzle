@@ -53,6 +53,14 @@ public class UIManager : MonoBehaviour
     // Theme-reactive UI refs
     private Image levelSelectCardBg;
     private Image levelSelectFrameBg;
+    private RectTransform levelSelectSheetRect;
+    private Button[] levelSectionTabButtons;
+    private Image[] levelSectionTabImages;
+    private Text[] levelSectionTabTexts;
+    private ScrollRect[] sectionScrollRects;
+    private GameObject[] sectionScrollViews;
+    private int currentLevelSectionTab = 0;
+    private Coroutine levelSelectAnimCoroutine;
     private Image settingsButtonBg;
     private Image settingsIconImg;
     private Text levelProgressTextRef;  // alias — same as levelProgressText
@@ -520,9 +528,18 @@ public class UIManager : MonoBehaviour
 
     private void CreateLevelSelectPanel()
     {
+        const float SheetH = 1480f;
+        const float HandleH = 44f;
+        const float HeaderH = 88f;
+        const float DailyCardH = 108f;
+        const float CardGap = 12f;
+        const float TabBarH = 72f;
+        const float TabBarGap = 12f;
+        float scrollTop = HandleH + HeaderH + CardGap + DailyCardH + CardGap + TabBarH + TabBarGap; // 348
+
+        // Full-screen tap-to-dismiss overlay
         var panelObj = new GameObject("LevelSelectPanel");
         panelObj.transform.SetParent(canvas.transform, false);
-
         var panelRect = panelObj.AddComponent<RectTransform>();
         panelRect.anchorMin = Vector2.zero;
         panelRect.anchorMax = Vector2.one;
@@ -530,62 +547,88 @@ public class UIManager : MonoBehaviour
         panelRect.offsetMax = Vector2.zero;
 
         var overlay = panelObj.AddComponent<Image>();
-        overlay.color = new Color(0.16f, 0.15f, 0.18f, 0.42f);
+        overlay.color = new Color(0.08f, 0.07f, 0.10f, 0.55f);
         var overlayButton = panelObj.AddComponent<Button>();
         overlayButton.targetGraphic = overlay;
         overlayButton.onClick.AddListener(HideLevelSelect);
 
-        var cardShadow = new GameObject("CardShadow");
-        cardShadow.transform.SetParent(panelObj.transform, false);
-        var shadowRect = cardShadow.AddComponent<RectTransform>();
-        shadowRect.anchorMin = new Vector2(0.5f, 0.5f);
-        shadowRect.anchorMax = new Vector2(0.5f, 0.5f);
-        shadowRect.pivot = new Vector2(0.5f, 0.5f);
-        shadowRect.sizeDelta = new Vector2(900, 1296);
-        shadowRect.anchoredPosition = new Vector2(0, -8);
-        var shadowImage = cardShadow.AddComponent<Image>();
-        shadowImage.sprite = SpriteGenerator.RoundedRect;
-        shadowImage.color = new Color(0f, 0f, 0f, 0.12f);
+        // Bottom sheet — anchored to screen bottom, slides up
+        var sheetObj = new GameObject("Sheet");
+        sheetObj.transform.SetParent(panelObj.transform, false);
+        levelSelectSheetRect = sheetObj.AddComponent<RectTransform>();
+        levelSelectSheetRect.anchorMin = new Vector2(0f, 0f);
+        levelSelectSheetRect.anchorMax = new Vector2(1f, 0f);
+        levelSelectSheetRect.pivot = new Vector2(0.5f, 0f);
+        levelSelectSheetRect.sizeDelta = new Vector2(0f, SheetH);
+        levelSelectSheetRect.anchoredPosition = new Vector2(0f, -SheetH); // hidden below screen initially
 
-        var card = new GameObject("Card");
-        card.transform.SetParent(panelObj.transform, false);
-        var cardRect = card.AddComponent<RectTransform>();
-        cardRect.anchorMin = new Vector2(0.5f, 0.5f);
-        cardRect.anchorMax = new Vector2(0.5f, 0.5f);
-        cardRect.pivot = new Vector2(0.5f, 0.5f);
-        cardRect.sizeDelta = new Vector2(880, 1280);
+        var sheetImage = sheetObj.AddComponent<Image>();
+        sheetImage.sprite = SpriteGenerator.RoundedRect;
+        sheetImage.color = ThemeManager.Instance != null ? ThemeManager.Instance.CardBg : new Color(0.98f, 0.98f, 0.98f, 1f);
+        levelSelectCardBg = sheetImage;
 
-        var cardImage = card.AddComponent<Image>();
-        cardImage.sprite = SpriteGenerator.RoundedRect;
-        cardImage.color = ThemeManager.Instance != null ? ThemeManager.Instance.CardBg : new Color(1f, 1f, 1f, 0.97f);
-        levelSelectCardBg = cardImage;
+        // Drag handle pill
+        var handleObj = new GameObject("DragHandle");
+        handleObj.transform.SetParent(sheetObj.transform, false);
+        var handleRect = handleObj.AddComponent<RectTransform>();
+        handleRect.anchorMin = new Vector2(0.5f, 1f);
+        handleRect.anchorMax = new Vector2(0.5f, 1f);
+        handleRect.pivot = new Vector2(0.5f, 0.5f);
+        handleRect.sizeDelta = new Vector2(80f, 8f);
+        handleRect.anchoredPosition = new Vector2(0f, -HandleH * 0.5f);
+        var handleImg = handleObj.AddComponent<Image>();
+        handleImg.sprite = SpriteGenerator.Circle;
+        handleImg.color = new Color(0.7f, 0.7f, 0.73f, 0.5f);
 
-        var frame = new GameObject("LevelGridFrame");
-        frame.transform.SetParent(card.transform, false);
-        var frameRect = frame.AddComponent<RectTransform>();
-        frameRect.anchorMin = new Vector2(0f, 0f);
-        frameRect.anchorMax = new Vector2(1f, 1f);
-        frameRect.offsetMin = new Vector2(52f, 52f);
-        frameRect.offsetMax = new Vector2(-52f, -(52f + 176f)); // leave 176px (16 gap + 160 card) at top
-        var frameImage = frame.AddComponent<Image>();
-        frameImage.sprite = SpriteGenerator.RoundedRect;
-        frameImage.color = ThemeManager.Instance != null ? ThemeManager.Instance.LevelSelectFrame : new Color(0.97f, 0.96f, 0.95f, 0.95f);
-        levelSelectFrameBg = frameImage;
+        // Header: "Levels" title centred, × close button on the right
+        var titleText = MakeText("LevelsTitle", sheetObj.transform,
+            new Vector2(0f, -(HandleH + HeaderH * 0.5f)), 46, FontStyle.Bold, TextDark);
+        titleText.text = "Levels";
+        titleText.alignment = TextAnchor.MiddleCenter;
+        var titleRect = titleText.GetComponent<RectTransform>();
+        titleRect.sizeDelta = new Vector2(500f, 64f);
 
-        // Daily challenge card above the grid frame
+        var closeObj = new GameObject("CloseButton");
+        closeObj.transform.SetParent(sheetObj.transform, false);
+        var closeRect = closeObj.AddComponent<RectTransform>();
+        closeRect.anchorMin = new Vector2(1f, 1f);
+        closeRect.anchorMax = new Vector2(1f, 1f);
+        closeRect.pivot = new Vector2(1f, 0.5f);
+        closeRect.sizeDelta = new Vector2(72f, 72f);
+        closeRect.anchoredPosition = new Vector2(-20f, -(HandleH + HeaderH * 0.5f));
+        var closeImg = closeObj.AddComponent<Image>();
+        closeImg.sprite = SpriteGenerator.Circle;
+        closeImg.color = new Color(0.88f, 0.87f, 0.90f, 0.6f);
+        var closeBtn = closeObj.AddComponent<Button>();
+        closeBtn.targetGraphic = closeImg;
+        var closeBtnColors = closeBtn.colors;
+        closeBtnColors.highlightedColor = new Color(0.78f, 0.77f, 0.80f, 0.8f);
+        closeBtnColors.pressedColor = new Color(0.68f, 0.67f, 0.70f, 0.9f);
+        closeBtn.colors = closeBtnColors;
+        closeBtn.onClick.AddListener(HideLevelSelect);
+        var closeLabel = MakeText("X", closeObj.transform, Vector2.zero, 38, FontStyle.Bold, TextDark);
+        closeLabel.text = "×";
+        closeLabel.alignment = TextAnchor.MiddleCenter;
+        var closeLabelRect = closeLabel.GetComponent<RectTransform>();
+        closeLabelRect.anchorMin = Vector2.zero;
+        closeLabelRect.anchorMax = Vector2.one;
+        closeLabelRect.offsetMin = Vector2.zero;
+        closeLabelRect.offsetMax = Vector2.zero;
+
+        // Daily Challenge card
+        float dcTop = HandleH + HeaderH + CardGap;
         var dcCard = new GameObject("DailyCard");
-        dcCard.transform.SetParent(card.transform, false);
+        dcCard.transform.SetParent(sheetObj.transform, false);
         var dcRect = dcCard.AddComponent<RectTransform>();
         dcRect.anchorMin = new Vector2(0f, 1f);
         dcRect.anchorMax = new Vector2(1f, 1f);
         dcRect.pivot = new Vector2(0.5f, 1f);
-        dcRect.offsetMin = new Vector2(52f, -(52f + 160f)); // 52 from sides, 160px tall
-        dcRect.offsetMax = new Vector2(-52f, -52f);
+        dcRect.sizeDelta = new Vector2(-48f, DailyCardH);
+        dcRect.anchoredPosition = new Vector2(0f, -dcTop);
 
         dailyChallengeCardImage = dcCard.AddComponent<Image>();
         dailyChallengeCardImage.sprite = SpriteGenerator.RoundedRect;
         dailyChallengeCardImage.color = new Color(0.25f, 0.78f, 0.72f, 0.9f);
-
         var dcBtn = dcCard.AddComponent<Button>();
         var dcColors = dcBtn.colors;
         dcColors.highlightedColor = new Color(0.8f, 0.97f, 0.96f, 1f);
@@ -596,123 +639,227 @@ public class UIManager : MonoBehaviour
         dcBtn.onClick.AddListener(() => FindAnyObjectByType<GameManager>().PlayDailyChallenge());
         dailyChallengeCardButton = dcBtn;
 
-        dailyChallengeCardMainText = MakeText("DailyMain", dcCard.transform, new Vector2(0, -44), 36, FontStyle.Bold, Color.white);
+        dailyChallengeCardMainText = MakeText("DailyMain", dcCard.transform,
+            new Vector2(0, -DailyCardH * 0.35f), 34, FontStyle.Bold, Color.white);
         dailyChallengeCardMainText.alignment = TextAnchor.MiddleCenter;
         dailyChallengeCardMainText.text = "📅 Daily Challenge";
 
-        dailyChallengeCardSubText = MakeText("DailySub", dcCard.transform, new Vector2(0, -108), 28, FontStyle.Normal, new Color(1f, 1f, 1f, 0.88f));
+        dailyChallengeCardSubText = MakeText("DailySub", dcCard.transform,
+            new Vector2(0, -DailyCardH * 0.72f), 26, FontStyle.Normal, new Color(1f, 1f, 1f, 0.88f));
         dailyChallengeCardSubText.alignment = TextAnchor.MiddleCenter;
         dailyChallengeCardSubText.text = "";
 
-        var scrollObj = new GameObject("ScrollView");
-        scrollObj.transform.SetParent(frame.transform, false);
-        var scrollRectTransform = scrollObj.AddComponent<RectTransform>();
-        scrollRectTransform.anchorMin = Vector2.zero;
-        scrollRectTransform.anchorMax = Vector2.one;
-        scrollRectTransform.offsetMin = new Vector2(28f, 28f);
-        scrollRectTransform.offsetMax = new Vector2(-28f, -28f);
+        // Tab bar (Squares / Pentagons / Hexagons)
+        float tabBarTop = dcTop + DailyCardH + CardGap;
+        var tabBarObj = new GameObject("TabBar");
+        tabBarObj.transform.SetParent(sheetObj.transform, false);
+        var tabBarRect = tabBarObj.AddComponent<RectTransform>();
+        tabBarRect.anchorMin = new Vector2(0f, 1f);
+        tabBarRect.anchorMax = new Vector2(1f, 1f);
+        tabBarRect.pivot = new Vector2(0.5f, 1f);
+        tabBarRect.sizeDelta = new Vector2(-48f, TabBarH);
+        tabBarRect.anchoredPosition = new Vector2(0f, -tabBarTop);
+        var tabBarImg = tabBarObj.AddComponent<Image>();
+        tabBarImg.sprite = SpriteGenerator.RoundedRect;
+        tabBarImg.color = ThemeManager.Instance != null
+            ? ThemeManager.Instance.LevelSelectFrame
+            : new Color(0.92f, 0.91f, 0.93f, 1f);
+        levelSelectFrameBg = tabBarImg;
 
-        var scrollRect = scrollObj.AddComponent<ScrollRect>();
-        scrollRect.horizontal = false;
-        scrollRect.movementType = ScrollRect.MovementType.Clamped;
-        scrollRect.scrollSensitivity = 40f;
-        levelSelectScrollRect = scrollRect;
+        string[] tabLabels = { "Squares", "Pentagons", "Hexagons" };
+        levelSectionTabButtons = new Button[3];
+        levelSectionTabImages = new Image[3];
+        levelSectionTabTexts = new Text[3];
 
-        var viewport = new GameObject("Viewport");
-        viewport.transform.SetParent(scrollObj.transform, false);
-        var viewportRect = viewport.AddComponent<RectTransform>();
-        viewportRect.anchorMin = Vector2.zero;
-        viewportRect.anchorMax = Vector2.one;
-        viewportRect.offsetMin = Vector2.zero;
-        viewportRect.offsetMax = Vector2.zero;
+        for (int t = 0; t < 3; t++)
+        {
+            int tabIndex = t;
+            var tabObj = new GameObject($"Tab{t}");
+            tabObj.transform.SetParent(tabBarObj.transform, false);
+            var tabRect = tabObj.AddComponent<RectTransform>();
+            tabRect.anchorMin = new Vector2(t / 3f, 0f);
+            tabRect.anchorMax = new Vector2((t + 1) / 3f, 1f);
+            tabRect.offsetMin = new Vector2(4f, 4f);
+            tabRect.offsetMax = new Vector2(-4f, -4f);
 
-        var viewportImage = viewport.AddComponent<Image>();
-        viewportImage.color = new Color(1f, 1f, 1f, 0.08f);
-        var viewportMask = viewport.AddComponent<Mask>();
-        viewportMask.showMaskGraphic = true;
+            var tabImg = tabObj.AddComponent<Image>();
+            tabImg.sprite = SpriteGenerator.RoundedRect;
+            tabImg.color = t == 0 ? new Color(0.25f, 0.78f, 0.72f, 1f) : Color.clear;
 
-        var content = new GameObject("Content");
-        content.transform.SetParent(viewport.transform, false);
-        var contentRect = content.AddComponent<RectTransform>();
-        contentRect.anchorMin = new Vector2(0.5f, 1);
-        contentRect.anchorMax = new Vector2(0.5f, 1);
-        contentRect.pivot = new Vector2(0.5f, 1);
+            var tabBtn = tabObj.AddComponent<Button>();
+            tabBtn.targetGraphic = tabImg;
+            var tabColors = tabBtn.colors;
+            tabColors.highlightedColor = new Color(0.85f, 0.97f, 0.96f, 1f);
+            tabColors.pressedColor = new Color(0.70f, 0.92f, 0.90f, 1f);
+            tabBtn.colors = tabColors;
+            tabBtn.onClick.AddListener(() => SetLevelSectionTab(tabIndex));
 
-        var grid = content.AddComponent<GridLayoutGroup>();
-        grid.cellSize = new Vector2(150, 126);
-        grid.spacing = new Vector2(14, 14);
-        grid.padding = new RectOffset(14, 14, 14, 14);
-        grid.childAlignment = TextAnchor.UpperCenter;
-        grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-        grid.constraintCount = 4;
+            var tabText = MakeText("TabLabel", tabObj.transform, Vector2.zero, 28, FontStyle.Bold,
+                t == 0 ? Color.white : new Color(0.55f, 0.55f, 0.60f, 1f));
+            tabText.text = tabLabels[t];
+            tabText.alignment = TextAnchor.MiddleCenter;
+            var tabTextRect = tabText.GetComponent<RectTransform>();
+            tabTextRect.anchorMin = Vector2.zero;
+            tabTextRect.anchorMax = Vector2.one;
+            tabTextRect.offsetMin = Vector2.zero;
+            tabTextRect.offsetMax = Vector2.zero;
 
-        var fitter = content.AddComponent<ContentSizeFitter>();
-        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-        fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+            levelSectionTabButtons[t] = tabBtn;
+            levelSectionTabImages[t] = tabImg;
+            levelSectionTabTexts[t] = tabText;
+        }
 
-        scrollRect.viewport = viewportRect;
-        scrollRect.content = contentRect;
-
+        // One ScrollRect per section — only the active one is visible
+        sectionScrollRects = new ScrollRect[3];
+        sectionScrollViews = new GameObject[3];
         levelSelectButtons = new Button[LevelDatabase.TotalLevels];
         levelSelectButtonImages = new Image[LevelDatabase.TotalLevels];
         levelSelectButtonLabels = new Text[LevelDatabase.TotalLevels];
 
-        for (int i = 0; i < LevelDatabase.TotalLevels; i++)
+        int[] sectionStarts = { 0, 300, 600 };
+
+        for (int sec = 0; sec < 3; sec++)
         {
-            int levelIndex = i;
-            var levelButtonObj = new GameObject($"Level{levelIndex + 1}Button");
-            levelButtonObj.transform.SetParent(content.transform, false);
+            var scrollObj = new GameObject($"SectionScroll{sec}");
+            scrollObj.transform.SetParent(sheetObj.transform, false);
+            var scrollT = scrollObj.AddComponent<RectTransform>();
+            scrollT.anchorMin = Vector2.zero;
+            scrollT.anchorMax = Vector2.one;
+            scrollT.offsetMin = new Vector2(0f, 16f);
+            scrollT.offsetMax = new Vector2(0f, -scrollTop);
 
-            var buttonRect = levelButtonObj.AddComponent<RectTransform>();
-            buttonRect.sizeDelta = new Vector2(150, 126);
+            var scrollRect = scrollObj.AddComponent<ScrollRect>();
+            scrollRect.horizontal = false;
+            scrollRect.movementType = ScrollRect.MovementType.Clamped;
+            scrollRect.scrollSensitivity = 48f;
 
-            var buttonShadowObj = new GameObject("Shadow");
-            buttonShadowObj.transform.SetParent(levelButtonObj.transform, false);
-            var buttonShadowRect = buttonShadowObj.AddComponent<RectTransform>();
-            buttonShadowRect.anchorMin = new Vector2(0.5f, 0.5f);
-            buttonShadowRect.anchorMax = new Vector2(0.5f, 0.5f);
-            buttonShadowRect.pivot = new Vector2(0.5f, 0.5f);
-            buttonShadowRect.sizeDelta = new Vector2(142, 118);
-            buttonShadowRect.anchoredPosition = new Vector2(0, -3);
-            var buttonShadowImage = buttonShadowObj.AddComponent<Image>();
-            buttonShadowImage.sprite = SpriteGenerator.RoundedRect;
-            buttonShadowImage.color = new Color(0f, 0f, 0f, 0.08f);
+            var viewport = new GameObject("Viewport");
+            viewport.transform.SetParent(scrollObj.transform, false);
+            var vpRect = viewport.AddComponent<RectTransform>();
+            vpRect.anchorMin = Vector2.zero;
+            vpRect.anchorMax = Vector2.one;
+            vpRect.offsetMin = Vector2.zero;
+            vpRect.offsetMax = Vector2.zero;
+            vpRect.pivot = new Vector2(0.5f, 0.5f);
+            var vpImg = viewport.AddComponent<Image>();
+            vpImg.color = Color.clear;
+            var vpMask = viewport.AddComponent<Mask>();
+            vpMask.showMaskGraphic = false;
 
-            var buttonImage = levelButtonObj.AddComponent<Image>();
-            buttonImage.sprite = SpriteGenerator.RoundedRect;
-            buttonImage.color = new Color(0.93f, 0.96f, 0.92f, 1f);
+            var content = new GameObject("Content");
+            content.transform.SetParent(viewport.transform, false);
+            var contentRect = content.AddComponent<RectTransform>();
+            contentRect.anchorMin = new Vector2(0f, 1f);
+            contentRect.anchorMax = new Vector2(1f, 1f);
+            contentRect.pivot = new Vector2(0.5f, 1f);
+            contentRect.offsetMin = Vector2.zero;
+            contentRect.offsetMax = Vector2.zero;
 
-            var button = levelButtonObj.AddComponent<Button>();
-            var colors = button.colors;
-            colors.highlightedColor = new Color(0.97f, 0.97f, 0.97f, 1f);
-            colors.pressedColor = new Color(0.86f, 0.86f, 0.86f, 1f);
-            colors.disabledColor = new Color(0.88f, 0.88f, 0.88f, 0.95f);
-            button.colors = colors;
-            button.onClick.AddListener(() => FindAnyObjectByType<GameManager>().SelectLevel(levelIndex));
+            var grid = content.AddComponent<GridLayoutGroup>();
+            grid.cellSize = new Vector2(172f, 160f);
+            grid.spacing = new Vector2(12f, 12f);
+            grid.padding = new RectOffset(16, 16, 16, 16);
+            grid.childAlignment = TextAnchor.UpperCenter;
+            grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            grid.constraintCount = 5;
 
-            var labelObj = new GameObject("Label");
-            labelObj.transform.SetParent(levelButtonObj.transform, false);
-            var labelRect = labelObj.AddComponent<RectTransform>();
-            labelRect.anchorMin = new Vector2(0.5f, 0.5f);
-            labelRect.anchorMax = new Vector2(0.5f, 0.5f);
-            labelRect.pivot = new Vector2(0.5f, 0.5f);
-            labelRect.anchoredPosition = Vector2.zero;
-            labelRect.sizeDelta = new Vector2(124f, 50f);
+            var fitter = content.AddComponent<ContentSizeFitter>();
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-            var label = labelObj.AddComponent<Text>();
-            label.font = defaultFont;
-            label.fontSize = 40;
-            label.fontStyle = FontStyle.Bold;
-            label.alignment = TextAnchor.MiddleCenter;
-            label.color = TextDark;
-            label.text = (levelIndex + 1).ToString();
+            scrollRect.viewport = vpRect;
+            scrollRect.content = contentRect;
 
-            levelSelectButtons[i] = button;
-            levelSelectButtonImages[i] = buttonImage;
-            levelSelectButtonLabels[i] = label;
+            int start = sectionStarts[sec];
+            int end = Mathf.Min(start + 300, LevelDatabase.TotalLevels);
+            for (int i = start; i < end; i++)
+            {
+                int levelIndex = i;
+                var btnObj = new GameObject($"Level{levelIndex + 1}Button");
+                btnObj.transform.SetParent(content.transform, false);
+
+                var btnImg = btnObj.AddComponent<Image>();
+                btnImg.sprite = SpriteGenerator.Circle;
+                btnImg.color = new Color(0.94f, 0.96f, 0.92f, 1f);
+
+                var btn = btnObj.AddComponent<Button>();
+                var btnColors = btn.colors;
+                btnColors.highlightedColor = new Color(0.97f, 0.97f, 0.97f, 1f);
+                btnColors.pressedColor = new Color(0.82f, 0.82f, 0.82f, 1f);
+                btnColors.disabledColor = new Color(0.88f, 0.88f, 0.88f, 0.95f);
+                btn.colors = btnColors;
+                btn.onClick.AddListener(() => FindAnyObjectByType<GameManager>().SelectLevel(levelIndex));
+
+                var label = MakeText("Label", btnObj.transform, Vector2.zero, 38, FontStyle.Bold, TextDark);
+                label.text = (levelIndex + 1).ToString();
+                label.alignment = TextAnchor.MiddleCenter;
+                var labelRect = label.GetComponent<RectTransform>();
+                labelRect.anchorMin = new Vector2(0.1f, 0.1f);
+                labelRect.anchorMax = new Vector2(0.9f, 0.9f);
+                labelRect.offsetMin = Vector2.zero;
+                labelRect.offsetMax = Vector2.zero;
+
+                levelSelectButtons[i] = btn;
+                levelSelectButtonImages[i] = btnImg;
+                levelSelectButtonLabels[i] = label;
+            }
+
+            sectionScrollRects[sec] = scrollRect;
+            sectionScrollViews[sec] = scrollObj;
+            scrollObj.SetActive(sec == 0);
         }
 
         levelSelectPanel = panelObj;
+        levelSelectPanel.SetActive(false);
+    }
+
+    private void SetLevelSectionTab(int tabIndex)
+    {
+        currentLevelSectionTab = tabIndex;
+        var tealActive = new Color(0.25f, 0.78f, 0.72f, 1f);
+        for (int t = 0; t < 3; t++)
+        {
+            bool active = t == tabIndex;
+            if (levelSectionTabImages != null && levelSectionTabImages[t] != null)
+                levelSectionTabImages[t].color = active ? tealActive : Color.clear;
+            if (levelSectionTabTexts != null && levelSectionTabTexts[t] != null)
+                levelSectionTabTexts[t].color = active ? Color.white : new Color(0.55f, 0.55f, 0.60f, 1f);
+            if (sectionScrollViews != null && sectionScrollViews[t] != null)
+                sectionScrollViews[t].SetActive(active);
+        }
+    }
+
+    private IEnumerator AnimateLevelSelectIn()
+    {
+        float duration = 0.32f;
+        float sheetH = levelSelectSheetRect.sizeDelta.y;
+        float elapsed = 0f;
+        levelSelectSheetRect.anchoredPosition = new Vector2(0f, -sheetH);
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            float eased = 1f - (1f - t) * (1f - t) * (1f - t); // ease-out cubic
+            levelSelectSheetRect.anchoredPosition = new Vector2(0f, Mathf.Lerp(-sheetH, 0f, eased));
+            yield return null;
+        }
+        levelSelectSheetRect.anchoredPosition = new Vector2(0f, 0f);
+    }
+
+    private IEnumerator AnimateLevelSelectOut()
+    {
+        float duration = 0.22f;
+        float sheetH = levelSelectSheetRect.sizeDelta.y;
+        float elapsed = 0f;
+        Vector2 startPos = levelSelectSheetRect.anchoredPosition;
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            float eased = t * t; // ease-in quad
+            levelSelectSheetRect.anchoredPosition = new Vector2(0f, Mathf.Lerp(startPos.y, -sheetH, eased));
+            yield return null;
+        }
+        levelSelectSheetRect.anchoredPosition = new Vector2(0f, -sheetH);
         levelSelectPanel.SetActive(false);
     }
 
@@ -1729,20 +1876,32 @@ public class UIManager : MonoBehaviour
         RefreshLevelSelectButtons(currentLevelIndex, highestUnlockedLevelIndex, totalLevels);
         levelSelectPanel.SetActive(true);
 
-        if (levelSelectScrollRect != null)
+        // Auto-select the correct section tab
+        int targetTab = currentLevelIndex >= 600 ? 2 : currentLevelIndex >= 300 ? 1 : 0;
+        SetLevelSectionTab(targetTab);
+
+        // Scroll so the current level is visible in its section
+        if (sectionScrollRects != null && sectionScrollRects[targetTab] != null)
         {
             Canvas.ForceUpdateCanvases();
-            int totalRows = Mathf.CeilToInt(totalLevels / 4f);
-            int currentRow = Mathf.Clamp(currentLevelIndex / 4, 0, Mathf.Max(0, totalRows - 1));
-            float scrollPosition = totalRows <= 1 ? 1f : 1f - ((float)currentRow / (totalRows - 1));
-            levelSelectScrollRect.verticalNormalizedPosition = Mathf.Clamp01(scrollPosition);
+            int levelInSection = currentLevelIndex - targetTab * 300;
+            int totalInSection = Mathf.Min(300, totalLevels - targetTab * 300);
+            int totalRows = Mathf.CeilToInt(totalInSection / 5f);
+            int currentRow = Mathf.Clamp(levelInSection / 5, 0, Mathf.Max(0, totalRows - 1));
+            float scrollPos = totalRows <= 1 ? 1f : 1f - ((float)currentRow / (totalRows - 1));
+            sectionScrollRects[targetTab].verticalNormalizedPosition = Mathf.Clamp01(scrollPos);
         }
+
+        // Slide sheet up
+        if (levelSelectAnimCoroutine != null) StopCoroutine(levelSelectAnimCoroutine);
+        levelSelectAnimCoroutine = StartCoroutine(AnimateLevelSelectIn());
     }
 
     public void HideLevelSelect()
     {
-        if (levelSelectPanel != null)
-            levelSelectPanel.SetActive(false);
+        if (levelSelectPanel == null || !levelSelectPanel.activeSelf) return;
+        if (levelSelectAnimCoroutine != null) StopCoroutine(levelSelectAnimCoroutine);
+        levelSelectAnimCoroutine = StartCoroutine(AnimateLevelSelectOut());
     }
 
     public IEnumerator PlayLevelTransition(string title, Action onMidTransition)
