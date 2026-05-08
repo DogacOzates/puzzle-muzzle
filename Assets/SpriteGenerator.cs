@@ -9,6 +9,24 @@ public static class SpriteGenerator
     private static Sprite _hexagon;
     private static Sprite _flatHexagon;
     private static readonly Dictionary<int, Sprite> numberSpriteCache = new Dictionary<int, Sprite>();
+    private static Material _unlitMaterial;
+
+    // Shared Unlit sprite material — ensures cell colors render at their exact linear values
+    // regardless of the 2D lighting pipeline / Renderer2D.asset DefaultMaterialType setting.
+    public static Material UnlitMaterial
+    {
+        get
+        {
+            if (_unlitMaterial == null)
+            {
+                var shader = Shader.Find("Universal Render Pipeline/2D/Sprite-Unlit-Default")
+                          ?? Shader.Find("Sprites/Default");
+                _unlitMaterial = new Material(shader);
+                _unlitMaterial.name = "SpritesUnlit_Shared";
+            }
+            return _unlitMaterial;
+        }
+    }
 
     public static Sprite RoundedRect
     {

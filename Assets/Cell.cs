@@ -54,11 +54,13 @@ public class Cell : MonoBehaviour
         shadowRenderer = shadowObj.AddComponent<SpriteRenderer>();
         shadowRenderer.sprite = bgSprite;
         shadowRenderer.sortingOrder = 0;
+        shadowRenderer.sharedMaterial = SpriteGenerator.UnlitMaterial;
 
         // Cell background
         bgRenderer = gameObject.AddComponent<SpriteRenderer>();
         bgRenderer.sprite = bgSprite;
         bgRenderer.sortingOrder = 1;
+        bgRenderer.sharedMaterial = SpriteGenerator.UnlitMaterial;
 
         // Number
         var numObj = new GameObject("Number");
@@ -67,6 +69,7 @@ public class Cell : MonoBehaviour
         numObj.transform.localScale = new Vector3(0.5f, 0.5f, 1f);
         numberRenderer = numObj.AddComponent<SpriteRenderer>();
         numberRenderer.sortingOrder = 15;
+        numberRenderer.sharedMaterial = SpriteGenerator.UnlitMaterial;
         numberRenderer.gameObject.SetActive(false);
 
         UpdateVisual();
@@ -323,6 +326,7 @@ public class Cell : MonoBehaviour
             crossR.sprite = SpriteGenerator.RoundedRect;
             crossR.color = crossColor;
             crossR.sortingOrder = 5;
+            crossR.sharedMaterial = SpriteGenerator.UnlitMaterial;
         }
     }
 

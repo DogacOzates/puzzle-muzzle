@@ -143,6 +143,7 @@ public class GridManager : MonoBehaviour
         shadowR.sprite = SpriteGenerator.RoundedRect;
         shadowR.color = new Color(0f, 0f, 0f, 0.18f);
         shadowR.sortingOrder = -2;
+        shadowR.sharedMaterial = SpriteGenerator.UnlitMaterial;
         shadowObj.transform.position = bgCenter + new Vector3(0.08f, -0.14f, 0.01f);
         shadowObj.transform.localScale = bgScale * 1.03f;
 
@@ -153,6 +154,7 @@ public class GridManager : MonoBehaviour
         renderer.sprite = SpriteGenerator.RoundedRect;
         renderer.color = ThemeManager.Instance != null ? ThemeManager.Instance.GridBgColor : GridBgColor;
         renderer.sortingOrder = -1;
+        renderer.sharedMaterial = SpriteGenerator.UnlitMaterial;
         bgObj.transform.position = bgCenter;
         bgObj.transform.localScale = bgScale;
         gridBgRenderer = renderer;
