@@ -272,7 +272,7 @@ public class TutorialController : MonoBehaviour
         Quaternion origRot = handVisual.localRotation;
         pointingAtButton = true;
 
-        // Explain Hint button (left): hand from upper-right, finger points down-left
+        // 1. Hint button (bottom-left): hand from upper-right, finger points down-left
         if (hintBtn != null)
         {
             handVisual.localScale = new Vector3(origScale.x, -origScale.y, origScale.z);
@@ -288,23 +288,7 @@ public class TutorialController : MonoBehaviour
 
         yield return new WaitForSeconds(0.3f);
 
-        // Explain level text (top center): hand from lower-right, finger points up-left
-        if (menuBtn != null)
-        {
-            handVisual.localScale = origScale;
-            handVisual.localRotation = Quaternion.Euler(0, 0, 0f);
-            Vector3 offset = new Vector3(0.48f, -0.52f, 0f);
-            buttonNudgeDir = -offset.normalized;
-
-            SetHintText("Want to replay an earlier level?\nTap the level text to open the level menu!");
-            Vector3 btnWorld = ScreenToWorld(menuBtn.GetComponent<RectTransform>());
-            yield return StartCoroutine(MoveHand(btnWorld + offset));
-            yield return StartCoroutine(WaitForAnyTap());
-        }
-
-        yield return new WaitForSeconds(0.3f);
-
-        // Explain Restart button (right): hand from upper-left, finger points down-right (mirrored)
+        // 2. Restart button (bottom-right): hand from upper-left, finger points down-right
         if (restartBtn != null)
         {
             handVisual.localScale = new Vector3(-origScale.x, -origScale.y, origScale.z);
@@ -320,7 +304,7 @@ public class TutorialController : MonoBehaviour
 
         yield return new WaitForSeconds(0.3f);
 
-        // Explain No Ads button (bottom-center): hand from upper-right, finger points down-left
+        // 3. No Ads button (bottom-center): hand from upper-right, finger points down-left
         if (noAdsBtn != null)
         {
             handVisual.localScale = new Vector3(origScale.x, -origScale.y, origScale.z);
@@ -330,6 +314,22 @@ public class TutorialController : MonoBehaviour
 
             SetHintText("Want to remove ads forever?\nTap this to buy No Ads!");
             Vector3 btnWorld = ScreenToWorld(noAdsBtn.GetComponent<RectTransform>());
+            yield return StartCoroutine(MoveHand(btnWorld + offset));
+            yield return StartCoroutine(WaitForAnyTap());
+        }
+
+        yield return new WaitForSeconds(0.3f);
+
+        // 4. Level text (top center, last): hand from lower-right, finger points up-left
+        if (menuBtn != null)
+        {
+            handVisual.localScale = origScale;
+            handVisual.localRotation = Quaternion.Euler(0, 0, 0f);
+            Vector3 offset = new Vector3(0.48f, -0.52f, 0f);
+            buttonNudgeDir = -offset.normalized;
+
+            SetHintText("Want to replay an earlier level?\nTap the level text to open the level menu!");
+            Vector3 btnWorld = ScreenToWorld(menuBtn.GetComponent<RectTransform>());
             yield return StartCoroutine(MoveHand(btnWorld + offset));
             yield return StartCoroutine(WaitForAnyTap());
         }
