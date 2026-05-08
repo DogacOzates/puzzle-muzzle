@@ -8,6 +8,7 @@ public static class SpriteGenerator
     private static Sprite _pentagon;
     private static Sprite _hexagon;
     private static Sprite _flatHexagon;
+    private static Sprite _heptagon;
     private static readonly Dictionary<int, Sprite> numberSpriteCache = new Dictionary<int, Sprite>();
     private static Material _unlitMaterial;
 
@@ -189,6 +190,50 @@ public static class SpriteGenerator
         for (int k = 0; k < 5; k++)
         {
             float angle = Mathf.PI / 2f - k * 2f * Mathf.PI / 5f;
+            vx[k] = cx + r * Mathf.Cos(angle);
+            vy[k] = cy + r * Mathf.Sin(angle);
+        }
+
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+            {
+                float d = PolygonSdf(x, y, vx, vy);
+                float a = Mathf.Clamp01(0.5f - d);
+                pixels[y * w + x] = new Color32(255, 255, 255, (byte)(a * 255));
+            }
+
+        tex.SetPixels32(pixels);
+        tex.Apply();
+        return Sprite.Create(tex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f), w);
+    }
+
+    public static Sprite Heptagon
+    {
+        get
+        {
+            if (_heptagon == null)
+                _heptagon = CreateHeptagon();
+            return _heptagon;
+        }
+    }
+
+    private static Sprite CreateHeptagon()
+    {
+        int w = 256, h = 256;
+        var tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
+        tex.filterMode = FilterMode.Bilinear;
+        tex.wrapMode = TextureWrapMode.Clamp;
+
+        var pixels = new Color32[w * h];
+        float cx = w * 0.5f, cy = h * 0.5f;
+        float r = 120f;
+
+        // Regular heptagon, pointy top: 7 vertices starting from 90°
+        var vx = new float[7];
+        var vy = new float[7];
+        for (int k = 0; k < 7; k++)
+        {
+            float angle = Mathf.PI / 2f - k * 2f * Mathf.PI / 7f;
             vx[k] = cx + r * Mathf.Cos(angle);
             vy[k] = cy + r * Mathf.Sin(angle);
         }

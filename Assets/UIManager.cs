@@ -659,8 +659,8 @@ public class UIManager : MonoBehaviour
             new Color(0.55f, 0.30f, 0.86f, 1f), SpriteGenerator.Pentagon,      300, 599);
         CreateLevelSection(content.transform, "⬡  Hexagon",  "601 – 900",
             new Color(0.20f, 0.72f, 0.67f, 1f), SpriteGenerator.FlatHexagon,   600, 899);
-        CreateLevelSection(content.transform, "●  Circle",   "901 – 1200",
-            new Color(0.88f, 0.22f, 0.52f, 1f), SpriteGenerator.Circle,        900, 1199);
+        CreateLevelSection(content.transform, "⬠  7gen",     "901 – 1200",
+            new Color(0.88f, 0.22f, 0.52f, 1f), SpriteGenerator.Heptagon,      900, 1199);
 
         levelSelectPanel = panelObj;
         levelSelectPanel.SetActive(false);

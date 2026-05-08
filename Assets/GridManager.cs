@@ -65,8 +65,8 @@ public class GridManager : MonoBehaviour
         isPentagonMode = level.cellShape == CellShape.Pentagon;
         isSevenGenMode = level.cellShape == CellShape.SevenGen;
         isHexagonMode  = level.cellShape == CellShape.Hexagon || isSevenGenMode;
-        // SevenGen uses hex grid layout but with circle sprite — smaller visual size to show gaps
-        CellVisualSize = isSevenGenMode ? 0.85f : ((isPentagonMode || isHexagonMode) ? HexCellVisualSize : 0.9f);
+        // SevenGen uses hex grid layout but with heptagon sprite — slightly smaller to show cell boundaries
+        CellVisualSize = isSevenGenMode ? 1.05f : ((isPentagonMode || isHexagonMode) ? HexCellVisualSize : 0.9f);
         if (isHexagonMode)
         {
             // Flat-top column-offset: ColSpacing=√3/2, RowSpacing=1.0
@@ -166,7 +166,7 @@ public class GridManager : MonoBehaviour
 
     private void CreateCells(LevelData level)
     {
-        Sprite cellSprite = isSevenGenMode ? SpriteGenerator.Circle
+        Sprite cellSprite = isSevenGenMode ? SpriteGenerator.Heptagon
             : (isHexagonMode ? SpriteGenerator.FlatHexagon
             : (isPentagonMode ? SpriteGenerator.Hexagon : SpriteGenerator.RoundedRect));
 
