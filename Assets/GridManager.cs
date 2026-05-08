@@ -163,6 +163,22 @@ public class GridManager : MonoBehaviour
         bgObj.transform.position = bgCenter;
         bgObj.transform.localScale = bgScale;
         gridBgRenderer = renderer;
+
+        // For 8gen: add a cell-colored fill panel behind the cells so corner gaps between
+        // octagons blend with the background rather than showing the white card.
+        if (isEightGenMode)
+        {
+            Color fillColor = ThemeManager.Instance != null ? ThemeManager.Instance.CellEmptyColor : new Color(0.85f, 0.82f, 0.78f);
+            var fillObj = new GameObject("GridFill");
+            fillObj.transform.SetParent(gridContainer.transform);
+            var fillR = fillObj.AddComponent<SpriteRenderer>();
+            fillR.sprite = SpriteGenerator.RoundedRect;
+            fillR.color = fillColor;
+            fillR.sortingOrder = 0;
+            fillR.sharedMaterial = SpriteGenerator.UnlitMaterial;
+            fillObj.transform.position = new Vector3(0f, GridCenterY, 0.05f);
+            fillObj.transform.localScale = new Vector3(bgWidth, bgHeight, 1f);
+        }
     }
 
     private void CreateCells(LevelData level)
