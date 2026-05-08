@@ -752,10 +752,10 @@ public class UIManager : MonoBehaviour
             int grp = g;
             var tab = new GameObject($"Tab{g}");
             tab.transform.SetParent(row.transform, false);
-            var tabLE = tab.AddComponent<LayoutElement>();
-            tabLE.flexibleWidth = 1f; tabLE.preferredHeight = 76f; tabLE.minHeight = 76f;
             var tabRT = tab.AddComponent<RectTransform>();
             tabRT.sizeDelta = new Vector2(0f, 76f);
+            var tabLE = tab.AddComponent<LayoutElement>();
+            tabLE.flexibleWidth = 1f; tabLE.preferredHeight = 76f; tabLE.minHeight = 76f;
             var tabImg = tab.AddComponent<Image>();
             tabImg.sprite = SpriteGenerator.RoundedRect;
             tabImg.color = (g == 0) ? BtnTeal : new Color(0.87f, 0.85f, 0.82f, 1f);
@@ -811,9 +811,9 @@ public class UIManager : MonoBehaviour
         // Star
         var starObj = new GameObject("Star");
         starObj.transform.SetParent(row.transform, false);
+        var starRT = starObj.AddComponent<RectTransform>(); starRT.sizeDelta = new Vector2(36f, 36f);
         var starLE = starObj.AddComponent<LayoutElement>();
         starLE.preferredWidth = 36f; starLE.minWidth = 36f;
-        var starRT = starObj.AddComponent<RectTransform>(); starRT.sizeDelta = new Vector2(36f, 36f);
         var starTxt = starObj.AddComponent<Text>();
         starTxt.font = defaultFont; starTxt.text = "★"; starTxt.fontSize = 32;
         starTxt.alignment = TextAnchor.MiddleCenter;
@@ -822,9 +822,9 @@ public class UIManager : MonoBehaviour
         // Count
         var cntObj = new GameObject("Count");
         cntObj.transform.SetParent(row.transform, false);
+        var cntRT = cntObj.AddComponent<RectTransform>(); cntRT.sizeDelta = new Vector2(108f, 40f);
         var cntLE = cntObj.AddComponent<LayoutElement>();
         cntLE.preferredWidth = 108f; cntLE.minWidth = 80f;
-        var cntRT = cntObj.AddComponent<RectTransform>(); cntRT.sizeDelta = new Vector2(108f, 40f);
         _lsProgressCountText = cntObj.AddComponent<Text>();
         _lsProgressCountText.font = defaultFont; _lsProgressCountText.text = "0/300";
         _lsProgressCountText.fontSize = 30; _lsProgressCountText.fontStyle = FontStyle.Bold;
@@ -833,9 +833,9 @@ public class UIManager : MonoBehaviour
         // Bar bg (flexible)
         var barBg = new GameObject("BarBg");
         barBg.transform.SetParent(row.transform, false);
+        var barBgRT = barBg.AddComponent<RectTransform>(); barBgRT.sizeDelta = new Vector2(0f, 14f);
         var barBgLE = barBg.AddComponent<LayoutElement>();
         barBgLE.flexibleWidth = 1f; barBgLE.preferredWidth = 0f; barBgLE.minWidth = 60f;
-        var barBgRT = barBg.AddComponent<RectTransform>(); barBgRT.sizeDelta = new Vector2(0f, 14f);
         var barBgImg = barBg.AddComponent<Image>();
         barBgImg.sprite = SpriteGenerator.Circle;
         barBgImg.color = new Color(0.80f, 0.77f, 0.73f, 1f);
@@ -853,9 +853,9 @@ public class UIManager : MonoBehaviour
         // Gift btn
         var giftBtnObj = new GameObject("GiftBtn");
         giftBtnObj.transform.SetParent(row.transform, false);
+        var giftBtnRT = giftBtnObj.AddComponent<RectTransform>(); giftBtnRT.sizeDelta = new Vector2(56f, 40f);
         var giftBtnLE = giftBtnObj.AddComponent<LayoutElement>();
         giftBtnLE.preferredWidth = 56f; giftBtnLE.minWidth = 56f;
-        var giftBtnRT = giftBtnObj.AddComponent<RectTransform>(); giftBtnRT.sizeDelta = new Vector2(56f, 40f);
         var giftBtnImg = giftBtnObj.AddComponent<Image>();
         giftBtnImg.sprite = SpriteGenerator.RoundedRect;
         giftBtnImg.color = new Color(0.86f, 0.84f, 0.81f, 1f);
@@ -910,8 +910,8 @@ public class UIManager : MonoBehaviour
 
             // Leading flexible spacer
             var lsp = new GameObject("LS"); lsp.transform.SetParent(rowObj.transform, false);
-            var lspLE = lsp.AddComponent<LayoutElement>(); lspLE.flexibleWidth = 1f;
             var lspRT = lsp.AddComponent<RectTransform>(); lspRT.sizeDelta = Vector2.zero;
+            var lspLE = lsp.AddComponent<LayoutElement>(); lspLE.flexibleWidth = 1f;
 
             for (int col = 0; col < Cols; col++)
             {
@@ -923,10 +923,10 @@ public class UIManager : MonoBehaviour
                     // Connector line
                     var conn = new GameObject("C");
                     conn.transform.SetParent(rowObj.transform, false);
-                    var connLE = conn.AddComponent<LayoutElement>();
-                    connLE.preferredWidth = ConnW; connLE.minWidth = ConnW;
                     var connRT = conn.AddComponent<RectTransform>();
                     connRT.sizeDelta = new Vector2(ConnW, ConnH);
+                    var connLE = conn.AddComponent<LayoutElement>();
+                    connLE.preferredWidth = ConnW; connLE.minWidth = ConnW;
                     var connImg = conn.AddComponent<Image>();
                     connImg.color = connColor;
                 }
@@ -935,10 +935,10 @@ public class UIManager : MonoBehaviour
                 int levelIndex = idx;
                 var cell = new GameObject($"L{idx + 1}");
                 cell.transform.SetParent(rowObj.transform, false);
-                var cellLE = cell.AddComponent<LayoutElement>();
-                cellLE.preferredWidth = BtnSize; cellLE.minWidth = BtnSize;
                 var cellRT = cell.AddComponent<RectTransform>();
                 cellRT.sizeDelta = new Vector2(BtnSize, BtnSize);
+                var cellLE = cell.AddComponent<LayoutElement>();
+                cellLE.preferredWidth = BtnSize; cellLE.minWidth = BtnSize;
 
                 // Shadow
                 var sh = new GameObject("S"); sh.transform.SetParent(cell.transform, false);
@@ -995,8 +995,8 @@ public class UIManager : MonoBehaviour
 
             // Trailing flexible spacer
             var rsp = new GameObject("RS"); rsp.transform.SetParent(rowObj.transform, false);
-            var rspLE = rsp.AddComponent<LayoutElement>(); rspLE.flexibleWidth = 1f;
             var rspRT = rsp.AddComponent<RectTransform>(); rspRT.sizeDelta = Vector2.zero;
+            var rspLE = rsp.AddComponent<LayoutElement>(); rspLE.flexibleWidth = 1f;
         }
     }
 
