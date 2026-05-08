@@ -72,6 +72,7 @@ public class GridManager : MonoBehaviour
         }
         else
         {
+            CellSpacing = 1.0f;
             RowSpacing = isPentagonMode ? CellSpacing * Mathf.Sqrt(3f) / 2f : CellSpacing;
         }
         cells = new Cell[GridWidth, GridHeight];
