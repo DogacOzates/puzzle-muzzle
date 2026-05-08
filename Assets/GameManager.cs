@@ -199,7 +199,7 @@ public class GameManager : MonoBehaviour
 
         if (index == 0)
             StartTutorial(true);
-        else if (index == 1 && PlayerPrefs.GetInt("tutorial.done", 0) == 0)
+        else if (index == 1 && LoadSavedLevelIndex() <= 1)
             StartTutorial(false);
     }
 
@@ -220,8 +220,7 @@ public class GameManager : MonoBehaviour
 
     public void OnMainTutorialComplete()
     {
-        PlayerPrefs.SetInt("tutorial.done", 1);
-        PlayerPrefs.Save();
+        SaveProgressTo(2); // advance past tutorial so it doesn't repeat
         OnTutorialComplete();
     }
 
