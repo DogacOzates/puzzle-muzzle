@@ -347,15 +347,13 @@ public class Cell : MonoBehaviour
     {
         if (_isTriangleMode)
         {
-            int dx = other.GridX - GridX;
-            int dy = other.GridY - GridY;
-            // Horizontal neighbors are always adjacent
-            if (Mathf.Abs(dx) == 1 && dy == 0) return true;
-            // Vertical neighbor: direction depends on whether this cell is UP or DOWN
-            if (dx == 0)
+            int tdx = other.GridX - GridX;
+            int tdy = other.GridY - GridY;
+            if (Mathf.Abs(tdx) == 1 && tdy == 0) return true;
+            if (tdx == 0)
             {
                 bool isUp = (GridX + GridY) % 2 == 0;
-                return isUp ? (dy == -1) : (dy == 1);
+                return isUp ? (tdy == -1) : (tdy == 1);
             }
             return false;
         }
