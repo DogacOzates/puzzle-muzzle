@@ -441,16 +441,22 @@ public class GameManager : MonoBehaviour
         LevelData level = LevelDatabase.Levels[currentLevelIndex];
         if (gridManager.SolveHint(level.solutions))
         {
-            if (monetizationManager != null && !monetizationManager.IsNoAdsPurchased)
+            if (monetizationManager != null && !monetizationManager.IsNoAdsPurchased &&
+                Time.realtimeSinceStartup - lastPromoBannerTime > 180f)
+            {
                 uiManager?.ShowPromoTopBanner();
+                lastPromoBannerTime = Time.realtimeSinceStartup;
+            }
             if (gridManager.IsLevelComplete())
                 OnLevelComplete();
         }
     }
 
+    private float lastPromoBannerTime = -9999f;
+
     private IEnumerator PeriodicPromoBannerCoroutine()
     {
-        yield return new WaitForSeconds(60f);
+        yield return new WaitForSeconds(180f);
         while (true)
         {
             if (!IsLevelComplete && !isLevelTransitionRunning &&
@@ -458,8 +464,9 @@ public class GameManager : MonoBehaviour
                 uiManager != null)
             {
                 uiManager.ShowPromoTopBanner();
+                lastPromoBannerTime = Time.realtimeSinceStartup;
             }
-            yield return new WaitForSeconds(Random.Range(50f, 80f));
+            yield return new WaitForSeconds(Random.Range(150f, 240f));
         }
     }
 
