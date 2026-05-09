@@ -666,7 +666,7 @@ public class UIManager : MonoBehaviour
         var card = new GameObject("DailyCard");
         card.transform.SetParent(parent, false);
         var le = card.AddComponent<LayoutElement>();
-        le.preferredHeight = 148f; le.minHeight = 148f; le.flexibleWidth = 1f;
+        le.preferredHeight = 160f; le.minHeight = 160f; le.flexibleWidth = 1f;
 
         var outer = new GameObject("Outer");
         outer.transform.SetParent(card.transform, false);
@@ -684,47 +684,47 @@ public class UIManager : MonoBehaviour
         dcBtn.onClick.AddListener(() => FindAnyObjectByType<GameManager>().PlayDailyChallenge());
         dailyChallengeCardButton = dcBtn;
 
-        // Gift icon left
+        // Gift icon — left side, vertically centred, 80×80
         var giftObj = new GameObject("Gift");
         giftObj.transform.SetParent(outer.transform, false);
         var giftRect = giftObj.AddComponent<RectTransform>();
         giftRect.anchorMin = new Vector2(0f, 0.5f); giftRect.anchorMax = new Vector2(0f, 0.5f);
         giftRect.pivot = new Vector2(0f, 0.5f);
-        giftRect.anchoredPosition = new Vector2(12f, 0f); giftRect.sizeDelta = new Vector2(88f, 88f);
+        giftRect.anchoredPosition = new Vector2(16f, 0f); giftRect.sizeDelta = new Vector2(80f, 80f);
         var giftImg = giftObj.AddComponent<Image>();
         giftImg.sprite = LoadGiftSprite();
         giftImg.preserveAspect = true;
 
-        // Arrow right
+        // Arrow — right side
         var arrObj = new GameObject("Arrow");
         arrObj.transform.SetParent(outer.transform, false);
         var arrRect = arrObj.AddComponent<RectTransform>();
         arrRect.anchorMin = new Vector2(1f, 0.5f); arrRect.anchorMax = new Vector2(1f, 0.5f);
         arrRect.pivot = new Vector2(1f, 0.5f);
-        arrRect.anchoredPosition = new Vector2(-16f, 0f); arrRect.sizeDelta = new Vector2(36f, 56f);
+        arrRect.anchoredPosition = new Vector2(-14f, 0f); arrRect.sizeDelta = new Vector2(30f, 50f);
         var arrTxt = arrObj.AddComponent<Text>();
-        arrTxt.font = defaultFont; arrTxt.text = "›"; arrTxt.fontSize = 44;
+        arrTxt.font = defaultFont; arrTxt.text = "›"; arrTxt.fontSize = 40;
         arrTxt.fontStyle = FontStyle.Bold; arrTxt.alignment = TextAnchor.MiddleCenter;
         arrTxt.color = TextMuted;
 
-        // Text area
+        // Text area — starts after icon (16 + 80 + 14 gap = 110)
         var ta = new GameObject("TextArea");
         ta.transform.SetParent(outer.transform, false);
         var taRect = ta.AddComponent<RectTransform>();
         taRect.anchorMin = new Vector2(0f, 0f); taRect.anchorMax = new Vector2(1f, 1f);
-        taRect.offsetMin = new Vector2(100f, 0f); taRect.offsetMax = new Vector2(-52f, 0f);
+        taRect.offsetMin = new Vector2(112f, 0f); taRect.offsetMax = new Vector2(-46f, 0f);
         var taVlg = ta.AddComponent<VerticalLayoutGroup>();
-        taVlg.spacing = 4f;
-        taVlg.padding = new RectOffset(0, 0, 14, 14);
+        taVlg.spacing = 6f;
+        taVlg.padding = new RectOffset(0, 0, 18, 18);
         taVlg.childForceExpandWidth = true; taVlg.childForceExpandHeight = false;
         taVlg.childControlWidth = true; taVlg.childControlHeight = true;
         taVlg.childAlignment = TextAnchor.MiddleLeft;
 
-        dailyChallengeCardMainText = LsMakeVlgText("DCTitle", ta.transform, 34, FontStyle.Bold,
+        dailyChallengeCardMainText = LsMakeVlgText("DCTitle", ta.transform, 32, FontStyle.Bold,
             new Color(0.15f, 0.52f, 0.48f, 1f), "Daily Challenge");
-        dailyChallengeCardSubText = LsMakeVlgText("DCSub1", ta.transform, 26, FontStyle.Normal,
+        dailyChallengeCardSubText = LsMakeVlgText("DCSub1", ta.transform, 24, FontStyle.Normal,
             TextMuted, "A new puzzle every day");
-        LsMakeVlgText("DCSub2", ta.transform, 26, FontStyle.Normal,
+        LsMakeVlgText("DCSub2", ta.transform, 24, FontStyle.Normal,
             TextMuted, "Complete to earn 1 hint");
     }
 
