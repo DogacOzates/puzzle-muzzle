@@ -643,9 +643,6 @@ public class UIManager : MonoBehaviour
         // ── Group Tabs ──────────────────────────────────────────────────────────────
         LsBuildGroupTabsRow(content.transform);
 
-        // ── Progress Row ────────────────────────────────────────────────────────────
-        LsBuildProgressRow(content.transform);
-
         // ── Level Button Grids ──────────────────────────────────────────────────────
         levelSelectButtons      = new Button[LevelDatabase.TotalLevels];
         levelSelectButtonImages = new Image[LevelDatabase.TotalLevels];
@@ -666,13 +663,13 @@ public class UIManager : MonoBehaviour
         var card = new GameObject("DailyCard");
         card.transform.SetParent(parent, false);
         var le = card.AddComponent<LayoutElement>();
-        le.preferredHeight = 160f; le.minHeight = 160f; le.flexibleWidth = 1f;
+        le.preferredHeight = 180f; le.minHeight = 180f; le.flexibleWidth = 1f;
 
         var outer = new GameObject("Outer");
         outer.transform.SetParent(card.transform, false);
         var outerRect = outer.AddComponent<RectTransform>();
         outerRect.anchorMin = Vector2.zero; outerRect.anchorMax = Vector2.one;
-        outerRect.offsetMin = new Vector2(20f, 10f); outerRect.offsetMax = new Vector2(-20f, -10f);
+        outerRect.offsetMin = new Vector2(16f, 10f); outerRect.offsetMax = new Vector2(-16f, -10f);
         dailyChallengeCardImage = outer.AddComponent<Image>();
         dailyChallengeCardImage.sprite = SpriteGenerator.RoundedRect;
         dailyChallengeCardImage.color = new Color(0.875f, 0.924f, 0.913f, 1f);
@@ -684,48 +681,59 @@ public class UIManager : MonoBehaviour
         dcBtn.onClick.AddListener(() => FindAnyObjectByType<GameManager>().PlayDailyChallenge());
         dailyChallengeCardButton = dcBtn;
 
-        // Gift icon — left side, vertically centred, 80×80
-        var giftObj = new GameObject("Gift");
-        giftObj.transform.SetParent(outer.transform, false);
+        // Horizontal layout inside card
+        var outerHlg = outer.AddComponent<HorizontalLayoutGroup>();
+        outerHlg.spacing = 0f;
+        outerHlg.padding = new RectOffset(10, 10, 16, 16);
+        outerHlg.childForceExpandWidth = false; outerHlg.childForceExpandHeight = true;
+        outerHlg.childControlWidth = true; outerHlg.childControlHeight = true;
+        outerHlg.childAlignment = TextAnchor.MiddleCenter;
+
+        // Gift icon column — 100px fixed
+        var giftCol = new GameObject("GiftCol");
+        giftCol.transform.SetParent(outer.transform, false);
+        var gcRT = giftCol.AddComponent<RectTransform>();
+        var gcLE = giftCol.AddComponent<LayoutElement>();
+        gcLE.preferredWidth = 100f; gcLE.minWidth = 100f;
+        var giftObj = new GameObject("GiftImg");
+        giftObj.transform.SetParent(giftCol.transform, false);
         var giftRect = giftObj.AddComponent<RectTransform>();
-        giftRect.anchorMin = new Vector2(0f, 0.5f); giftRect.anchorMax = new Vector2(0f, 0.5f);
-        giftRect.pivot = new Vector2(0f, 0.5f);
-        giftRect.anchoredPosition = new Vector2(16f, 0f); giftRect.sizeDelta = new Vector2(80f, 80f);
+        giftRect.anchorMin = new Vector2(0.5f, 0.5f); giftRect.anchorMax = new Vector2(0.5f, 0.5f);
+        giftRect.pivot = new Vector2(0.5f, 0.5f);
+        giftRect.anchoredPosition = Vector2.zero; giftRect.sizeDelta = new Vector2(92f, 92f);
         var giftImg = giftObj.AddComponent<Image>();
         giftImg.sprite = LoadGiftSprite();
         giftImg.preserveAspect = true;
 
-        // Arrow — right side
-        var arrObj = new GameObject("Arrow");
-        arrObj.transform.SetParent(outer.transform, false);
-        var arrRect = arrObj.AddComponent<RectTransform>();
-        arrRect.anchorMin = new Vector2(1f, 0.5f); arrRect.anchorMax = new Vector2(1f, 0.5f);
-        arrRect.pivot = new Vector2(1f, 0.5f);
-        arrRect.anchoredPosition = new Vector2(-14f, 0f); arrRect.sizeDelta = new Vector2(30f, 50f);
-        var arrTxt = arrObj.AddComponent<Text>();
-        arrTxt.font = defaultFont; arrTxt.text = "›"; arrTxt.fontSize = 40;
+        // Text column — flexible
+        var textCol = new GameObject("TextCol");
+        textCol.transform.SetParent(outer.transform, false);
+        var tcRT = textCol.AddComponent<RectTransform>();
+        var tcLE = textCol.AddComponent<LayoutElement>();
+        tcLE.flexibleWidth = 1f;
+        var tcVlg = textCol.AddComponent<VerticalLayoutGroup>();
+        tcVlg.spacing = 6f; tcVlg.padding = new RectOffset(4, 4, 0, 0);
+        tcVlg.childForceExpandWidth = true; tcVlg.childForceExpandHeight = false;
+        tcVlg.childControlWidth = true; tcVlg.childControlHeight = true;
+        tcVlg.childAlignment = TextAnchor.MiddleLeft;
+
+        dailyChallengeCardMainText = LsMakeVlgText("DCTitle", textCol.transform, 30, FontStyle.Bold,
+            new Color(0.15f, 0.52f, 0.48f, 1f), "Daily Challenge");
+        dailyChallengeCardSubText = LsMakeVlgText("DCSub1", textCol.transform, 23, FontStyle.Normal,
+            TextMuted, "A new puzzle every day");
+        LsMakeVlgText("DCSub2", textCol.transform, 23, FontStyle.Normal,
+            TextMuted, "Complete to earn 1 hint");
+
+        // Arrow column — 36px fixed
+        var arrCol = new GameObject("ArrowCol");
+        arrCol.transform.SetParent(outer.transform, false);
+        var acRT = arrCol.AddComponent<RectTransform>();
+        var acLE = arrCol.AddComponent<LayoutElement>();
+        acLE.preferredWidth = 36f; acLE.minWidth = 36f;
+        var arrTxt = arrCol.AddComponent<Text>();
+        arrTxt.font = defaultFont; arrTxt.text = "›"; arrTxt.fontSize = 38;
         arrTxt.fontStyle = FontStyle.Bold; arrTxt.alignment = TextAnchor.MiddleCenter;
         arrTxt.color = TextMuted;
-
-        // Text area — starts after icon (16 + 80 + 14 gap = 110)
-        var ta = new GameObject("TextArea");
-        ta.transform.SetParent(outer.transform, false);
-        var taRect = ta.AddComponent<RectTransform>();
-        taRect.anchorMin = new Vector2(0f, 0f); taRect.anchorMax = new Vector2(1f, 1f);
-        taRect.offsetMin = new Vector2(112f, 0f); taRect.offsetMax = new Vector2(-46f, 0f);
-        var taVlg = ta.AddComponent<VerticalLayoutGroup>();
-        taVlg.spacing = 6f;
-        taVlg.padding = new RectOffset(0, 0, 18, 18);
-        taVlg.childForceExpandWidth = true; taVlg.childForceExpandHeight = false;
-        taVlg.childControlWidth = true; taVlg.childControlHeight = true;
-        taVlg.childAlignment = TextAnchor.MiddleLeft;
-
-        dailyChallengeCardMainText = LsMakeVlgText("DCTitle", ta.transform, 32, FontStyle.Bold,
-            new Color(0.15f, 0.52f, 0.48f, 1f), "Daily Challenge");
-        dailyChallengeCardSubText = LsMakeVlgText("DCSub1", ta.transform, 24, FontStyle.Normal,
-            TextMuted, "A new puzzle every day");
-        LsMakeVlgText("DCSub2", ta.transform, 24, FontStyle.Normal,
-            TextMuted, "Complete to earn 1 hint");
     }
 
     private Text LsMakeVlgText(string name, Transform parent, int size, FontStyle style, Color color, string text)
@@ -790,7 +798,7 @@ public class UIManager : MonoBehaviour
             _lsGroupTabIcons[g] = iconObj.AddComponent<Image>();
             _lsGroupTabIcons[g].sprite = GrpSprite[g]();
             _lsGroupTabIcons[g].preserveAspect = true;
-            _lsGroupTabIcons[g].color = (g == 0) ? Color.white : new Color(0.55f, 0.53f, 0.50f, 1f);
+            _lsGroupTabIcons[g].color = Color.white;
 
             var rangeObj = new GameObject("Range");
             rangeObj.transform.SetParent(tab.transform, false);
@@ -799,7 +807,7 @@ public class UIManager : MonoBehaviour
             _lsGroupTabRanges[g] = rangeObj.AddComponent<Text>();
             _lsGroupTabRanges[g].font = defaultFont; _lsGroupTabRanges[g].text = GrpRange[g];
             _lsGroupTabRanges[g].fontSize = 18; _lsGroupTabRanges[g].alignment = TextAnchor.MiddleCenter;
-            _lsGroupTabRanges[g].color = (g == 0) ? new Color(1f, 1f, 1f, 0.85f) : TextMuted;
+            _lsGroupTabRanges[g].color = new Color(1f, 1f, 1f, 0.75f);
         }
     }
 
@@ -810,31 +818,6 @@ public class UIManager : MonoBehaviour
         if (tex == null) return null;
         _giftSprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), Vector2.one * 0.5f);
         return _giftSprite;
-    }
-
-    private void LsBuildProgressRow(Transform parent)
-    {
-        var row = new GameObject("ProgressRow");
-        row.transform.SetParent(parent, false);
-        var rowLE = row.AddComponent<LayoutElement>();
-        rowLE.preferredHeight = 64f; rowLE.minHeight = 64f; rowLE.flexibleWidth = 1f;
-        var hlg = row.AddComponent<HorizontalLayoutGroup>();
-        hlg.spacing = 10f;
-        hlg.padding = new RectOffset(24, 24, 12, 8);
-        hlg.childForceExpandWidth = false; hlg.childForceExpandHeight = false;
-        hlg.childControlWidth = true; hlg.childControlHeight = false;
-        hlg.childAlignment = TextAnchor.MiddleLeft;
-
-        // Count
-        var cntObj = new GameObject("Count");
-        cntObj.transform.SetParent(row.transform, false);
-        var cntRT = cntObj.AddComponent<RectTransform>(); cntRT.sizeDelta = new Vector2(108f, 40f);
-        var cntLE = cntObj.AddComponent<LayoutElement>();
-        cntLE.preferredWidth = 108f; cntLE.minWidth = 80f;
-        _lsProgressCountText = cntObj.AddComponent<Text>();
-        _lsProgressCountText.font = defaultFont; _lsProgressCountText.text = "0/300";
-        _lsProgressCountText.fontSize = 30; _lsProgressCountText.fontStyle = FontStyle.Bold;
-        _lsProgressCountText.alignment = TextAnchor.MiddleLeft; _lsProgressCountText.color = TextDark;
     }
 
     private void LsBuildGroupGrid(Transform parent, int groupIndex, Sprite btnSprite, int startIdx, int endIdx)
@@ -974,8 +957,8 @@ public class UIManager : MonoBehaviour
         {
             bool active = (i == g);
             if (_lsGroupTabBgs[i]    != null) _lsGroupTabBgs[i].color    = active ? BtnTeal : new Color(0.87f, 0.85f, 0.82f, 1f);
-            if (_lsGroupTabIcons[i]  != null) _lsGroupTabIcons[i].color  = active ? Color.white : TextMuted;
-            if (_lsGroupTabRanges[i] != null) _lsGroupTabRanges[i].color = active ? new Color(1f, 1f, 1f, 0.85f) : TextMuted;
+            if (_lsGroupTabIcons[i]  != null) _lsGroupTabIcons[i].color  = Color.white;
+            if (_lsGroupTabRanges[i] != null) _lsGroupTabRanges[i].color = active ? new Color(1f, 1f, 1f, 0.9f) : new Color(1f, 1f, 1f, 0.75f);
             if (_lsGroupGridRoots[i] != null) _lsGroupGridRoots[i].gameObject.SetActive(active);
         }
         LsRefreshProgressBar(g);
