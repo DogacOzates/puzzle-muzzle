@@ -50,7 +50,8 @@ public class UIManager : MonoBehaviour
     private Image[] transitionSquares;
     private int _lsActiveGroup;
     private Image[] _lsGroupTabBgs = new Image[4];
-    private Text[] _lsGroupTabIcons = new Text[4];
+    private Image[] _lsGroupTabIcons = new Image[4];
+    private static Sprite _giftSprite;
     private Text[] _lsGroupTabRanges = new Text[4];
     private Text _lsHeaderTitle;
     private Image _lsProgressBarFill;
@@ -88,8 +89,13 @@ public class UIManager : MonoBehaviour
         new Color(0.20f, 0.72f, 0.67f),
         new Color(0.88f, 0.22f, 0.52f),
     };
-    private static readonly string[] GrpIcon  = { "□", "⬟", "⬡", "△" };
     private static readonly string[] GrpRange = { "1-300", "301-600", "601-900", "901-1200" };
+    private static readonly Func<Sprite>[] GrpSprite = {
+        () => SpriteGenerator.RoundedRect,
+        () => SpriteGenerator.Pentagon,
+        () => SpriteGenerator.FlatHexagon,
+        () => SpriteGenerator.Triangle,
+    };
 
     public void Initialize()
     {
@@ -777,12 +783,14 @@ public class UIManager : MonoBehaviour
 
             var iconObj = new GameObject("Icon");
             iconObj.transform.SetParent(tab.transform, false);
+            var iconRT = iconObj.AddComponent<RectTransform>();
+            iconRT.sizeDelta = new Vector2(36f, 36f);
             var iconLE = iconObj.AddComponent<LayoutElement>();
-            iconLE.preferredHeight = 34f; iconLE.minHeight = 34f;
-            _lsGroupTabIcons[g] = iconObj.AddComponent<Text>();
-            _lsGroupTabIcons[g].font = defaultFont; _lsGroupTabIcons[g].text = GrpIcon[g];
-            _lsGroupTabIcons[g].fontSize = 26; _lsGroupTabIcons[g].alignment = TextAnchor.MiddleCenter;
-            _lsGroupTabIcons[g].color = (g == 0) ? Color.white : TextMuted;
+            iconLE.preferredHeight = 36f; iconLE.minHeight = 36f; iconLE.preferredWidth = 36f;
+            _lsGroupTabIcons[g] = iconObj.AddComponent<Image>();
+            _lsGroupTabIcons[g].sprite = GrpSprite[g]();
+            _lsGroupTabIcons[g].preserveAspect = true;
+            _lsGroupTabIcons[g].color = (g == 0) ? Color.white : new Color(0.55f, 0.53f, 0.50f, 1f);
 
             var rangeObj = new GameObject("Range");
             rangeObj.transform.SetParent(tab.transform, false);
@@ -793,6 +801,15 @@ public class UIManager : MonoBehaviour
             _lsGroupTabRanges[g].fontSize = 18; _lsGroupTabRanges[g].alignment = TextAnchor.MiddleCenter;
             _lsGroupTabRanges[g].color = (g == 0) ? new Color(1f, 1f, 1f, 0.85f) : TextMuted;
         }
+    }
+
+    private static Sprite LoadGiftSprite()
+    {
+        if (_giftSprite != null) return _giftSprite;
+        var tex = Resources.Load<Texture2D>("gift");
+        if (tex == null) return null;
+        _giftSprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), Vector2.one * 0.5f);
+        return _giftSprite;
     }
 
     private void LsBuildProgressRow(Transform parent)
@@ -819,44 +836,22 @@ public class UIManager : MonoBehaviour
         _lsProgressCountText.fontSize = 30; _lsProgressCountText.fontStyle = FontStyle.Bold;
         _lsProgressCountText.alignment = TextAnchor.MiddleLeft; _lsProgressCountText.color = TextDark;
 
-        // Bar bg (flexible)
-        var barBg = new GameObject("BarBg");
-        barBg.transform.SetParent(row.transform, false);
-        var barBgRT = barBg.AddComponent<RectTransform>(); barBgRT.sizeDelta = new Vector2(0f, 14f);
-        var barBgLE = barBg.AddComponent<LayoutElement>();
-        barBgLE.flexibleWidth = 1f; barBgLE.preferredWidth = 0f; barBgLE.minWidth = 60f;
-        var barBgImg = barBg.AddComponent<Image>();
-        barBgImg.sprite = SpriteGenerator.Circle;
-        barBgImg.color = new Color(0.80f, 0.77f, 0.73f, 1f);
-
-        // Fill (child of barBg, left-anchored)
-        var fillObj = new GameObject("Fill");
-        fillObj.transform.SetParent(barBg.transform, false);
-        var fillRect = fillObj.AddComponent<RectTransform>();
-        fillRect.anchorMin = Vector2.zero; fillRect.anchorMax = new Vector2(0f, 1f);
-        fillRect.offsetMin = Vector2.zero; fillRect.offsetMax = Vector2.zero;
-        _lsProgressBarFill = fillObj.AddComponent<Image>();
-        _lsProgressBarFill.sprite = SpriteGenerator.Circle;
-        _lsProgressBarFill.color = BtnTeal;
-
         // Gift btn
         var giftBtnObj = new GameObject("GiftBtn");
         giftBtnObj.transform.SetParent(row.transform, false);
-        var giftBtnRT = giftBtnObj.AddComponent<RectTransform>(); giftBtnRT.sizeDelta = new Vector2(56f, 40f);
+        var giftBtnRT = giftBtnObj.AddComponent<RectTransform>(); giftBtnRT.sizeDelta = new Vector2(56f, 56f);
         var giftBtnLE = giftBtnObj.AddComponent<LayoutElement>();
         giftBtnLE.preferredWidth = 56f; giftBtnLE.minWidth = 56f;
-        var giftBtnImg = giftBtnObj.AddComponent<Image>();
-        giftBtnImg.sprite = SpriteGenerator.RoundedRect;
-        giftBtnImg.color = new Color(0.86f, 0.84f, 0.81f, 1f);
-        var giftBtnComp = giftBtnObj.AddComponent<Button>(); giftBtnComp.targetGraphic = giftBtnImg;
-        var giftBtnTxtObj = new GameObject("T");
-        giftBtnTxtObj.transform.SetParent(giftBtnObj.transform, false);
-        var gbtRect = giftBtnTxtObj.AddComponent<RectTransform>();
-        gbtRect.anchorMin = Vector2.zero; gbtRect.anchorMax = Vector2.one;
-        gbtRect.offsetMin = Vector2.zero; gbtRect.offsetMax = Vector2.zero;
-        var gbtTxt = giftBtnTxtObj.AddComponent<Text>();
-        gbtTxt.font = defaultFont; gbtTxt.text = "🎁"; gbtTxt.fontSize = 26;
-        gbtTxt.alignment = TextAnchor.MiddleCenter; gbtTxt.color = TextMuted;
+        var giftBtnComp = giftBtnObj.AddComponent<Button>();
+        var giftImgObj = new GameObject("GiftImg");
+        giftImgObj.transform.SetParent(giftBtnObj.transform, false);
+        var giftImgRect = giftImgObj.AddComponent<RectTransform>();
+        giftImgRect.anchorMin = Vector2.zero; giftImgRect.anchorMax = Vector2.one;
+        giftImgRect.offsetMin = Vector2.zero; giftImgRect.offsetMax = Vector2.zero;
+        var giftImg = giftImgObj.AddComponent<Image>();
+        giftImg.sprite = LoadGiftSprite();
+        giftImg.preserveAspect = true;
+        giftBtnComp.targetGraphic = giftImg;
     }
 
     private void LsBuildGroupGrid(Transform parent, int groupIndex, Sprite btnSprite, int startIdx, int endIdx)
