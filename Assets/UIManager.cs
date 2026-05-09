@@ -690,10 +690,10 @@ public class UIManager : MonoBehaviour
         var giftRect = giftObj.AddComponent<RectTransform>();
         giftRect.anchorMin = new Vector2(0f, 0.5f); giftRect.anchorMax = new Vector2(0f, 0.5f);
         giftRect.pivot = new Vector2(0f, 0.5f);
-        giftRect.anchoredPosition = new Vector2(16f, 0f); giftRect.sizeDelta = new Vector2(76f, 76f);
-        var giftTxt = giftObj.AddComponent<Text>();
-        giftTxt.font = defaultFont; giftTxt.text = "🎁"; giftTxt.fontSize = 46;
-        giftTxt.alignment = TextAnchor.MiddleCenter;
+        giftRect.anchoredPosition = new Vector2(12f, 0f); giftRect.sizeDelta = new Vector2(88f, 88f);
+        var giftImg = giftObj.AddComponent<Image>();
+        giftImg.sprite = LoadGiftSprite();
+        giftImg.preserveAspect = true;
 
         // Arrow right
         var arrObj = new GameObject("Arrow");
@@ -835,23 +835,6 @@ public class UIManager : MonoBehaviour
         _lsProgressCountText.font = defaultFont; _lsProgressCountText.text = "0/300";
         _lsProgressCountText.fontSize = 30; _lsProgressCountText.fontStyle = FontStyle.Bold;
         _lsProgressCountText.alignment = TextAnchor.MiddleLeft; _lsProgressCountText.color = TextDark;
-
-        // Gift btn
-        var giftBtnObj = new GameObject("GiftBtn");
-        giftBtnObj.transform.SetParent(row.transform, false);
-        var giftBtnRT = giftBtnObj.AddComponent<RectTransform>(); giftBtnRT.sizeDelta = new Vector2(56f, 56f);
-        var giftBtnLE = giftBtnObj.AddComponent<LayoutElement>();
-        giftBtnLE.preferredWidth = 56f; giftBtnLE.minWidth = 56f;
-        var giftBtnComp = giftBtnObj.AddComponent<Button>();
-        var giftImgObj = new GameObject("GiftImg");
-        giftImgObj.transform.SetParent(giftBtnObj.transform, false);
-        var giftImgRect = giftImgObj.AddComponent<RectTransform>();
-        giftImgRect.anchorMin = Vector2.zero; giftImgRect.anchorMax = Vector2.one;
-        giftImgRect.offsetMin = Vector2.zero; giftImgRect.offsetMax = Vector2.zero;
-        var giftImg = giftImgObj.AddComponent<Image>();
-        giftImg.sprite = LoadGiftSprite();
-        giftImg.preserveAspect = true;
-        giftBtnComp.targetGraphic = giftImg;
     }
 
     private void LsBuildGroupGrid(Transform parent, int groupIndex, Sprite btnSprite, int startIdx, int endIdx)
