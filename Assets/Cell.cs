@@ -329,13 +329,15 @@ public class Cell : MonoBehaviour
     private void AddBlockedOverlay()
     {
         Color crossColor = new Color(0.38f, 0.34f, 0.30f, 0.65f);
+        float crossWidth = _isTriangleMode ? 0.10f : 0.12f;
+        float crossHeight = _isTriangleMode ? 0.50f : 0.72f;
         for (int i = 0; i < 2; i++)
         {
             var crossObj = new GameObject("BlockedCross");
             crossObj.transform.SetParent(transform);
             crossObj.transform.localPosition = new Vector3(0f, 0f, -0.02f);
             crossObj.transform.localRotation = Quaternion.Euler(0f, 0f, i == 0 ? 45f : -45f);
-            crossObj.transform.localScale = new Vector3(0.12f, 0.72f, 1f);
+            crossObj.transform.localScale = new Vector3(crossWidth, crossHeight, 1f);
             var crossR = crossObj.AddComponent<SpriteRenderer>();
             crossR.sprite = SpriteGenerator.RoundedRect;
             crossR.color = crossColor;
