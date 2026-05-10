@@ -808,7 +808,7 @@ public class UIManager : MonoBehaviour
             tabVlg.childControlWidth = true; tabVlg.childControlHeight = true;
             tabVlg.childAlignment = TextAnchor.MiddleCenter;
 
-            float iconSize = (g == 1 || g == 2) ? 40f : 36f;
+            float iconSize = (g == 1 || g == 3) ? 44f : (g == 2 ? 40f : 36f);
 
             var iconObj = new GameObject("Icon");
             iconObj.transform.SetParent(tab.transform, false);
