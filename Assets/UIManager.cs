@@ -663,7 +663,7 @@ public class UIManager : MonoBehaviour
         var card = new GameObject("DailyCard");
         card.transform.SetParent(parent, false);
         var le = card.AddComponent<LayoutElement>();
-        le.preferredHeight = 210f; le.minHeight = 210f; le.flexibleWidth = 1f;
+        le.preferredHeight = 200f; le.minHeight = 200f; le.flexibleWidth = 1f;
 
         var outer = new GameObject("Outer");
         outer.transform.SetParent(card.transform, false);
@@ -681,59 +681,55 @@ public class UIManager : MonoBehaviour
         dcBtn.onClick.AddListener(() => FindAnyObjectByType<GameManager>().PlayDailyChallenge());
         dailyChallengeCardButton = dcBtn;
 
-        // Horizontal layout — left-padding for gift, 20px gap, then text, then arrow
-        var outerHlg = outer.AddComponent<HorizontalLayoutGroup>();
-        outerHlg.spacing = 18f;
-        outerHlg.padding = new RectOffset(20, 18, 18, 18);
-        outerHlg.childForceExpandWidth = false; outerHlg.childForceExpandHeight = true;
-        outerHlg.childControlWidth = true; outerHlg.childControlHeight = true;
-        outerHlg.childAlignment = TextAnchor.MiddleLeft;
-
-        // Gift icon column — 96px wide, image fills almost full column height
-        var giftCol = new GameObject("GiftCol");
-        giftCol.transform.SetParent(outer.transform, false);
-        var gcRT = giftCol.AddComponent<RectTransform>();
-        var gcLE = giftCol.AddComponent<LayoutElement>();
-        gcLE.preferredWidth = 96f; gcLE.minWidth = 96f;
+        // Gift image — left side, vertically centred
+        const float GiftSize = 96f;
+        const float GiftLeft = 20f;
         var giftObj = new GameObject("GiftImg");
-        giftObj.transform.SetParent(giftCol.transform, false);
+        giftObj.transform.SetParent(outer.transform, false);
         var giftRect = giftObj.AddComponent<RectTransform>();
-        giftRect.anchorMin = new Vector2(0.5f, 0.5f); giftRect.anchorMax = new Vector2(0.5f, 0.5f);
-        giftRect.pivot = new Vector2(0.5f, 0.5f);
-        giftRect.anchoredPosition = Vector2.zero; giftRect.sizeDelta = new Vector2(96f, 96f);
+        giftRect.anchorMin = new Vector2(0f, 0.5f); giftRect.anchorMax = new Vector2(0f, 0.5f);
+        giftRect.pivot = new Vector2(0f, 0.5f);
+        giftRect.anchoredPosition = new Vector2(GiftLeft, 0f);
+        giftRect.sizeDelta = new Vector2(GiftSize, GiftSize);
         var giftImg = giftObj.AddComponent<Image>();
         giftImg.sprite = LoadGiftSprite();
         giftImg.preserveAspect = true;
 
-        // Text column — flexible, vertically centred
-        var textCol = new GameObject("TextCol");
-        textCol.transform.SetParent(outer.transform, false);
-        var tcRT = textCol.AddComponent<RectTransform>();
-        var tcLE = textCol.AddComponent<LayoutElement>();
-        tcLE.flexibleWidth = 1f;
-        var tcVlg = textCol.AddComponent<VerticalLayoutGroup>();
-        tcVlg.spacing = 5f; tcVlg.padding = new RectOffset(0, 0, 0, 0);
-        tcVlg.childForceExpandWidth = true; tcVlg.childForceExpandHeight = false;
-        tcVlg.childControlWidth = true; tcVlg.childControlHeight = true;
-        tcVlg.childAlignment = TextAnchor.MiddleLeft;
-
-        dailyChallengeCardMainText = LsMakeVlgText("DCTitle", textCol.transform, 34, FontStyle.Bold,
-            new Color(0.15f, 0.52f, 0.48f, 1f), "Daily Challenge");
-        dailyChallengeCardSubText = LsMakeVlgText("DCSub1", textCol.transform, 27, FontStyle.Normal,
-            TextMuted, "A new puzzle every day");
-        LsMakeVlgText("DCSub2", textCol.transform, 27, FontStyle.Normal,
-            TextMuted, "Complete to earn 1 hint");
-
-        // Arrow column — 30px wide, dark grey › character
-        var arrCol = new GameObject("ArrowCol");
-        arrCol.transform.SetParent(outer.transform, false);
-        var acRT = arrCol.AddComponent<RectTransform>();
-        var acLE = arrCol.AddComponent<LayoutElement>();
-        acLE.preferredWidth = 30f; acLE.minWidth = 30f;
-        var arrTxt = arrCol.AddComponent<Text>();
+        // Arrow — right side, vertically centred
+        const float ArrRight = 16f;
+        const float ArrW = 28f;
+        var arrObj = new GameObject("Arrow");
+        arrObj.transform.SetParent(outer.transform, false);
+        var arrRect = arrObj.AddComponent<RectTransform>();
+        arrRect.anchorMin = new Vector2(1f, 0.5f); arrRect.anchorMax = new Vector2(1f, 0.5f);
+        arrRect.pivot = new Vector2(1f, 0.5f);
+        arrRect.anchoredPosition = new Vector2(-ArrRight, 0f);
+        arrRect.sizeDelta = new Vector2(ArrW, 50f);
+        var arrTxt = arrObj.AddComponent<Text>();
         arrTxt.font = defaultFont; arrTxt.text = "›"; arrTxt.fontSize = 42;
         arrTxt.fontStyle = FontStyle.Bold; arrTxt.alignment = TextAnchor.MiddleCenter;
         arrTxt.color = new Color(0.35f, 0.35f, 0.35f, 1f);
+
+        // Text area — stretches between gift and arrow, vertically centred VLG
+        var ta = new GameObject("TextArea");
+        ta.transform.SetParent(outer.transform, false);
+        var taRect = ta.AddComponent<RectTransform>();
+        taRect.anchorMin = new Vector2(0f, 0f); taRect.anchorMax = new Vector2(1f, 1f);
+        // left edge: after gift  right edge: before arrow
+        taRect.offsetMin = new Vector2(GiftLeft + GiftSize + 14f, 0f);
+        taRect.offsetMax = new Vector2(-(ArrRight + ArrW + 10f), 0f);
+        var taVlg = ta.AddComponent<VerticalLayoutGroup>();
+        taVlg.spacing = 5f; taVlg.padding = new RectOffset(0, 0, 0, 0);
+        taVlg.childForceExpandWidth = true; taVlg.childForceExpandHeight = false;
+        taVlg.childControlWidth = true; taVlg.childControlHeight = true;
+        taVlg.childAlignment = TextAnchor.MiddleLeft;
+
+        dailyChallengeCardMainText = LsMakeVlgText("DCTitle", ta.transform, 34, FontStyle.Bold,
+            new Color(0.15f, 0.52f, 0.48f, 1f), "Daily Challenge");
+        dailyChallengeCardSubText = LsMakeVlgText("DCSub1", ta.transform, 27, FontStyle.Normal,
+            TextMuted, "A new puzzle every day");
+        LsMakeVlgText("DCSub2", ta.transform, 27, FontStyle.Normal,
+            TextMuted, "Complete to earn 1 hint");
     }
 
     private Text LsMakeVlgText(string name, Transform parent, int size, FontStyle style, Color color, string text)
