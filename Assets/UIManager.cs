@@ -665,6 +665,7 @@ public class UIManager : MonoBehaviour
         var le = card.AddComponent<LayoutElement>();
         le.preferredHeight = 200f; le.minHeight = 200f; le.flexibleWidth = 1f;
 
+        // Card background — fills the card slot with margins
         var outer = new GameObject("Outer");
         outer.transform.SetParent(card.transform, false);
         var outerRect = outer.AddComponent<RectTransform>();
@@ -681,40 +682,48 @@ public class UIManager : MonoBehaviour
         dcBtn.onClick.AddListener(() => FindAnyObjectByType<GameManager>().PlayDailyChallenge());
         dailyChallengeCardButton = dcBtn;
 
-        // Centered HLG: gift + text + arrow block sits in the middle of the card
-        var outerHlg = outer.AddComponent<HorizontalLayoutGroup>();
-        outerHlg.spacing = 20f;
-        outerHlg.padding = new RectOffset(0, 0, 16, 16);
-        outerHlg.childForceExpandWidth = false; outerHlg.childForceExpandHeight = true;
-        outerHlg.childControlWidth = true;      outerHlg.childControlHeight = true;
-        outerHlg.childAlignment = TextAnchor.MiddleCenter;   // <<< centers the block
+        // Content block: shrinks to fit its children, then is pinned to the CENTER of outer.
+        // This guarantees horizontal centering regardless of canvas width.
+        var contentBlock = new GameObject("ContentBlock");
+        contentBlock.transform.SetParent(outer.transform, false);
+        var cbRT = contentBlock.AddComponent<RectTransform>();
+        cbRT.anchorMin = new Vector2(0.5f, 0.5f);   // center anchor
+        cbRT.anchorMax = new Vector2(0.5f, 0.5f);
+        cbRT.pivot     = new Vector2(0.5f, 0.5f);   // pivot at center
+        cbRT.anchoredPosition = Vector2.zero;
+        cbRT.sizeDelta = new Vector2(560f, 140f);    // initial guess; ContentSizeFitter overrides
+        var cbHlg = contentBlock.AddComponent<HorizontalLayoutGroup>();
+        cbHlg.spacing = 16f;
+        cbHlg.padding = new RectOffset(0, 0, 0, 0);
+        cbHlg.childForceExpandWidth = false; cbHlg.childForceExpandHeight = false;
+        cbHlg.childControlWidth    = true;  cbHlg.childControlHeight    = true;
+        cbHlg.childAlignment       = TextAnchor.MiddleCenter;
+        var cbCSF = contentBlock.AddComponent<ContentSizeFitter>();
+        cbCSF.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+        cbCSF.verticalFit   = ContentSizeFitter.FitMode.PreferredSize;
 
-        // Gift column — fixed 110px
-        var giftCol = new GameObject("GiftCol");
-        giftCol.transform.SetParent(outer.transform, false);
-        var gcRT = giftCol.AddComponent<RectTransform>();
-        var gcLE = giftCol.AddComponent<LayoutElement>();
-        gcLE.preferredWidth = 110f; gcLE.minWidth = 110f;     // NO flexibleWidth → stays fixed
-        var giftObj = new GameObject("GiftImg");
-        giftObj.transform.SetParent(giftCol.transform, false);
-        var giftRect = giftObj.AddComponent<RectTransform>();
-        giftRect.anchorMin = new Vector2(0.5f, 0.5f); giftRect.anchorMax = new Vector2(0.5f, 0.5f);
-        giftRect.pivot = new Vector2(0.5f, 0.5f);
-        giftRect.anchoredPosition = Vector2.zero; giftRect.sizeDelta = new Vector2(100f, 100f);
-        var giftImg = giftObj.AddComponent<Image>();
+        // Gift image
+        var giftGo = new GameObject("GiftImg");
+        giftGo.transform.SetParent(contentBlock.transform, false);
+        giftGo.AddComponent<RectTransform>();
+        var giftLE = giftGo.AddComponent<LayoutElement>();
+        giftLE.preferredWidth = 90f; giftLE.minWidth  = 90f;
+        giftLE.preferredHeight= 90f; giftLE.minHeight = 90f;
+        var giftImg = giftGo.AddComponent<Image>();
         giftImg.sprite = LoadGiftSprite();
         giftImg.preserveAspect = true;
 
-        // Text column — fixed 420px (wide enough for the longest line)
+        // Text column (title + 2 subtitles)
         var textCol = new GameObject("TextCol");
-        textCol.transform.SetParent(outer.transform, false);
-        var tcRT = textCol.AddComponent<RectTransform>();
+        textCol.transform.SetParent(contentBlock.transform, false);
+        textCol.AddComponent<RectTransform>();
         var tcLE = textCol.AddComponent<LayoutElement>();
-        tcLE.preferredWidth = 420f; tcLE.minWidth = 300f;     // NO flexibleWidth → stays fixed
+        tcLE.preferredWidth = 380f; tcLE.minWidth    = 260f;
+        tcLE.preferredHeight= 140f; tcLE.minHeight   = 100f;
         var tcVlg = textCol.AddComponent<VerticalLayoutGroup>();
-        tcVlg.spacing = 6f; tcVlg.padding = new RectOffset(0, 0, 0, 0);
+        tcVlg.spacing = 4f; tcVlg.padding = new RectOffset(0, 0, 0, 0);
         tcVlg.childForceExpandWidth = true; tcVlg.childForceExpandHeight = false;
-        tcVlg.childControlWidth = true;    tcVlg.childControlHeight = true;
+        tcVlg.childControlWidth = true;    tcVlg.childControlHeight    = true;
         tcVlg.childAlignment = TextAnchor.MiddleLeft;
 
         dailyChallengeCardMainText = LsMakeVlgText("DCTitle", textCol.transform, 34, FontStyle.Bold,
@@ -724,13 +733,14 @@ public class UIManager : MonoBehaviour
         LsMakeVlgText("DCSub2", textCol.transform, 27, FontStyle.Normal,
             TextMuted, "Complete to earn 1 hint");
 
-        // Arrow column — fixed 30px
-        var arrCol = new GameObject("ArrowCol");
-        arrCol.transform.SetParent(outer.transform, false);
-        var acRT = arrCol.AddComponent<RectTransform>();
-        var acLE = arrCol.AddComponent<LayoutElement>();
-        acLE.preferredWidth = 30f; acLE.minWidth = 30f;       // NO flexibleWidth → stays fixed
-        var arrTxt = arrCol.AddComponent<Text>();
+        // Arrow
+        var arrGo = new GameObject("Arrow");
+        arrGo.transform.SetParent(contentBlock.transform, false);
+        arrGo.AddComponent<RectTransform>();
+        var arrLE = arrGo.AddComponent<LayoutElement>();
+        arrLE.preferredWidth = 36f; arrLE.minWidth  = 36f;
+        arrLE.preferredHeight= 50f; arrLE.minHeight = 50f;
+        var arrTxt = arrGo.AddComponent<Text>();
         arrTxt.font = defaultFont; arrTxt.text = "›"; arrTxt.fontSize = 44;
         arrTxt.fontStyle = FontStyle.Bold; arrTxt.alignment = TextAnchor.MiddleCenter;
         arrTxt.color = new Color(0.35f, 0.35f, 0.35f, 1f);
