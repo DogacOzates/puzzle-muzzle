@@ -808,12 +808,14 @@ public class UIManager : MonoBehaviour
             tabVlg.childControlWidth = true; tabVlg.childControlHeight = true;
             tabVlg.childAlignment = TextAnchor.MiddleCenter;
 
+            float iconSize = (g == 1 || g == 2) ? 40f : 36f;
+
             var iconObj = new GameObject("Icon");
             iconObj.transform.SetParent(tab.transform, false);
             var iconRT = iconObj.AddComponent<RectTransform>();
-            iconRT.sizeDelta = new Vector2(34f, 34f);
+            iconRT.sizeDelta = new Vector2(iconSize, iconSize);
             var iconLE = iconObj.AddComponent<LayoutElement>();
-            iconLE.preferredHeight = 34f; iconLE.minHeight = 34f; iconLE.preferredWidth = 34f;
+            iconLE.preferredHeight = iconSize; iconLE.minHeight = iconSize; iconLE.preferredWidth = iconSize;
             _lsGroupTabIcons[g] = iconObj.AddComponent<Image>();
             _lsGroupTabIcons[g].sprite = GrpSprite[g]();
             _lsGroupTabIcons[g].preserveAspect = true;
@@ -822,10 +824,10 @@ public class UIManager : MonoBehaviour
             var rangeObj = new GameObject("Range");
             rangeObj.transform.SetParent(tab.transform, false);
             var rangeLE = rangeObj.AddComponent<LayoutElement>();
-            rangeLE.preferredHeight = 24f; rangeLE.minHeight = 24f;
+            rangeLE.preferredHeight = 26f; rangeLE.minHeight = 26f;
             _lsGroupTabRanges[g] = rangeObj.AddComponent<Text>();
             _lsGroupTabRanges[g].font = defaultFont; _lsGroupTabRanges[g].text = GrpRange[g];
-            _lsGroupTabRanges[g].fontSize = 17; _lsGroupTabRanges[g].fontStyle = FontStyle.Bold;
+            _lsGroupTabRanges[g].fontSize = 19; _lsGroupTabRanges[g].fontStyle = FontStyle.Bold;
             _lsGroupTabRanges[g].alignment = TextAnchor.MiddleCenter;
             _lsGroupTabRanges[g].color = (g == 0) ? new Color(1f, 1f, 1f, 0.92f) : TextMuted;
         }
