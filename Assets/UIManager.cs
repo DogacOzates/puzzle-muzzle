@@ -683,7 +683,7 @@ public class UIManager : MonoBehaviour
 
         // Horizontal layout inside card
         var outerHlg = outer.AddComponent<HorizontalLayoutGroup>();
-        outerHlg.spacing = 0f;
+        outerHlg.spacing = 12f;
         outerHlg.padding = new RectOffset(10, 10, 16, 16);
         outerHlg.childForceExpandWidth = false; outerHlg.childForceExpandHeight = true;
         outerHlg.childControlWidth = true; outerHlg.childControlHeight = true;
@@ -798,7 +798,7 @@ public class UIManager : MonoBehaviour
             _lsGroupTabIcons[g] = iconObj.AddComponent<Image>();
             _lsGroupTabIcons[g].sprite = GrpSprite[g]();
             _lsGroupTabIcons[g].preserveAspect = true;
-            _lsGroupTabIcons[g].color = Color.white;
+            _lsGroupTabIcons[g].color = (g == 0) ? Color.white : TextDark;
 
             var rangeObj = new GameObject("Range");
             rangeObj.transform.SetParent(tab.transform, false);
@@ -807,7 +807,7 @@ public class UIManager : MonoBehaviour
             _lsGroupTabRanges[g] = rangeObj.AddComponent<Text>();
             _lsGroupTabRanges[g].font = defaultFont; _lsGroupTabRanges[g].text = GrpRange[g];
             _lsGroupTabRanges[g].fontSize = 18; _lsGroupTabRanges[g].alignment = TextAnchor.MiddleCenter;
-            _lsGroupTabRanges[g].color = new Color(1f, 1f, 1f, 0.75f);
+            _lsGroupTabRanges[g].color = (g == 0) ? new Color(1f, 1f, 1f, 0.9f) : TextMuted;
         }
     }
 
@@ -914,15 +914,20 @@ public class UIManager : MonoBehaviour
                 btn.onClick.AddListener(() => FindAnyObjectByType<GameManager>().SelectLevel(levelIndex));
 
                 // Number label
+                bool isTriGroup = (groupIndex == 3);
                 var lblObj = new GameObject("N"); lblObj.transform.SetParent(cell.transform, false);
                 var lblRect = lblObj.AddComponent<RectTransform>();
                 lblRect.anchorMin = new Vector2(0.5f, 0.5f); lblRect.anchorMax = new Vector2(0.5f, 0.5f);
                 lblRect.pivot = new Vector2(0.5f, 0.5f);
-                lblRect.anchoredPosition = new Vector2(0f, 10f);
-                lblRect.sizeDelta = new Vector2(BtnSize - 12f, 44f);
+                lblRect.anchoredPosition = new Vector2(0f, isTriGroup ? 0f : 10f);
+                lblRect.sizeDelta = new Vector2(isTriGroup ? 78f : BtnSize - 12f, 40f);
                 var lbl = lblObj.AddComponent<Text>();
-                lbl.font = defaultFont; lbl.fontSize = 30; lbl.fontStyle = FontStyle.Bold;
+                lbl.font = defaultFont; lbl.fontStyle = FontStyle.Bold;
                 lbl.alignment = TextAnchor.MiddleCenter; lbl.color = TextDark;
+                lbl.resizeTextForBestFit = true;
+                lbl.resizeTextMinSize = isTriGroup ? 14 : 18;
+                lbl.resizeTextMaxSize = isTriGroup ? 24 : 30;
+                lbl.fontSize = lbl.resizeTextMaxSize;
                 lbl.text = (idx + 1).ToString();
 
                 // Lock label (hidden by default)
@@ -957,8 +962,8 @@ public class UIManager : MonoBehaviour
         {
             bool active = (i == g);
             if (_lsGroupTabBgs[i]    != null) _lsGroupTabBgs[i].color    = active ? BtnTeal : new Color(0.87f, 0.85f, 0.82f, 1f);
-            if (_lsGroupTabIcons[i]  != null) _lsGroupTabIcons[i].color  = Color.white;
-            if (_lsGroupTabRanges[i] != null) _lsGroupTabRanges[i].color = active ? new Color(1f, 1f, 1f, 0.9f) : new Color(1f, 1f, 1f, 0.75f);
+            if (_lsGroupTabIcons[i]  != null) _lsGroupTabIcons[i].color  = active ? Color.white : TextDark;
+            if (_lsGroupTabRanges[i] != null) _lsGroupTabRanges[i].color = active ? new Color(1f, 1f, 1f, 0.9f) : TextMuted;
             if (_lsGroupGridRoots[i] != null) _lsGroupGridRoots[i].gameObject.SetActive(active);
         }
         LsRefreshProgressBar(g);
