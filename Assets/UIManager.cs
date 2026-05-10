@@ -719,24 +719,34 @@ public class UIManager : MonoBehaviour
         arrTxt.fontStyle = FontStyle.Bold; arrTxt.alignment = TextAnchor.MiddleCenter;
         arrTxt.color = new Color(0.45f, 0.45f, 0.45f, 1f);
 
-        // Text area: stretches between gift (left=126) and arrow (right=72), full height
+        // Text area: stretches between gift and arrow.
         var textCol = new GameObject("TextCol");
         textCol.transform.SetParent(outer.transform, false);
         var textRT = textCol.AddComponent<RectTransform>();
         textRT.anchorMin = new Vector2(0f, 0f); textRT.anchorMax = new Vector2(1f, 1f);
         textRT.offsetMin = new Vector2(150f, 8f);   // 20(pad) + 90(gift) + 40(gap)
         textRT.offsetMax = new Vector2(-72f, -8f);  // -(14+44+14)
-        var tcVlg = textCol.AddComponent<VerticalLayoutGroup>();
+        
+        // Keep the text as a centered block instead of hugging the far left.
+        var textInner = new GameObject("TextInner");
+        textInner.transform.SetParent(textCol.transform, false);
+        var textInnerRT = textInner.AddComponent<RectTransform>();
+        textInnerRT.anchorMin = new Vector2(0.5f, 0.5f);
+        textInnerRT.anchorMax = new Vector2(0.5f, 0.5f);
+        textInnerRT.pivot = new Vector2(0.5f, 0.5f);
+        textInnerRT.anchoredPosition = new Vector2(-56f, 0f);
+        textInnerRT.sizeDelta = new Vector2(500f, 124f);
+        var tcVlg = textInner.AddComponent<VerticalLayoutGroup>();
         tcVlg.spacing = 4f; tcVlg.padding = new RectOffset(0, 0, 0, 0);
         tcVlg.childForceExpandWidth = true; tcVlg.childForceExpandHeight = false;
         tcVlg.childControlWidth = true;    tcVlg.childControlHeight    = true;
         tcVlg.childAlignment = TextAnchor.MiddleLeft;
 
-        dailyChallengeCardMainText = LsMakeVlgText("DCTitle", textCol.transform, 34, FontStyle.Bold,
+        dailyChallengeCardMainText = LsMakeVlgText("DCTitle", textInner.transform, 34, FontStyle.Bold,
             new Color(0.15f, 0.52f, 0.48f, 1f), "Daily Challenge");
-        dailyChallengeCardSubText = LsMakeVlgText("DCSub1", textCol.transform, 27, FontStyle.Normal,
+        dailyChallengeCardSubText = LsMakeVlgText("DCSub1", textInner.transform, 27, FontStyle.Normal,
             TextMuted, "A new puzzle every day");
-        LsMakeVlgText("DCSub2", textCol.transform, 27, FontStyle.Normal,
+        LsMakeVlgText("DCSub2", textInner.transform, 27, FontStyle.Normal,
             TextMuted, "Complete to earn 1 hint!");
     }
 
