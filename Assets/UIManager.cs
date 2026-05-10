@@ -682,46 +682,34 @@ public class UIManager : MonoBehaviour
         dcBtn.onClick.AddListener(() => FindAnyObjectByType<GameManager>().PlayDailyChallenge());
         dailyChallengeCardButton = dcBtn;
 
-        // Content block: shrinks to fit its children, then is pinned to the CENTER of outer.
-        // This guarantees horizontal centering regardless of canvas width.
-        var contentBlock = new GameObject("ContentBlock");
-        contentBlock.transform.SetParent(outer.transform, false);
-        var cbRT = contentBlock.AddComponent<RectTransform>();
-        cbRT.anchorMin = new Vector2(0.5f, 0.5f);   // center anchor
-        cbRT.anchorMax = new Vector2(0.5f, 0.5f);
-        cbRT.pivot     = new Vector2(0.5f, 0.5f);   // pivot at center
-        cbRT.anchoredPosition = Vector2.zero;
-        cbRT.sizeDelta = new Vector2(560f, 140f);    // initial guess; ContentSizeFitter overrides
-        var cbHlg = contentBlock.AddComponent<HorizontalLayoutGroup>();
-        cbHlg.spacing = 16f;
-        cbHlg.padding = new RectOffset(0, 0, 0, 0);
-        cbHlg.childForceExpandWidth = false; cbHlg.childForceExpandHeight = false;
-        cbHlg.childControlWidth    = true;  cbHlg.childControlHeight    = true;
-        cbHlg.childAlignment       = TextAnchor.MiddleCenter;
-        var cbCSF = contentBlock.AddComponent<ContentSizeFitter>();
-        cbCSF.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
-        cbCSF.verticalFit   = ContentSizeFitter.FitMode.PreferredSize;
+        // Layout: [gift | text (fills middle) | arrow]
+        // gift and arrow are fixed-width; text expands to fill the rest.
+        var hlg = outer.AddComponent<HorizontalLayoutGroup>();
+        hlg.spacing = 16f;
+        hlg.padding = new RectOffset(20, 12, 0, 0);
+        hlg.childForceExpandWidth = false; hlg.childForceExpandHeight = true;
+        hlg.childControlWidth    = true;  hlg.childControlHeight    = true;
+        hlg.childAlignment       = TextAnchor.MiddleLeft;
 
-        // Gift image
+        // Gift icon — fixed 90×90, left side
         var giftGo = new GameObject("GiftImg");
-        giftGo.transform.SetParent(contentBlock.transform, false);
+        giftGo.transform.SetParent(outer.transform, false);
         giftGo.AddComponent<RectTransform>();
         var giftLE = giftGo.AddComponent<LayoutElement>();
-        giftLE.preferredWidth = 90f; giftLE.minWidth  = 90f;
-        giftLE.preferredHeight= 90f; giftLE.minHeight = 90f;
+        giftLE.preferredWidth = 90f; giftLE.minWidth   = 90f; giftLE.flexibleWidth = 0f;
+        giftLE.preferredHeight= 90f; giftLE.minHeight  = 90f;
         var giftImg = giftGo.AddComponent<Image>();
         giftImg.sprite = LoadGiftSprite();
         giftImg.preserveAspect = true;
 
-        // Text column (title + 2 subtitles)
+        // Text column — expands to fill space between gift and arrow
         var textCol = new GameObject("TextCol");
-        textCol.transform.SetParent(contentBlock.transform, false);
+        textCol.transform.SetParent(outer.transform, false);
         textCol.AddComponent<RectTransform>();
         var tcLE = textCol.AddComponent<LayoutElement>();
-        tcLE.preferredWidth = 380f; tcLE.minWidth    = 260f;
-        tcLE.preferredHeight= 140f; tcLE.minHeight   = 100f;
+        tcLE.preferredWidth = 200f; tcLE.minWidth = 140f; tcLE.flexibleWidth = 1f;
         var tcVlg = textCol.AddComponent<VerticalLayoutGroup>();
-        tcVlg.spacing = 4f; tcVlg.padding = new RectOffset(0, 0, 0, 0);
+        tcVlg.spacing = 6f; tcVlg.padding = new RectOffset(0, 0, 0, 0);
         tcVlg.childForceExpandWidth = true; tcVlg.childForceExpandHeight = false;
         tcVlg.childControlWidth = true;    tcVlg.childControlHeight    = true;
         tcVlg.childAlignment = TextAnchor.MiddleLeft;
@@ -733,17 +721,17 @@ public class UIManager : MonoBehaviour
         LsMakeVlgText("DCSub2", textCol.transform, 27, FontStyle.Normal,
             TextMuted, "Complete to earn 1 hint");
 
-        // Arrow
+        // Arrow — fixed width, right side
         var arrGo = new GameObject("Arrow");
-        arrGo.transform.SetParent(contentBlock.transform, false);
+        arrGo.transform.SetParent(outer.transform, false);
         arrGo.AddComponent<RectTransform>();
         var arrLE = arrGo.AddComponent<LayoutElement>();
-        arrLE.preferredWidth = 36f; arrLE.minWidth  = 36f;
-        arrLE.preferredHeight= 50f; arrLE.minHeight = 50f;
+        arrLE.preferredWidth = 44f; arrLE.minWidth   = 44f; arrLE.flexibleWidth = 0f;
+        arrLE.preferredHeight= 60f; arrLE.minHeight  = 60f;
         var arrTxt = arrGo.AddComponent<Text>();
-        arrTxt.font = defaultFont; arrTxt.text = "›"; arrTxt.fontSize = 44;
+        arrTxt.font = defaultFont; arrTxt.text = "›"; arrTxt.fontSize = 50;
         arrTxt.fontStyle = FontStyle.Bold; arrTxt.alignment = TextAnchor.MiddleCenter;
-        arrTxt.color = new Color(0.35f, 0.35f, 0.35f, 1f);
+        arrTxt.color = new Color(0.45f, 0.45f, 0.45f, 1f);
     }
 
     private Text LsMakeVlgText(string name, Transform parent, int size, FontStyle style, Color color, string text)
