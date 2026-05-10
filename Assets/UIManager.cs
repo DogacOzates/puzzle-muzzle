@@ -771,48 +771,39 @@ public class UIManager : MonoBehaviour
         var row = new GameObject("GroupTabs");
         row.transform.SetParent(parent, false);
         var rowLE = row.AddComponent<LayoutElement>();
-        rowLE.preferredHeight = 104f; rowLE.minHeight = 104f; rowLE.flexibleWidth = 1f;
-
-        var frame = new GameObject("TabsFrame");
-        frame.transform.SetParent(row.transform, false);
-        var frameRT = frame.AddComponent<RectTransform>();
-        frameRT.anchorMin = new Vector2(0f, 0f); frameRT.anchorMax = new Vector2(1f, 1f);
-        frameRT.offsetMin = new Vector2(20f, 12f); frameRT.offsetMax = new Vector2(-20f, -8f);
-        var frameImg = frame.AddComponent<Image>();
-        frameImg.sprite = SpriteGenerator.RoundedRect;
-        frameImg.color = new Color(0.97f, 0.96f, 0.94f, 1f);
-        var hlg = frame.AddComponent<HorizontalLayoutGroup>();
-        hlg.spacing = 0f;
-        hlg.padding = new RectOffset(6, 6, 6, 6);
-        hlg.childForceExpandWidth = true; hlg.childForceExpandHeight = true;
-        hlg.childControlWidth = true; hlg.childControlHeight = true;
+        rowLE.preferredHeight = 110f; rowLE.minHeight = 110f; rowLE.flexibleWidth = 1f;
+        var hlg = row.AddComponent<HorizontalLayoutGroup>();
+        hlg.spacing = 12f;
+        hlg.padding = new RectOffset(20, 20, 14, 10);
+        hlg.childForceExpandWidth = true; hlg.childForceExpandHeight = false;
+        hlg.childControlWidth = true; hlg.childControlHeight = false;
         hlg.childAlignment = TextAnchor.MiddleCenter;
 
         for (int g = 0; g < 4; g++)
         {
             int grp = g;
             var tab = new GameObject($"Tab{g}");
-            tab.transform.SetParent(frame.transform, false);
+            tab.transform.SetParent(row.transform, false);
             var tabRT = tab.AddComponent<RectTransform>();
-            tabRT.sizeDelta = new Vector2(0f, 72f);
+            tabRT.sizeDelta = new Vector2(0f, 86f);
             var tabLE = tab.AddComponent<LayoutElement>();
-            tabLE.flexibleWidth = 1f; tabLE.preferredHeight = 72f; tabLE.minHeight = 72f;
+            tabLE.flexibleWidth = 1f; tabLE.preferredHeight = 86f; tabLE.minHeight = 86f;
             var tabImg = tab.AddComponent<Image>();
             tabImg.sprite = SpriteGenerator.RoundedRect;
-            tabImg.color = (g == 0) ? BtnTeal : Color.clear;
+            tabImg.color = (g == 0) ? BtnTeal : new Color(0.97f, 0.96f, 0.94f, 1f);
             _lsGroupTabBgs[g] = tabImg;
             var tabBtn = tab.AddComponent<Button>();
             tabBtn.targetGraphic = tabImg;
             _lsGroupTabButtons[g] = tabBtn;
             var tc = tabBtn.colors;
-            tc.highlightedColor = (g == 0) ? Color.Lerp(BtnTeal, Color.white, 0.08f) : new Color(0.95f, 0.93f, 0.90f, 1f);
-            tc.pressedColor = (g == 0) ? Color.Lerp(BtnTeal, Color.black, 0.08f) : new Color(0.91f, 0.89f, 0.86f, 1f);
+            tc.highlightedColor = (g == 0) ? Color.Lerp(BtnTeal, Color.white, 0.08f) : new Color(0.99f, 0.98f, 0.96f, 1f);
+            tc.pressedColor = (g == 0) ? Color.Lerp(BtnTeal, Color.black, 0.08f) : new Color(0.93f, 0.91f, 0.88f, 1f);
             tabBtn.colors = tc;
             tabBtn.onClick.AddListener(() => LsSwitchGroupTab(grp));
 
             var tabVlg = tab.AddComponent<VerticalLayoutGroup>();
-            tabVlg.spacing = 4f;
-            tabVlg.padding = new RectOffset(4, 4, 8, 8);
+            tabVlg.spacing = 6f;
+            tabVlg.padding = new RectOffset(4, 4, 12, 10);
             tabVlg.childForceExpandWidth = true; tabVlg.childForceExpandHeight = false;
             tabVlg.childControlWidth = true; tabVlg.childControlHeight = true;
             tabVlg.childAlignment = TextAnchor.MiddleCenter;
@@ -820,9 +811,9 @@ public class UIManager : MonoBehaviour
             var iconObj = new GameObject("Icon");
             iconObj.transform.SetParent(tab.transform, false);
             var iconRT = iconObj.AddComponent<RectTransform>();
-            iconRT.sizeDelta = new Vector2(30f, 30f);
+            iconRT.sizeDelta = new Vector2(34f, 34f);
             var iconLE = iconObj.AddComponent<LayoutElement>();
-            iconLE.preferredHeight = 30f; iconLE.minHeight = 30f; iconLE.preferredWidth = 30f;
+            iconLE.preferredHeight = 34f; iconLE.minHeight = 34f; iconLE.preferredWidth = 34f;
             _lsGroupTabIcons[g] = iconObj.AddComponent<Image>();
             _lsGroupTabIcons[g].sprite = GrpSprite[g]();
             _lsGroupTabIcons[g].preserveAspect = true;
@@ -831,23 +822,12 @@ public class UIManager : MonoBehaviour
             var rangeObj = new GameObject("Range");
             rangeObj.transform.SetParent(tab.transform, false);
             var rangeLE = rangeObj.AddComponent<LayoutElement>();
-            rangeLE.preferredHeight = 18f; rangeLE.minHeight = 18f;
+            rangeLE.preferredHeight = 20f; rangeLE.minHeight = 20f;
             _lsGroupTabRanges[g] = rangeObj.AddComponent<Text>();
             _lsGroupTabRanges[g].font = defaultFont; _lsGroupTabRanges[g].text = GrpRange[g];
-            _lsGroupTabRanges[g].fontSize = 14; _lsGroupTabRanges[g].fontStyle = FontStyle.Normal;
+            _lsGroupTabRanges[g].fontSize = 14; _lsGroupTabRanges[g].fontStyle = FontStyle.Bold;
             _lsGroupTabRanges[g].alignment = TextAnchor.MiddleCenter;
-            _lsGroupTabRanges[g].color = (g == 0) ? new Color(1f, 1f, 1f, 0.92f) : new Color(TextDark.r, TextDark.g, TextDark.b, 0.88f);
-
-            if (g < 3)
-            {
-                var sep = new GameObject($"Sep{g}");
-                sep.transform.SetParent(frame.transform, false);
-                sep.AddComponent<RectTransform>().sizeDelta = new Vector2(1.5f, 54f);
-                var sepLE = sep.AddComponent<LayoutElement>();
-                sepLE.preferredWidth = 2f; sepLE.minWidth = 2f; sepLE.preferredHeight = 54f;
-                var sepImg = sep.AddComponent<Image>();
-                sepImg.color = new Color(0.89f, 0.87f, 0.84f, 1f);
-            }
+            _lsGroupTabRanges[g].color = (g == 0) ? new Color(1f, 1f, 1f, 0.92f) : TextMuted;
         }
     }
 
@@ -1010,12 +990,12 @@ public class UIManager : MonoBehaviour
         {
             bool active = (i == g);
             if (_lsGroupTabBgs[i] != null)
-                _lsGroupTabBgs[i].color = active ? BtnTeal : Color.clear;
+                _lsGroupTabBgs[i].color = active ? BtnTeal : new Color(0.97f, 0.96f, 0.94f, 1f);
             if (_lsGroupTabButtons[i] != null)
             {
                 var tc = _lsGroupTabButtons[i].colors;
-                tc.highlightedColor = active ? Color.Lerp(BtnTeal, Color.white, 0.08f) : new Color(0.95f, 0.93f, 0.90f, 1f);
-                tc.pressedColor = active ? Color.Lerp(BtnTeal, Color.black, 0.08f) : new Color(0.91f, 0.89f, 0.86f, 1f);
+                tc.highlightedColor = active ? Color.Lerp(BtnTeal, Color.white, 0.08f) : new Color(0.99f, 0.98f, 0.96f, 1f);
+                tc.pressedColor = active ? Color.Lerp(BtnTeal, Color.black, 0.08f) : new Color(0.93f, 0.91f, 0.88f, 1f);
                 _lsGroupTabButtons[i].colors = tc;
             }
             if (_lsGroupTabIconChips[i] != null)
@@ -1027,7 +1007,7 @@ public class UIManager : MonoBehaviour
             if (_lsGroupTabTitles[i] != null)
                 _lsGroupTabTitles[i].color = active ? Color.white : TextDark;
             if (_lsGroupTabRanges[i] != null)
-                _lsGroupTabRanges[i].color = active ? new Color(1f, 1f, 1f, 0.92f) : new Color(TextDark.r, TextDark.g, TextDark.b, 0.88f);
+                _lsGroupTabRanges[i].color = active ? new Color(1f, 1f, 1f, 0.92f) : TextMuted;
             if (_lsGroupGridRoots[i] != null) _lsGroupGridRoots[i].gameObject.SetActive(active);
         }
         LsRefreshProgressBar(g);
