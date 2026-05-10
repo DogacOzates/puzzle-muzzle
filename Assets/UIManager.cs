@@ -59,6 +59,12 @@ public class UIManager : MonoBehaviour
     private Text[] _lsLockLabels;
     private Transform[] _lsGroupGridRoots = new Transform[4];
 
+    // Lazy-load data for group grids (built on first tab switch, not all at startup)
+    private Transform _lsContentParent;
+    private readonly Sprite[]  _lsGroupSpritesLazy = new Sprite[4];
+    private readonly int[]     _lsGroupStart        = new int[4];
+    private readonly int[]     _lsGroupEnd          = new int[4];
+
     private Canvas canvas;
     private RectTransform safeAreaRect;
     private Font defaultFont;
@@ -649,10 +655,14 @@ public class UIManager : MonoBehaviour
         levelSelectButtonLabels = new Text[LevelDatabase.TotalLevels];
         _lsLockLabels           = new Text[LevelDatabase.TotalLevels];
 
-        LsBuildGroupGrid(content.transform, 0, SpriteGenerator.RoundedRect,   0,   299);
-        LsBuildGroupGrid(content.transform, 1, SpriteGenerator.Pentagon,      300, 599);
-        LsBuildGroupGrid(content.transform, 2, SpriteGenerator.FlatHexagon,   600, 899);
-        LsBuildGroupGrid(content.transform, 3, SpriteGenerator.Triangle,      900, 1199);
+        // Store lazy-load params — only group 0 is built now; others built on first tab switch.
+        _lsContentParent = content.transform;
+        _lsGroupSpritesLazy[0] = SpriteGenerator.RoundedRect; _lsGroupStart[0] = 0;   _lsGroupEnd[0] = 299;
+        _lsGroupSpritesLazy[1] = SpriteGenerator.Pentagon;    _lsGroupStart[1] = 300; _lsGroupEnd[1] = 599;
+        _lsGroupSpritesLazy[2] = SpriteGenerator.FlatHexagon; _lsGroupStart[2] = 600; _lsGroupEnd[2] = 899;
+        _lsGroupSpritesLazy[3] = SpriteGenerator.Triangle;    _lsGroupStart[3] = 900; _lsGroupEnd[3] = 1199;
+
+        LsBuildGroupGrid(_lsContentParent, 0, _lsGroupSpritesLazy[0], _lsGroupStart[0], _lsGroupEnd[0]);
 
         levelSelectPanel = panelObj;
         levelSelectPanel.SetActive(false);
@@ -952,6 +962,14 @@ public class UIManager : MonoBehaviour
     private void LsSwitchGroupTab(int g)
     {
         _lsActiveGroup = g;
+
+        // Lazy-build this group's grid the first time its tab is selected
+        if (_lsGroupGridRoots[g] == null && _lsContentParent != null)
+        {
+            LsBuildGroupGrid(_lsContentParent, g, _lsGroupSpritesLazy[g], _lsGroupStart[g], _lsGroupEnd[g]);
+            if (_lsTotalLevels > 0)
+                RefreshLevelSelectButtons(_lsCurrentIdx, _lsHighestUnlocked, _lsTotalLevels);
+        }
         for (int i = 0; i < 4; i++)
         {
             bool active = (i == g);
