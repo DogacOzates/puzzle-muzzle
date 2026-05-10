@@ -714,7 +714,7 @@ public class UIManager : MonoBehaviour
         textCol.transform.SetParent(outer.transform, false);
         var textRT = textCol.AddComponent<RectTransform>();
         textRT.anchorMin = new Vector2(0f, 0f); textRT.anchorMax = new Vector2(1f, 1f);
-        textRT.offsetMin = new Vector2(126f, 8f);   // 20(pad) + 90(gift) + 16(gap)
+        textRT.offsetMin = new Vector2(150f, 8f);   // 20(pad) + 90(gift) + 40(gap)
         textRT.offsetMax = new Vector2(-72f, -8f);  // -(14+44+14)
         var tcVlg = textCol.AddComponent<VerticalLayoutGroup>();
         tcVlg.spacing = 4f; tcVlg.padding = new RectOffset(0, 0, 0, 0);
