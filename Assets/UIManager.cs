@@ -727,7 +727,7 @@ public class UIManager : MonoBehaviour
         dailyChallengeCardSubText = LsMakeVlgText("DCSub1", textCol.transform, 27, FontStyle.Normal,
             TextMuted, "A new puzzle every day");
         LsMakeVlgText("DCSub2", textCol.transform, 27, FontStyle.Normal,
-            TextMuted, "Complete to earn 1 hint");
+            TextMuted, "Complete to earn 1 hint!");
     }
 
     private Text LsMakeVlgText(string name, Transform parent, int size, FontStyle style, Color color, string text)
