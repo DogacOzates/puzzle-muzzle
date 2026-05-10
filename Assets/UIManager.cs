@@ -824,10 +824,10 @@ public class UIManager : MonoBehaviour
             var rangeObj = new GameObject("Range");
             rangeObj.transform.SetParent(tab.transform, false);
             var rangeLE = rangeObj.AddComponent<LayoutElement>();
-            rangeLE.preferredHeight = 26f; rangeLE.minHeight = 26f;
+            rangeLE.preferredHeight = 28f; rangeLE.minHeight = 28f;
             _lsGroupTabRanges[g] = rangeObj.AddComponent<Text>();
             _lsGroupTabRanges[g].font = defaultFont; _lsGroupTabRanges[g].text = GrpRange[g];
-            _lsGroupTabRanges[g].fontSize = 19; _lsGroupTabRanges[g].fontStyle = FontStyle.Bold;
+            _lsGroupTabRanges[g].fontSize = 21; _lsGroupTabRanges[g].fontStyle = FontStyle.Bold;
             _lsGroupTabRanges[g].alignment = TextAnchor.MiddleCenter;
             _lsGroupTabRanges[g].color = (g == 0) ? new Color(1f, 1f, 1f, 0.92f) : TextMuted;
         }
