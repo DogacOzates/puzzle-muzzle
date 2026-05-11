@@ -205,7 +205,12 @@ public class GameManager : MonoBehaviour
 
         if (index == 0)
             StartTutorial(true);
-        else if (index == 1 && PlayerPrefs.GetInt("tutorial.v2.done", 0) == 0)
+        else if (index == 1
+#if UNITY_EDITOR
+            )
+#else
+            && PlayerPrefs.GetInt("tutorial.v2.done", 0) == 0)
+#endif
             StartTutorial(false);
     }
 
