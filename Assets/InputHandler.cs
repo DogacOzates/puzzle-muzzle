@@ -18,6 +18,7 @@ public class InputHandler : MonoBehaviour
 
     void Update()
     {
+        if (gridManager == null || !gridManager.HasGrid) return;
         if (gameManager.IsLevelComplete) return;
         if (gameManager.IsTutorialRunning) return;
 

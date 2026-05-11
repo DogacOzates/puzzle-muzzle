@@ -36,6 +36,7 @@ public class GridManager : MonoBehaviour
 
     private Cell[,] cells;
     private GameObject gridContainer;
+    public bool HasGrid => cells != null;
 
     // Active selection chain
     public List<Cell> ActiveChain { get; private set; } = new List<Cell>();
@@ -634,12 +635,12 @@ public class GridManager : MonoBehaviour
 
     public bool IsValidGridPos(int x, int y)
     {
-        return x >= 0 && x < GridWidth && y >= 0 && y < GridHeight;
+        return cells != null && x >= 0 && x < GridWidth && y >= 0 && y < GridHeight;
     }
 
     public Cell GetCell(int x, int y)
     {
-        if (!IsValidGridPos(x, y)) return null;
+        if (cells == null || !IsValidGridPos(x, y)) return null;
         return cells[x, y];
     }
 
@@ -662,6 +663,8 @@ public class GridManager : MonoBehaviour
         if (gridContainer != null)
             Destroy(gridContainer);
 
+        GridWidth = 0;
+        GridHeight = 0;
         cells = null;
     }
 
