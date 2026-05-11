@@ -47,9 +47,6 @@ public class GameManager : MonoBehaviour
         Application.targetFrameRate = 60;
         QualitySettings.vSyncCount = 0;
 
-        // Flush cached levels so any generation-logic fix is always picked up.
-        LevelDatabase.InvalidateCache();
-
         SetupCamera();
 
         var audioObj = new GameObject("AudioManager");
@@ -178,7 +175,7 @@ public class GameManager : MonoBehaviour
 
     public void LoadLevel(int index)
     {
-        if (index < 0 || index >= LevelDatabase.Levels.Length)
+        if (index < 0 || index >= LevelDatabase.TotalLevels)
         {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             Debug.Log("All levels completed!");
@@ -192,11 +189,11 @@ public class GameManager : MonoBehaviour
 
         AudioManager.Instance?.OnChainReset();
 
-        LevelData level = LevelDatabase.Levels[index];
+        LevelData level = LevelDatabase.GetLevel(index);
         gridManager.Initialize(level);
         AdjustCameraToGrid();
 
-        uiManager.SetLevelInfo(level.levelName, index, LevelDatabase.Levels.Length);
+        uiManager.SetLevelInfo(level.levelName, index, LevelDatabase.TotalLevels);
         uiManager.HideLevelComplete();
         uiManager.HideLevelSelect();
 
@@ -231,7 +228,7 @@ public class GameManager : MonoBehaviour
 
     public void SaveProgressTo(int toIndex)
     {
-        int maxLevelIndex = LevelDatabase.Levels.Length - 1;
+        int maxLevelIndex = LevelDatabase.TotalLevels - 1;
         toIndex = Mathf.Clamp(toIndex, 0, maxLevelIndex);
         if (toIndex > PlayerPrefs.GetInt(SavedLevelIndexKey, 0))
         {
@@ -342,7 +339,7 @@ public class GameManager : MonoBehaviour
             return;
         }
 
-        uiManager.ShowLevelSelect(currentLevelIndex, GetHighestUnlockedLevelIndex(), LevelDatabase.Levels.Length);
+        uiManager.ShowLevelSelect(currentLevelIndex, GetHighestUnlockedLevelIndex(), LevelDatabase.TotalLevels);
         uiManager.UpdateDailyChallengeCard();
     }
 
@@ -447,7 +444,7 @@ public class GameManager : MonoBehaviour
     private void GrantHint()
     {
         if (gridManager == null) return;
-        LevelData level = LevelDatabase.Levels[currentLevelIndex];
+        LevelData level = LevelDatabase.GetLevel(currentLevelIndex);
         if (gridManager.SolveHint(level.solutions))
         {
             if (monetizationManager != null && !monetizationManager.IsNoAdsPurchased &&
@@ -481,13 +478,13 @@ public class GameManager : MonoBehaviour
 
     private int LoadSavedLevelIndex()
     {
-        int maxLevelIndex = LevelDatabase.Levels.Length - 1;
+        int maxLevelIndex = LevelDatabase.TotalLevels - 1;
         return Mathf.Clamp(PlayerPrefs.GetInt(SavedLevelIndexKey, 0), 0, maxLevelIndex);
     }
 
     private int GetHighestUnlockedLevelIndex()
     {
-        int maxLevelIndex = LevelDatabase.Levels.Length - 1;
+        int maxLevelIndex = LevelDatabase.TotalLevels - 1;
         // Use only the saved progress — never currentLevelIndex.
         // This ensures daily challenge level never inflates campaign unlock count.
         return Mathf.Clamp(LoadSavedLevelIndex(), 0, maxLevelIndex);
@@ -495,7 +492,7 @@ public class GameManager : MonoBehaviour
 
     private void SaveProgressForNextLevel()
     {
-        int maxLevelIndex = LevelDatabase.Levels.Length - 1;
+        int maxLevelIndex = LevelDatabase.TotalLevels - 1;
         int savedLevelIndex = Mathf.Min(currentLevelIndex + 1, maxLevelIndex);
 
         if (savedLevelIndex <= PlayerPrefs.GetInt(SavedLevelIndexKey, 0))
@@ -511,7 +508,7 @@ public class GameManager : MonoBehaviour
         if (isLevelTransitionRunning)
             return;
 
-        if (index < 0 || index >= LevelDatabase.Levels.Length)
+        if (index < 0 || index >= LevelDatabase.TotalLevels)
         {
             LoadLevel(index);
             return;

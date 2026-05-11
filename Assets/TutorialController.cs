@@ -167,7 +167,7 @@ public class TutorialController : MonoBehaviour
 
     private IEnumerator PlayPreTutorial()
     {
-        LevelData level = LevelDatabase.Levels[0];
+        LevelData level = LevelDatabase.GetLevel(0);
 
         SetHintText("Tap each cell the hand points to!\nMake a path that ends on the number.");
         yield return new WaitForSeconds(0.8f);
@@ -188,7 +188,7 @@ public class TutorialController : MonoBehaviour
 
     private IEnumerator PlayMainTutorial()
     {
-        LevelData level = LevelDatabase.Levels[1];
+        LevelData level = LevelDatabase.GetLevel(1);
 
         SetHintText("Follow the hand!\nFill ALL cells to complete the level.");
         yield return new WaitForSeconds(0.6f);

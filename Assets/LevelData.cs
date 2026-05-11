@@ -77,31 +77,77 @@ public static class LevelDatabase
     // Call this whenever generation logic changes to flush the in-memory cache.
     public static void InvalidateCache() => _levels = null;
 
+    public static LevelData GetLevel(int index)
+    {
+        if (index < 0 || index >= TotalLevels)
+            return null;
+
+        EnsureInitialized();
+        if (_levels[index] == null)
+            EnsureCampaignLoaded(index);
+        return _levels[index];
+    }
+
     public static LevelData[] Levels
     {
         get
         {
-            if (_levels == null)
-            {
-                _levels = new LevelData[TotalLevels];
-                _levels[0] = PreTutorialLevel();
-                _levels[1] = TutorialLevel();
-                _levels[2] = SecondLevel();
-                LevelData[] generatedLevels = LevelGenerator.GenerateCampaign(297);
-                for (int i = 3; i < 300; i++)
-                    _levels[i] = generatedLevels[i - 3];
-                LevelData[] pentagonLevels = LevelGenerator.GeneratePentagonCampaign(300);
-                for (int i = 0; i < 300; i++)
-                    _levels[300 + i] = pentagonLevels[i];
-                LevelData[] hexagonLevels = LevelGenerator.GenerateHexagonCampaign(300);
-                for (int i = 0; i < 300; i++)
-                    _levels[600 + i] = hexagonLevels[i];
-                LevelData[] threeGenLevels = LevelGenerator.GenerateThreeGenCampaign(300);
-                for (int i = 0; i < 300; i++)
-                    _levels[900 + i] = threeGenLevels[i];
-            }
+            EnsureInitialized();
+            EnsureAllLoaded();
             return _levels;
         }
+    }
+
+    private static void EnsureInitialized()
+    {
+        if (_levels != null) return;
+
+        _levels = new LevelData[TotalLevels];
+        _levels[0] = PreTutorialLevel();
+        _levels[1] = TutorialLevel();
+        _levels[2] = SecondLevel();
+    }
+
+    private static void EnsureCampaignLoaded(int index)
+    {
+        if (index < 3) return;
+
+        if (index < 300)
+        {
+            if (_levels[3] != null) return;
+            LevelData[] generatedLevels = LevelGenerator.GenerateCampaign(297);
+            for (int i = 3; i < 300; i++)
+                _levels[i] = generatedLevels[i - 3];
+        }
+        else if (index < 600)
+        {
+            if (_levels[300] != null) return;
+            LevelData[] pentagonLevels = LevelGenerator.GeneratePentagonCampaign(300);
+            for (int i = 0; i < 300; i++)
+                _levels[300 + i] = pentagonLevels[i];
+        }
+        else if (index < 900)
+        {
+            if (_levels[600] != null) return;
+            LevelData[] hexagonLevels = LevelGenerator.GenerateHexagonCampaign(300);
+            for (int i = 0; i < 300; i++)
+                _levels[600 + i] = hexagonLevels[i];
+        }
+        else
+        {
+            if (_levels[900] != null) return;
+            LevelData[] threeGenLevels = LevelGenerator.GenerateThreeGenCampaign(300);
+            for (int i = 0; i < 300; i++)
+                _levels[900 + i] = threeGenLevels[i];
+        }
+    }
+
+    private static void EnsureAllLoaded()
+    {
+        EnsureCampaignLoaded(3);
+        EnsureCampaignLoaded(300);
+        EnsureCampaignLoaded(600);
+        EnsureCampaignLoaded(900);
     }
 
     static LevelData PreTutorialLevel()

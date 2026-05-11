@@ -8,7 +8,7 @@ public static class DailyChallengeManager
     {
         var today = System.DateTime.UtcNow.Date;
         int seed = today.Year * 10000 + today.DayOfYear;
-        return new System.Random(seed).Next(0, LevelDatabase.Levels.Length);
+        return new System.Random(seed).Next(0, LevelDatabase.TotalLevels);
     }
 
     public static bool IsTodayCompleted()
