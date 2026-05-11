@@ -1701,7 +1701,7 @@ public static class LevelGenerator
 
             if (bestCandidate == null && config.maxBlocked > 0)
             {
-                int recoveryAttempts = config.candidateCount * 10;
+                int recoveryAttempts = config.candidateCount * 25;
                 for (int retry = 0; retry < recoveryAttempts; retry++)
                 {
                     var retryRng = new System.Random((i + 3000) * 7331 + 41 + (retry + 1) * 1237);
@@ -1730,6 +1730,45 @@ public static class LevelGenerator
                         blocked = retryBlockedList
                     };
                     break;
+                }
+            }
+
+            if (bestCandidate == null && config.width % 2 == 1)
+            {
+                config.width -= 1;
+
+                if (config.maxBlocked > 0)
+                {
+                    int reducedWidthRecoveryAttempts = config.candidateCount * 12;
+                    for (int retry = 0; retry < reducedWidthRecoveryAttempts; retry++)
+                    {
+                        var retryRng = new System.Random((i + 3000) * 7331 + 41 + (retry + 1) * 1619);
+                        HashSet<Vector2Int> retryBlocked = GenerateBlockedCells(config, retryRng, triMode: true);
+                        if (retryBlocked.Count == 0) continue;
+
+                        List<Vector2Int> retryPath = HamiltonianPath(config.width, config.height, retryBlocked, retryRng, triMode: true);
+                        if (retryPath == null) continue;
+
+                        List<List<Vector2Int>> retrySegs = SplitPath(retryPath, config, retryRng);
+                        if (retrySegs == null || retrySegs.Count == 0) continue;
+
+                        var retryBlockedList = new List<Vector2Int>(retryBlocked);
+                        string retrySignature = BuildSignature(config, retrySegs);
+                        string retryFingerprint = BuildContentFingerprint(config, retrySegs, retryBlockedList);
+                        float retryScore = ScoreCandidate(retryPath, retrySegs, config, retrySignature, retryFingerprint,
+                            recentSignatures, usedSignatures, allFingerprints, usedValueSetsByTier, recentRegionSets);
+
+                        bestCandidate = new LevelCandidate
+                        {
+                            path = retryPath,
+                            segments = retrySegs,
+                            signature = retrySignature,
+                            contentFingerprint = retryFingerprint,
+                            score = retryScore,
+                            blocked = retryBlockedList
+                        };
+                        break;
+                    }
                 }
             }
 
@@ -1807,105 +1846,105 @@ public static class LevelGenerator
     {
         CampaignConfig c = new CampaignConfig();
 
-        if (idx < 20)          // Tier 1: 6×5  Intro   (901-920)
+        if (idx < 20)          // Tier 1: 7×6  Intro   (901-920)
         {
-            c.width = 6; c.height = 5;
-            c.minSegment = 2; c.maxSegment = 6; c.candidateCount = 22;
+            c.width = 7; c.height = 6;
+            c.minSegment = 2; c.maxSegment = 6; c.candidateCount = 26;
             c.tierName = "3gen Intro";
             c.rectanglePenalty = 3.5f; c.densePenalty = 2.5f;
             c.straightPenalty = 2.0f; c.turnWeight = 1.2f;
             c.squarePenalty = 1.5f; c.lateRectangleBonus = 0f;
             c.minBlocked = 0; c.maxBlocked = 0;
         }
-        else if (idx < 45)     // Tier 2: 8×5  Easy    (921-945)
+        else if (idx < 45)     // Tier 2: 9×6  Easy    (921-945)
         {
-            c.width = 8; c.height = 5;
-            c.minSegment = 2; c.maxSegment = 7; c.candidateCount = 24;
+            c.width = 9; c.height = 6;
+            c.minSegment = 2; c.maxSegment = 7; c.candidateCount = 28;
             c.tierName = "3gen Easy";
             c.rectanglePenalty = 3.2f; c.densePenalty = 2.3f;
             c.straightPenalty = 1.9f; c.turnWeight = 1.15f;
             c.squarePenalty = 1.3f; c.lateRectangleBonus = 0f;
             c.minBlocked = 0; c.maxBlocked = 0;
         }
-        else if (idx < 75)     // Tier 3: 8×6  Easy+   (946-975)
+        else if (idx < 75)     // Tier 3: 9×7  Easy+   (946-975)
         {
-            c.width = 8; c.height = 6;
-            c.minSegment = 3; c.maxSegment = 7; c.candidateCount = 26;
+            c.width = 9; c.height = 7;
+            c.minSegment = 3; c.maxSegment = 7; c.candidateCount = 30;
             c.tierName = "3gen Easy";
             c.rectanglePenalty = 3.0f; c.densePenalty = 2.1f;
             c.straightPenalty = 1.8f; c.turnWeight = 1.1f;
             c.squarePenalty = 1.1f; c.lateRectangleBonus = 0f;
             c.minBlocked = 0; c.maxBlocked = 0;
         }
-        else if (idx < 105)    // Tier 4: 10×6  Normal  (976-1005)
+        else if (idx < 105)    // Tier 4: 11×7  Normal  (976-1005)
         {
-            c.width = 10; c.height = 6;
-            c.minSegment = 3; c.maxSegment = 8; c.candidateCount = 26;
+            c.width = 11; c.height = 7;
+            c.minSegment = 3; c.maxSegment = 8; c.candidateCount = 32;
             c.tierName = "3gen Normal";
             c.rectanglePenalty = 2.6f; c.densePenalty = 1.9f;
             c.straightPenalty = 1.6f; c.turnWeight = 1.05f;
             c.squarePenalty = 0.9f; c.lateRectangleBonus = 0f;
-            c.minBlocked = 0; c.maxBlocked = 1;
+            c.minBlocked = 1; c.maxBlocked = 2;
         }
-        else if (idx < 140)    // Tier 5: 10×7  Normal+ (1006-1040)
+        else if (idx < 140)    // Tier 5: 11×8  Normal+ (1006-1040)
         {
-            c.width = 10; c.height = 7;
-            c.minSegment = 3; c.maxSegment = 9; c.candidateCount = 30;
+            c.width = 11; c.height = 8;
+            c.minSegment = 3; c.maxSegment = 9; c.candidateCount = 34;
             c.tierName = "3gen Normal";
             c.rectanglePenalty = 2.2f; c.densePenalty = 1.7f;
             c.straightPenalty = 1.4f; c.turnWeight = 1.0f;
             c.squarePenalty = 0.75f; c.lateRectangleBonus = 0f;
-            c.minBlocked = 1; c.maxBlocked = 2;
+            c.minBlocked = 2; c.maxBlocked = 3;
         }
-        else if (idx < 175)    // Tier 6: 12×7  Hard    (1041-1075)
+        else if (idx < 175)    // Tier 6: 13×8  Hard    (1041-1075)
         {
-            c.width = 12; c.height = 7;
-            c.minSegment = 4; c.maxSegment = 10; c.candidateCount = 30;
+            c.width = 13; c.height = 8;
+            c.minSegment = 4; c.maxSegment = 10; c.candidateCount = 36;
             c.tierName = "3gen Hard";
             c.rectanglePenalty = 1.9f; c.densePenalty = 1.5f;
             c.straightPenalty = 1.2f; c.turnWeight = 0.95f;
             c.squarePenalty = 0.65f; c.lateRectangleBonus = 0.05f;
-            c.minBlocked = 2; c.maxBlocked = 3;
+            c.minBlocked = 3; c.maxBlocked = 4;
         }
-        else if (idx < 215)    // Tier 7: 12×8  Hard+   (1076-1115)
+        else if (idx < 215)    // Tier 7: 13×9  Hard+   (1076-1115)
         {
-            c.width = 12; c.height = 8;
-            c.minSegment = 4; c.maxSegment = 10; c.candidateCount = 32;
+            c.width = 13; c.height = 9;
+            c.minSegment = 4; c.maxSegment = 10; c.candidateCount = 38;
             c.tierName = "3gen Hard";
             c.rectanglePenalty = 1.6f; c.densePenalty = 1.3f;
             c.straightPenalty = 1.1f; c.turnWeight = 0.9f;
             c.squarePenalty = 0.55f; c.lateRectangleBonus = 0.1f;
-            c.minBlocked = 3; c.maxBlocked = 4;
+            c.minBlocked = 4; c.maxBlocked = 5;
         }
-        else if (idx < 255)    // Tier 8: 14×8  Advanced(1116-1155)
+        else if (idx < 255)    // Tier 8: 15×9  Advanced(1116-1155)
         {
-            c.width = 14; c.height = 8;
-            c.minSegment = 4; c.maxSegment = 11; c.candidateCount = 32;
+            c.width = 15; c.height = 9;
+            c.minSegment = 4; c.maxSegment = 11; c.candidateCount = 40;
             c.tierName = "3gen Advanced";
             c.rectanglePenalty = 1.3f; c.densePenalty = 1.0f;
             c.straightPenalty = 0.95f; c.turnWeight = 0.85f;
             c.squarePenalty = 0.45f; c.lateRectangleBonus = 0.15f;
-            c.minBlocked = 4; c.maxBlocked = 5;
+            c.minBlocked = 5; c.maxBlocked = 6;
         }
-        else if (idx < 275)    // Tier 9: 14×9  Expert  (1156-1175)
+        else if (idx < 275)    // Tier 9: 15×10 Expert  (1156-1175)
         {
-            c.width = 14; c.height = 9;
-            c.minSegment = 5; c.maxSegment = 12; c.candidateCount = 34;
+            c.width = 15; c.height = 10;
+            c.minSegment = 5; c.maxSegment = 12; c.candidateCount = 42;
             c.tierName = "3gen Expert";
             c.rectanglePenalty = 1.0f; c.densePenalty = 0.8f;
             c.straightPenalty = 0.85f; c.turnWeight = 0.78f;
             c.squarePenalty = 0.35f; c.lateRectangleBonus = 0.2f;
-            c.minBlocked = 5; c.maxBlocked = 6;
+            c.minBlocked = 6; c.maxBlocked = 7;
         }
-        else                   // Tier 10: 14×10 Master (1176-1200)
+        else                   // Tier 10: 15×11 Master (1176-1200)
         {
-            c.width = 14; c.height = 10;
-            c.minSegment = 5; c.maxSegment = 12; c.candidateCount = 36;
+            c.width = 15; c.height = 11;
+            c.minSegment = 5; c.maxSegment = 12; c.candidateCount = 44;
             c.tierName = "3gen Master";
             c.rectanglePenalty = 0.8f; c.densePenalty = 0.6f;
             c.straightPenalty = 0.75f; c.turnWeight = 0.7f;
             c.squarePenalty = 0.25f; c.lateRectangleBonus = 0.3f;
-            c.minBlocked = 6; c.maxBlocked = 7;
+            c.minBlocked = 7; c.maxBlocked = 8;
         }
 
         return c;
