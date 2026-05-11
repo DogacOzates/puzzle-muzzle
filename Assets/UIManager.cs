@@ -118,7 +118,6 @@ public class UIManager : MonoBehaviour
         CreateSafeArea();
         CreateTopBar();
         CreateBottomBar();
-        CreateLevelSelectPanel();
         CreateLevelCompletePanel();
         CreateTransitionOverlay();
 
@@ -2064,7 +2063,8 @@ public class UIManager : MonoBehaviour
 
     public void ShowLevelSelect(int currentLevelIndex, int highestUnlockedLevelIndex, int totalLevels)
     {
-        if (levelSelectPanel == null) return;
+        if (levelSelectPanel == null)
+            CreateLevelSelectPanel();
 
         _lsCurrentIdx       = currentLevelIndex;
         _lsHighestUnlocked  = highestUnlockedLevelIndex;
