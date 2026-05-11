@@ -47,6 +47,10 @@ public class GameManager : MonoBehaviour
         Application.targetFrameRate = 60;
         QualitySettings.vSyncCount = 0;
 
+        // Safe to refresh every Play now: levels are lazy-loaded by campaign group,
+        // so this no longer rebuilds all 1200 levels at startup.
+        LevelDatabase.InvalidateCache();
+
         SetupCamera();
 
         var audioObj = new GameObject("AudioManager");
