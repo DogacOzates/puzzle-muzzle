@@ -139,6 +139,7 @@ public static class LevelDatabase
             LevelData[] threeGenLevels = LevelGenerator.GenerateThreeGenCampaign(300);
             for (int i = 0; i < 300; i++)
                 _levels[900 + i] = threeGenLevels[i];
+            _levels[1090] = ThreeGenBlockedShowcaseLevel();
         }
     }
 
@@ -148,6 +149,35 @@ public static class LevelDatabase
         EnsureCampaignLoaded(300);
         EnsureCampaignLoaded(600);
         EnsureCampaignLoaded(900);
+    }
+
+    static LevelData ThreeGenBlockedShowcaseLevel()
+    {
+        var level = new LevelData("3gen Blocked", 8, 5, new NumberCellData[]
+        {
+            new NumberCellData(5, 0, 3),
+            new NumberCellData(4, 1, 9),
+            new NumberCellData(4, 2, 6),
+            new NumberCellData(5, 3, 9),
+            new NumberCellData(0, 4, 9),
+        },
+        new SolutionPath[]
+        {
+            new SolutionPath(7,0, 6,0, 5,0),
+            new SolutionPath(3,0, 2,0, 1,0, 0,0, 0,1, 1,1, 2,1, 3,1, 4,1),
+            new SolutionPath(6,1, 7,1, 7,2, 6,2, 5,2, 4,2),
+            new SolutionPath(2,2, 1,2, 0,2, 0,3, 1,3, 2,3, 3,3, 4,3, 5,3),
+            new SolutionPath(7,3, 7,4, 6,4, 5,4, 4,4, 3,4, 2,4, 1,4, 0,4),
+        },
+        new BlockedCellData[]
+        {
+            new BlockedCellData(4, 0),
+            new BlockedCellData(5, 1),
+            new BlockedCellData(3, 2),
+            new BlockedCellData(6, 3),
+        });
+        level.cellShape = CellShape.ThreeGen;
+        return level;
     }
 
     static LevelData PreTutorialLevel()
