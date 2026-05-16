@@ -182,14 +182,23 @@ public static class SpriteGenerator
 
         var pixels = new Color32[w * h];
         float cx = w * 0.5f, cy = h * 0.5f;
-        float r = 108f;
+        float r = 126f;
 
-        // Regular pentagon, pointy top: vertices at angles 90°, 18°, -54°, -126°, -198°
+        // Honeycomb-aligned pentagon: keep the pointy top, but align the side edges
+        // to the same contact angles as the hex grid so neighbouring cells touch.
+        float[] angles =
+        {
+            90f,
+            30f,
+            -30f,
+            -150f,
+            150f
+        };
         var vx = new float[5];
         var vy = new float[5];
         for (int k = 0; k < 5; k++)
         {
-            float angle = Mathf.PI / 2f - k * 2f * Mathf.PI / 5f;
+            float angle = angles[k] * Mathf.Deg2Rad;
             vx[k] = cx + r * Mathf.Cos(angle);
             vy[k] = cy + r * Mathf.Sin(angle);
         }

@@ -102,13 +102,7 @@ public class GameManager : MonoBehaviour
         // Restore free hint badge if any hints were accumulated
         uiManager.UpdateHintBadge(GetFreeHints());
 
-        // In the Unity editor, boot fast into Level 1 instead of regenerating a late-campaign
-        // saved level on every Play press. Use the existing Debug menu to jump forward when needed.
-#if UNITY_EDITOR
-        currentLevelIndex = 0;
-#else
         currentLevelIndex = LoadSavedLevelIndex();
-#endif
         LoadLevel(currentLevelIndex);
         StartCoroutine(PeriodicPromoBannerCoroutine());
         StartCoroutine(RequestATTThenInitAds());
@@ -206,6 +200,9 @@ public class GameManager : MonoBehaviour
         uiManager.SetLevelInfo(level.levelName, index, LevelDatabase.TotalLevels);
         uiManager.HideLevelComplete();
         uiManager.HideLevelSelect();
+
+        if (currentGameMode == GameMode.Regular)
+            LevelDatabase.PrefetchLevel(index + 1);
 
         if (index == 0)
             StartTutorial(true);

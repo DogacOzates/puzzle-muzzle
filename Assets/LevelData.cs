@@ -1,4 +1,8 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading.Tasks;
+using UnityEngine;
 
 public enum CellShape { Square, Pentagon, Hexagon, ThreeGen }
 
@@ -32,6 +36,7 @@ public class NumberCellData
 
 // Stores a solution path as flat coordinate pairs: x0,y0, x1,y1, ...
 // Last pair is always the target cell.
+[Serializable]
 public class SolutionPath
 {
     public int[] coords;
@@ -70,12 +75,45 @@ public class LevelData
 
 public static class LevelDatabase
 {
-    public const int TotalLevels = 1200;
+    public const int TotalLevels = 900;
+    private const int CampaignLoadBatchSize = 1;
+    private const int GeneratedLevelCacheVersion = 2;
+    private const string BundledLevelsResourcePath = "generated_levels";
+
+    private struct LevelBatchLoad
+    {
+        public int absoluteStart;
+        public LevelData[] levels;
+    }
+
+    [Serializable]
+    private class CachedLevelPayload
+    {
+        public LevelData level;
+    }
+
+    [Serializable]
+    private class BundledLevelsPayload
+    {
+        public LevelData[] levels;
+    }
 
     private static LevelData[] _levels;
+    private static readonly object _sync = new object();
+    private static readonly Dictionary<int, Task> _prefetchTasks = new Dictionary<int, Task>();
+    private static string CacheDirectoryPath => Path.Combine(Application.persistentDataPath, $"generated-level-cache-v{GeneratedLevelCacheVersion}");
+    private static bool _usingBundledLevels;
 
     // Call this whenever generation logic changes to flush the in-memory cache.
-    public static void InvalidateCache() => _levels = null;
+    public static void InvalidateCache()
+    {
+        lock (_sync)
+        {
+            _levels = null;
+            _prefetchTasks.Clear();
+            _usingBundledLevels = false;
+        }
+    }
 
     public static LevelData GetLevel(int index)
     {
@@ -83,9 +121,86 @@ public static class LevelDatabase
             return null;
 
         EnsureInitialized();
-        if (_levels[index] == null)
-            EnsureCampaignLoaded(index);
-        return _levels[index];
+        Task pendingTask = null;
+        LevelData readyLevel = null;
+
+        lock (_sync)
+        {
+            if (_levels[index] != null)
+                readyLevel = _levels[index];
+
+            if (readyLevel == null)
+                _prefetchTasks.TryGetValue(index, out pendingTask);
+        }
+
+        if (readyLevel != null)
+        {
+            if (!_usingBundledLevels)
+                PersistLevelIfNeeded(index, readyLevel);
+            return readyLevel;
+        }
+
+        if (pendingTask != null)
+        {
+            pendingTask.Wait();
+            lock (_sync)
+                readyLevel = _levels[index];
+
+            if (!_usingBundledLevels)
+                PersistLevelIfNeeded(index, readyLevel);
+            return readyLevel;
+        }
+
+        if (TryLoadCachedLevel(index, out LevelData cachedLevel))
+        {
+            lock (_sync)
+            {
+                _levels[index] = cachedLevel;
+                return _levels[index];
+            }
+        }
+
+        LevelBatchLoad batch = GenerateCampaignBatch(index);
+        PersistBatch(batch);
+        return StoreBatchAndGetLevel(batch, index);
+    }
+
+    public static void PrefetchLevel(int index)
+    {
+        if (index < 0 || index >= TotalLevels)
+            return;
+
+        EnsureInitialized();
+
+        lock (_sync)
+        {
+            if (_usingBundledLevels || _levels[index] != null || _prefetchTasks.ContainsKey(index))
+                return;
+
+            _prefetchTasks[index] = Task.Run(() =>
+            {
+                try
+                {
+                    if (TryLoadCachedLevel(index, out LevelData cachedLevel))
+                    {
+                        StoreBatch(new LevelBatchLoad
+                        {
+                            absoluteStart = index,
+                            levels = new[] { cachedLevel }
+                        });
+                        return;
+                    }
+
+                    LevelBatchLoad batch = GenerateCampaignBatch(index);
+                    StoreBatch(batch);
+                }
+                finally
+                {
+                    lock (_sync)
+                        _prefetchTasks.Remove(index);
+                }
+            });
+        }
     }
 
     public static LevelData[] Levels
@@ -100,54 +215,263 @@ public static class LevelDatabase
 
     private static void EnsureInitialized()
     {
-        if (_levels != null) return;
+        lock (_sync)
+        {
+            if (_levels != null) return;
 
-        _levels = new LevelData[TotalLevels];
-        _levels[0] = PreTutorialLevel();
-        _levels[1] = TutorialLevel();
-        _levels[2] = SecondLevel();
+            _levels = new LevelData[TotalLevels];
+            _levels[0] = PreTutorialLevel();
+            _levels[1] = TutorialLevel();
+            _levels[2] = SecondLevel();
+            _prefetchTasks.Clear();
+            _usingBundledLevels = false;
+
+            if (TryLoadBundledLevels(out LevelData[] bundledLevels))
+            {
+                _levels = bundledLevels;
+                _usingBundledLevels = true;
+            }
+        }
     }
 
-    private static void EnsureCampaignLoaded(int index)
+    private static LevelBatchLoad GenerateCampaignBatch(int index)
     {
-        if (index < 3) return;
+        if (index < 3)
+        {
+            return new LevelBatchLoad
+            {
+                absoluteStart = index,
+                levels = new[] { _levels[index] }
+            };
+        }
 
         if (index < 300)
         {
-            if (_levels[3] != null) return;
-            LevelData[] generatedLevels = LevelGenerator.GenerateCampaign(297);
-            for (int i = 3; i < 300; i++)
-                _levels[i] = generatedLevels[i - 3];
+            int relativeIndex = index - 3;
+            int batchStart = (relativeIndex / CampaignLoadBatchSize) * CampaignLoadBatchSize;
+            int batchCount = Math.Min(CampaignLoadBatchSize, 297 - batchStart);
+            int absoluteStart = 3 + batchStart;
+            return new LevelBatchLoad
+            {
+                absoluteStart = absoluteStart,
+                levels = LevelGenerator.GenerateCampaign(batchStart, batchCount)
+            };
         }
-        else if (index < 600)
+
+        if (index < 600)
         {
-            if (_levels[300] != null) return;
-            LevelData[] pentagonLevels = LevelGenerator.GeneratePentagonCampaign(300);
-            for (int i = 0; i < 300; i++)
-                _levels[300 + i] = pentagonLevels[i];
+            int relativeIndex = index - 300;
+            int batchStart = (relativeIndex / CampaignLoadBatchSize) * CampaignLoadBatchSize;
+            int batchCount = Math.Min(CampaignLoadBatchSize, 300 - batchStart);
+            int absoluteStart = 300 + batchStart;
+            return new LevelBatchLoad
+            {
+                absoluteStart = absoluteStart,
+                levels = LevelGenerator.GenerateHexagonCampaign(batchStart, batchCount)
+            };
         }
-        else if (index < 900)
+
+        int triRelativeIndex = index - 600;
+        int triBatchStart = (triRelativeIndex / CampaignLoadBatchSize) * CampaignLoadBatchSize;
+        int triBatchCount = Math.Min(CampaignLoadBatchSize, 300 - triBatchStart);
+        int triAbsoluteStart = 600 + triBatchStart;
+        return new LevelBatchLoad
         {
-            if (_levels[600] != null) return;
-            LevelData[] hexagonLevels = LevelGenerator.GenerateHexagonCampaign(300);
-            for (int i = 0; i < 300; i++)
-                _levels[600 + i] = hexagonLevels[i];
+            absoluteStart = triAbsoluteStart,
+            levels = LevelGenerator.GenerateThreeGenCampaign(triBatchStart, triBatchCount)
+        };
+    }
+
+    private static void StoreBatch(LevelBatchLoad batch)
+    {
+        lock (_sync)
+        {
+            if (_levels == null) return;
+
+            for (int i = 0; i < batch.levels.Length; i++)
+            {
+                int absoluteIndex = batch.absoluteStart + i;
+                if (_levels[absoluteIndex] == null)
+                    _levels[absoluteIndex] = batch.levels[i];
+            }
         }
-        else
+    }
+
+    private static LevelData StoreBatchAndGetLevel(LevelBatchLoad batch, int requestedIndex)
+    {
+        lock (_sync)
         {
-            if (_levels[900] != null) return;
-            LevelData[] threeGenLevels = LevelGenerator.GenerateThreeGenCampaign(300);
-            for (int i = 0; i < 300; i++)
-                _levels[900 + i] = threeGenLevels[i];
+            if (_levels == null)
+                EnsureInitialized();
+
+            for (int i = 0; i < batch.levels.Length; i++)
+            {
+                int absoluteIndex = batch.absoluteStart + i;
+                if (_levels[absoluteIndex] == null)
+                    _levels[absoluteIndex] = batch.levels[i];
+            }
+
+            return _levels[requestedIndex];
         }
     }
 
     private static void EnsureAllLoaded()
     {
-        EnsureCampaignLoaded(3);
-        EnsureCampaignLoaded(300);
-        EnsureCampaignLoaded(600);
-        EnsureCampaignLoaded(900);
+        lock (_sync)
+        {
+            if (_usingBundledLevels)
+                return;
+
+            if (_levels[3] == null || _levels[299] == null)
+            {
+                LevelData[] generatedLevels = LevelGenerator.GenerateCampaign(297);
+                for (int i = 3; i < 300; i++)
+                    _levels[i] = generatedLevels[i - 3];
+            }
+
+            if (_levels[300] == null || _levels[599] == null)
+            {
+                LevelData[] hexagonLevels = LevelGenerator.GenerateHexagonCampaign(300);
+                for (int i = 0; i < 300; i++)
+                    _levels[300 + i] = hexagonLevels[i];
+            }
+
+            if (_levels[600] == null || _levels[899] == null)
+            {
+                LevelData[] threeGenLevels = LevelGenerator.GenerateThreeGenCampaign(300);
+                for (int i = 0; i < 300; i++)
+                    _levels[600 + i] = threeGenLevels[i];
+            }
+        }
+    }
+
+    public static string BuildBundledLevelsJson(bool prettyPrint = false)
+    {
+        var payload = new BundledLevelsPayload
+        {
+            levels = BuildAllLevelsProcedurally()
+        };
+        return JsonUtility.ToJson(payload, prettyPrint);
+    }
+
+    private static LevelData[] BuildAllLevelsProcedurally()
+    {
+        bool previousBundledBuildMode = LevelGenerator.UseBundledBuildOptimizations;
+        LevelGenerator.UseBundledBuildOptimizations = true;
+        try
+        {
+            var levels = new LevelData[TotalLevels];
+            levels[0] = PreTutorialLevel();
+            levels[1] = TutorialLevel();
+            levels[2] = SecondLevel();
+
+            const int bundleChunkSize = 25;
+
+            Parallel.For(0, Mathf.CeilToInt(297f / bundleChunkSize), chunkIndex =>
+            {
+                int start = chunkIndex * bundleChunkSize;
+                int count = Math.Min(bundleChunkSize, 297 - start);
+                LevelData[] chunk = LevelGenerator.GenerateCampaign(start, count);
+                for (int i = 0; i < count; i++)
+                    levels[3 + start + i] = chunk[i];
+            });
+
+            Parallel.For(0, Mathf.CeilToInt(300f / bundleChunkSize), chunkIndex =>
+            {
+                int start = chunkIndex * bundleChunkSize;
+                int count = Math.Min(bundleChunkSize, 300 - start);
+                LevelData[] chunk = LevelGenerator.GenerateHexagonCampaign(start, count);
+                for (int i = 0; i < count; i++)
+                    levels[300 + start + i] = chunk[i];
+            });
+
+            Parallel.For(0, Mathf.CeilToInt(300f / bundleChunkSize), chunkIndex =>
+            {
+                int start = chunkIndex * bundleChunkSize;
+                int count = Math.Min(bundleChunkSize, 300 - start);
+                LevelData[] chunk = LevelGenerator.GenerateThreeGenCampaign(start, count);
+                for (int i = 0; i < count; i++)
+                    levels[600 + start + i] = chunk[i];
+            });
+
+            return levels;
+        }
+        finally
+        {
+            LevelGenerator.UseBundledBuildOptimizations = previousBundledBuildMode;
+        }
+    }
+
+    private static bool TryLoadBundledLevels(out LevelData[] levels)
+    {
+        levels = null;
+
+        TextAsset bundledAsset = Resources.Load<TextAsset>(BundledLevelsResourcePath);
+        if (bundledAsset == null || string.IsNullOrEmpty(bundledAsset.text))
+            return false;
+
+        BundledLevelsPayload payload = JsonUtility.FromJson<BundledLevelsPayload>(bundledAsset.text);
+        if (payload == null || payload.levels == null || payload.levels.Length != TotalLevels)
+            return false;
+
+        if (payload.levels[0] == null) payload.levels[0] = PreTutorialLevel();
+        if (payload.levels[1] == null) payload.levels[1] = TutorialLevel();
+        if (payload.levels[2] == null) payload.levels[2] = SecondLevel();
+
+        levels = payload.levels;
+        return true;
+    }
+
+    private static bool TryLoadCachedLevel(int index, out LevelData level)
+    {
+        level = null;
+        if (index < 3)
+            return false;
+
+        string filePath = GetCacheFilePath(index);
+        if (!File.Exists(filePath))
+            return false;
+
+        string json = File.ReadAllText(filePath);
+        if (string.IsNullOrEmpty(json))
+            return false;
+
+        CachedLevelPayload payload = JsonUtility.FromJson<CachedLevelPayload>(json);
+        if (payload == null || payload.level == null)
+            return false;
+
+        level = payload.level;
+        return true;
+    }
+
+    private static void PersistBatch(LevelBatchLoad batch)
+    {
+        if (batch.levels == null || batch.levels.Length == 0)
+            return;
+
+        Directory.CreateDirectory(CacheDirectoryPath);
+        for (int i = 0; i < batch.levels.Length; i++)
+        {
+            int absoluteIndex = batch.absoluteStart + i;
+            PersistLevelIfNeeded(absoluteIndex, batch.levels[i]);
+        }
+    }
+
+    private static string GetCacheFilePath(int index)
+        => Path.Combine(CacheDirectoryPath, $"level-{index:D4}.json");
+
+    private static void PersistLevelIfNeeded(int index, LevelData level)
+    {
+        if (index < 3 || level == null)
+            return;
+
+        string filePath = GetCacheFilePath(index);
+        if (File.Exists(filePath))
+            return;
+
+        Directory.CreateDirectory(CacheDirectoryPath);
+        CachedLevelPayload payload = new CachedLevelPayload { level = level };
+        File.WriteAllText(filePath, JsonUtility.ToJson(payload));
     }
 
     static LevelData PreTutorialLevel()

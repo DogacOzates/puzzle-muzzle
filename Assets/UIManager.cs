@@ -49,24 +49,24 @@ public class UIManager : MonoBehaviour
     private RectTransform transitionSquaresRoot;
     private Image[] transitionSquares;
     private int _lsActiveGroup;
-    private Image[] _lsGroupTabBgs = new Image[4];
-    private Button[] _lsGroupTabButtons = new Button[4];
-    private Image[] _lsGroupTabIcons = new Image[4];
-    private Image[] _lsGroupTabIconChips = new Image[4];
+    private Image[] _lsGroupTabBgs = new Image[3];
+    private Button[] _lsGroupTabButtons = new Button[3];
+    private Image[] _lsGroupTabIcons = new Image[3];
+    private Image[] _lsGroupTabIconChips = new Image[3];
     private static Sprite _giftSprite;
-    private Text[] _lsGroupTabTitles = new Text[4];
-    private Text[] _lsGroupTabRanges = new Text[4];
+    private Text[] _lsGroupTabTitles = new Text[3];
+    private Text[] _lsGroupTabRanges = new Text[3];
     private Text _lsHeaderTitle;
     private Image _lsProgressBarFill;
     private Text _lsProgressCountText;
     private Text[] _lsLockLabels;
-    private Transform[] _lsGroupGridRoots = new Transform[4];
+    private Transform[] _lsGroupGridRoots = new Transform[3];
 
     // Lazy-load data for group grids (built on first tab switch, not all at startup)
     private Transform _lsContentParent;
-    private readonly Sprite[]  _lsGroupSpritesLazy = new Sprite[4];
-    private readonly int[]     _lsGroupStart        = new int[4];
-    private readonly int[]     _lsGroupEnd          = new int[4];
+    private readonly Sprite[]  _lsGroupSpritesLazy = new Sprite[3];
+    private readonly int[]     _lsGroupStart        = new int[3];
+    private readonly int[]     _lsGroupEnd          = new int[3];
 
     private Canvas canvas;
     private RectTransform safeAreaRect;
@@ -94,15 +94,13 @@ public class UIManager : MonoBehaviour
 
     private static readonly Color[] GrpAccent = {
         new Color(0.92f, 0.68f, 0.12f),
-        new Color(0.55f, 0.30f, 0.86f),
         new Color(0.20f, 0.72f, 0.67f),
         new Color(0.88f, 0.22f, 0.52f),
     };
-    private static readonly string[] GrpName = { "Square", "Pentagon", "Hexagon", "Triangle" };
-    private static readonly string[] GrpRange = { "1-300", "301-600", "601-900", "901-1200" };
+    private static readonly string[] GrpName = { "Square", "Hexagon", "Triangle" };
+    private static readonly string[] GrpRange = { "1-300", "301-600", "601-900" };
     private static readonly Func<Sprite>[] GrpSprite = {
         () => SpriteGenerator.RoundedRect,
-        () => SpriteGenerator.Pentagon,
         () => SpriteGenerator.FlatHexagon,
         () => SpriteGenerator.Triangle,
     };
@@ -214,13 +212,16 @@ public class UIManager : MonoBehaviour
         barRect.anchorMin = new Vector2(0, 1);
         barRect.anchorMax = new Vector2(1, 1);
         barRect.pivot = new Vector2(0.5f, 1);
+        float aspect = (float)Screen.width / Mathf.Max(1f, Screen.height);
+        bool useRaisedTopBarLayout = aspect >= 0.65f;
+        float topBarElementY = useRaisedTopBarLayout ? -42f : -70f;
 
         // Level progress text (top center) — Georgia italic, matching tutorial style
         var georgiaFont = Font.CreateDynamicFontFromOSFont("Georgia", 72);
-        levelProgressText = MakeText("Progress", bar.transform, new Vector2(0, -70), 42, FontStyle.Italic, TextDark);
+        levelProgressText = MakeText("Progress", bar.transform, new Vector2(0, topBarElementY), 42, FontStyle.Italic, TextDark);
         if (georgiaFont != null) levelProgressText.font = georgiaFont;
 
-        levelSelectToggleButton = CreateInvisibleButton("LevelSelect", bar.transform, new Vector2(0, -70), new Vector2(520, 84));
+        levelSelectToggleButton = CreateInvisibleButton("LevelSelect", bar.transform, new Vector2(0, topBarElementY), new Vector2(520, 84));
         levelSelectToggleButton.onClick.AddListener(() => FindAnyObjectByType<GameManager>().ToggleLevelSelectMenu());
 
         // Settings gear button (right side of top bar)
@@ -230,7 +231,7 @@ public class UIManager : MonoBehaviour
         settingsRect.anchorMin = new Vector2(1f, 1f);
         settingsRect.anchorMax = new Vector2(1f, 1f);
         settingsRect.pivot = new Vector2(0.5f, 0.5f);
-        settingsRect.anchoredPosition = new Vector2(-100f, -70f);
+        settingsRect.anchoredPosition = new Vector2(-100f, topBarElementY);
         settingsRect.sizeDelta = new Vector2(90f, 90f);
 
         var settingsImg = settingsObj.AddComponent<Image>();
@@ -585,7 +586,7 @@ public class UIManager : MonoBehaviour
         _lsHeaderTitle.font = georgiaFont ?? defaultFont;
         _lsHeaderTitle.fontSize = 40; _lsHeaderTitle.fontStyle = FontStyle.Italic;
         _lsHeaderTitle.alignment = TextAnchor.MiddleCenter; _lsHeaderTitle.color = TextDark;
-        _lsHeaderTitle.text = "Level 1 / 1200";
+        _lsHeaderTitle.text = "Level 1 / 900";
 
         // Settings gear (right)
         var gearObj = new GameObject("GearBtn");
@@ -661,9 +662,8 @@ public class UIManager : MonoBehaviour
         // Store lazy-load params — only group 0 is built now; others built on first tab switch.
         _lsContentParent = content.transform;
         _lsGroupSpritesLazy[0] = SpriteGenerator.RoundedRect; _lsGroupStart[0] = 0;   _lsGroupEnd[0] = 299;
-        _lsGroupSpritesLazy[1] = SpriteGenerator.Pentagon;    _lsGroupStart[1] = 300; _lsGroupEnd[1] = 599;
-        _lsGroupSpritesLazy[2] = SpriteGenerator.FlatHexagon; _lsGroupStart[2] = 600; _lsGroupEnd[2] = 899;
-        _lsGroupSpritesLazy[3] = SpriteGenerator.Triangle;    _lsGroupStart[3] = 900; _lsGroupEnd[3] = 1199;
+        _lsGroupSpritesLazy[1] = SpriteGenerator.FlatHexagon; _lsGroupStart[1] = 300; _lsGroupEnd[1] = 599;
+        _lsGroupSpritesLazy[2] = SpriteGenerator.Triangle;    _lsGroupStart[2] = 600; _lsGroupEnd[2] = 899;
 
         LsBuildGroupGrid(_lsContentParent, 0, _lsGroupSpritesLazy[0], _lsGroupStart[0], _lsGroupEnd[0]);
 
@@ -778,7 +778,7 @@ public class UIManager : MonoBehaviour
         hlg.childControlWidth = true; hlg.childControlHeight = false;
         hlg.childAlignment = TextAnchor.MiddleCenter;
 
-        for (int g = 0; g < 4; g++)
+        for (int g = 0; g < 3; g++)
         {
             int grp = g;
             var tab = new GameObject($"Tab{g}");
@@ -987,7 +987,7 @@ public class UIManager : MonoBehaviour
             if (_lsTotalLevels > 0)
                 RefreshLevelSelectButtons(_lsCurrentIdx, _lsHighestUnlocked, _lsTotalLevels);
         }
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < 3; i++)
         {
             bool active = (i == g);
             if (_lsGroupTabBgs[i] != null)
@@ -1037,16 +1037,14 @@ public class UIManager : MonoBehaviour
         // Per-group palette: unlocked, current, locked
         Color[] colU = {
             new Color(1.00f, 0.93f, 0.76f, 1f),  // square  unlocked
-            new Color(0.91f, 0.83f, 0.98f, 1f),  // pentagon
             new Color(0.80f, 0.96f, 0.93f, 1f),  // hexagon
             new Color(0.98f, 0.82f, 0.90f, 1f),  // triangle
         };
         Color[] colC = {
-            BtnTeal, BtnTeal, BtnTeal, BtnTeal,  // current always teal
+            BtnTeal, BtnTeal, BtnTeal,  // current always teal
         };
         Color[] colL = {
             new Color(0.90f, 0.88f, 0.85f, 1f),  // locked (same for all groups)
-            new Color(0.90f, 0.88f, 0.85f, 1f),
             new Color(0.90f, 0.88f, 0.85f, 1f),
             new Color(0.90f, 0.88f, 0.85f, 1f),
         };
@@ -2073,7 +2071,7 @@ public class UIManager : MonoBehaviour
         if (_lsHeaderTitle != null)
             _lsHeaderTitle.text = $"Level {currentLevelIndex + 1} / {totalLevels}";
 
-        int targetGroup = Mathf.Clamp(currentLevelIndex / 300, 0, 3);
+        int targetGroup = Mathf.Clamp(currentLevelIndex / 300, 0, 2);
         LsSwitchGroupTab(targetGroup);
 
         RefreshLevelSelectButtons(currentLevelIndex, highestUnlockedLevelIndex, totalLevels);

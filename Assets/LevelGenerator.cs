@@ -4,6 +4,8 @@ using UnityEngine;
 
 public static class LevelGenerator
 {
+    public static bool UseBundledBuildOptimizations { get; set; }
+
     private struct CampaignConfig
     {
         public int width;
@@ -45,7 +47,29 @@ public static class LevelGenerator
         public List<Vector2Int> blocked;
     }
 
+    private struct TriangleRemovableWindow
+    {
+        public int startIndex;
+        public int endIndex;
+        public int interiorCount;
+    }
+
+    private static readonly Vector2[] TriangleBlockedAnchorTemplates =
+    {
+        new Vector2(0.18f, 0.20f),
+        new Vector2(0.78f, 0.20f),
+        new Vector2(0.28f, 0.52f),
+        new Vector2(0.72f, 0.58f),
+        new Vector2(0.42f, 0.34f),
+        new Vector2(0.58f, 0.78f),
+        new Vector2(0.18f, 0.78f),
+        new Vector2(0.82f, 0.82f)
+    };
+
     public static LevelData[] GenerateCampaign(int generatedLevelCount)
+        => GenerateCampaign(0, generatedLevelCount);
+
+    public static LevelData[] GenerateCampaign(int startIndex, int generatedLevelCount)
     {
         var levels = new LevelData[generatedLevelCount];
         var recentSignatures = new Queue<string>();
@@ -56,13 +80,17 @@ public static class LevelGenerator
         // Recent region fingerprints: prevents endpoints always clustering in same bands
         var recentRegionSets = new Queue<string>();
 
-        for (int levelNum = 1; levelNum <= generatedLevelCount; levelNum++)
+        for (int localIndex = 0; localIndex < generatedLevelCount; localIndex++)
         {
+            int generatedLevelIndex = startIndex + localIndex;
+            int levelNum = generatedLevelIndex + 1;
             var rng = new System.Random(levelNum * 7919 + 31);
             CampaignConfig config = GetConfig(levelNum);
             LevelCandidate bestCandidate = null;
+            bool fastBundledMode = UseBundledBuildOptimizations;
+            int candidateAttempts = fastBundledMode ? Mathf.Min(config.candidateCount, 8) : config.candidateCount;
 
-            for (int candidateIndex = 0; candidateIndex < config.candidateCount; candidateIndex++)
+            for (int candidateIndex = 0; candidateIndex < candidateAttempts; candidateIndex++)
             {
                 var candidateRng = new System.Random(rng.Next());
 
@@ -116,7 +144,9 @@ public static class LevelGenerator
 
             // If best candidate is still a duplicate, try extra seeds to find a unique one
             // Use more attempts for harder tiers with blocked cells
-            int extraAttempts = config.maxBlocked > 0 ? 100 : 60;
+            int extraAttempts = fastBundledMode
+                ? (config.maxBlocked > 0 ? 10 : 6)
+                : (config.maxBlocked > 0 ? 100 : 60);
             if (allFingerprints.Contains(bestCandidate.contentFingerprint))
             {
                 for (int extra = 0; extra < extraAttempts; extra++)
@@ -145,7 +175,7 @@ public static class LevelGenerator
                 }
             }
 
-            levels[levelNum - 1] = BuildLevelData(config, bestCandidate.segments, bestCandidate.blocked);
+            levels[localIndex] = BuildLevelData(config, bestCandidate.segments, bestCandidate.blocked);
 
             recentSignatures.Enqueue(bestCandidate.signature);
             while (recentSignatures.Count > 15)
@@ -177,7 +207,7 @@ public static class LevelGenerator
 
     public static LevelData Generate(int levelNum)
     {
-        return GenerateCampaign(levelNum)[levelNum - 1];
+        return GenerateCampaign(levelNum - 1, 1)[0];
     }
 
     private static LevelData BuildLevelData(CampaignConfig config, List<List<Vector2Int>> segments, List<Vector2Int> blocked)
@@ -327,11 +357,11 @@ public static class LevelGenerator
         config.height = Mathf.Max(a, b);
     }
 
-    private static List<Vector2Int> HamiltonianPath(int width, int height, HashSet<Vector2Int> blocked, System.Random rng, bool hexMode = false, bool colHexMode = false, bool triMode = false)
+    private static List<Vector2Int> HamiltonianPath(int width, int height, HashSet<Vector2Int> blocked, System.Random rng, bool hexMode = false, bool colHexMode = false, bool triMode = false, int maxAttempts = 220)
     {
         int total = width * height - blocked.Count;
 
-        for (int attempt = 0; attempt < 220; attempt++)
+        for (int attempt = 0; attempt < maxAttempts; attempt++)
         {
             var visited = new bool[height, width];
 
@@ -841,6 +871,36 @@ public static class LevelGenerator
         return config.width + "x" + config.height + ":" + string.Join("|", parts) + blockedStr;
     }
 
+    private static string BuildBlockedLayoutFingerprint(IList<Vector2Int> blocked)
+    {
+        if (blocked == null || blocked.Count == 0)
+            return string.Empty;
+
+        var parts = new List<string>(blocked.Count);
+        foreach (var cell in blocked)
+            parts.Add(cell.x + "," + cell.y);
+        parts.Sort(System.StringComparer.Ordinal);
+        return string.Join("|", parts);
+    }
+
+    private static string BuildBlockedRegionFingerprint(CampaignConfig config, IList<Vector2Int> blocked)
+    {
+        if (blocked == null || blocked.Count == 0)
+            return string.Empty;
+
+        var parts = new List<string>(blocked.Count);
+        foreach (var cell in blocked)
+        {
+            string xBand = cell.x < config.width / 3f ? "L" : (cell.x < 2f * config.width / 3f ? "C" : "R");
+            string yBand = cell.y < config.height / 3f ? "B" : (cell.y < 2f * config.height / 3f ? "M" : "T");
+            bool isEdge = cell.x == 0 || cell.x == config.width - 1 || cell.y == 0 || cell.y == config.height - 1;
+            parts.Add(xBand + yBand + (isEdge ? "E" : "I"));
+        }
+
+        parts.Sort(System.StringComparer.Ordinal);
+        return string.Join("|", parts);
+    }
+
     private static HashSet<Vector2Int> GenerateBlockedCells(CampaignConfig config, System.Random rng, bool hexMode = false, bool colHexMode = false, bool triMode = false)
     {
         if (config.maxBlocked == 0) return new HashSet<Vector2Int>();
@@ -850,6 +910,19 @@ public static class LevelGenerator
             : rng.Next(config.minBlocked, config.maxBlocked + 1);
 
         if (count == 0) return new HashSet<Vector2Int>();
+        return GenerateBlockedCellsExact(config, count, rng, hexMode, colHexMode, triMode);
+    }
+
+    private static HashSet<Vector2Int> GenerateBlockedCellsExact(
+        CampaignConfig config,
+        int count,
+        System.Random rng,
+        bool hexMode = false,
+        bool colHexMode = false,
+        bool triMode = false)
+    {
+        if (count <= 0)
+            return new HashSet<Vector2Int>();
 
         // Prefer interior cells so corners/edges stay accessible
         var interior = new List<Vector2Int>();
@@ -869,15 +942,39 @@ public static class LevelGenerator
         candidates.AddRange(edge);
 
         var blocked = new HashSet<Vector2Int>();
-        foreach (var candidate in candidates)
+        int[] minDistancePasses = triMode ? new[] { 5, 4, 3, 2, 1, 0 } : new[] { 3, 2, 1, 0 };
+        foreach (int minDistance in minDistancePasses)
         {
-            if (blocked.Count >= count) break;
-            blocked.Add(candidate);
-            if (!IsGridConnected(config.width, config.height, blocked, hexMode, colHexMode, triMode))
-                blocked.Remove(candidate);
+            foreach (var candidate in candidates)
+            {
+                if (blocked.Count >= count) break;
+                if (blocked.Contains(candidate))
+                    continue;
+                if (minDistance > 0 && IsTooCloseToBlocked(candidate, blocked, minDistance))
+                    continue;
+
+                blocked.Add(candidate);
+                if (!IsGridConnected(config.width, config.height, blocked, hexMode, colHexMode, triMode))
+                    blocked.Remove(candidate);
+            }
+
+            if (blocked.Count >= count)
+                break;
         }
 
         return blocked;
+    }
+
+    private static bool IsTooCloseToBlocked(Vector2Int candidate, HashSet<Vector2Int> blocked, int minDistance)
+    {
+        foreach (var existing in blocked)
+        {
+            int manhattan = Mathf.Abs(candidate.x - existing.x) + Mathf.Abs(candidate.y - existing.y);
+            if (manhattan < minDistance)
+                return true;
+        }
+
+        return false;
     }
 
     private static void Shuffle<T>(List<T> list, System.Random rng)
@@ -1209,11 +1306,13 @@ public static class LevelGenerator
         return deadEnds;
     }
 
-    // Snake fallback path for triangle grids with even width.
-    // Even rows go R→L, ending at (0,r) which is ▲ → connects DOWN to (0,r+1).
-    // Odd rows go L→R, ending at (W-1,r) which is ▲ → connects DOWN to (W-1,r+1).
+    // Snake fallback path for triangle grids.
+    // Prefer a row snake on even widths; otherwise use a column snake on even heights.
     private static List<Vector2Int> TriangleSnakePath(int width, int height)
     {
+        if (width % 2 != 0 && height % 2 == 0)
+            return TriangleColumnSnakePath(width, height);
+
         var path = new List<Vector2Int>(width * height);
         for (int y = 0; y < height; y++)
         {
@@ -1225,7 +1324,608 @@ public static class LevelGenerator
         return path;
     }
 
+    private static List<Vector2Int> TriangleColumnSnakePath(int width, int height)
+    {
+        var path = new List<Vector2Int>(width * height);
+        for (int x = 0; x < width; x++)
+        {
+            if (x % 2 == 0)
+            {
+                for (int y = 0; y < height; y++)
+                    path.Add(new Vector2Int(x, y));
+            }
+            else
+            {
+                for (int y = height - 1; y >= 0; y--)
+                    path.Add(new Vector2Int(x, y));
+            }
+        }
+        return path;
+    }
+
+    private static List<Vector2Int> TransformTrianglePathVariant(List<Vector2Int> sourcePath, int width, int height, int variantIndex)
+    {
+        var transformed = new List<Vector2Int>(sourcePath.Count);
+        bool mirrorX = (variantIndex & 1) != 0;
+        bool mirrorY = (variantIndex & 2) != 0;
+        bool reverse = (variantIndex & 4) != 0;
+
+        for (int i = 0; i < sourcePath.Count; i++)
+        {
+            Vector2Int cell = sourcePath[i];
+            int x = mirrorX ? (width - 1 - cell.x) : cell.x;
+            int y = mirrorY ? (height - 1 - cell.y) : cell.y;
+            transformed.Add(new Vector2Int(x, y));
+        }
+
+        if (reverse)
+            transformed.Reverse();
+
+        return transformed;
+    }
+
+    private static bool AreTriangleCellsAdjacent(Vector2Int a, Vector2Int b, int width, int height)
+    {
+        if (a.x == b.x && a.y == b.y)
+            return false;
+
+        if (Mathf.Abs(a.x - b.x) + Mathf.Abs(a.y - b.y) == 1)
+        {
+            if (a.y == b.y)
+                return true;
+
+            bool isUp = (a.x + a.y) % 2 == 0;
+            int verticalNeighborY = a.y + (isUp ? 1 : -1);
+            return a.x == b.x && b.y == verticalNeighborY;
+        }
+
+        return false;
+    }
+
+    private static List<TriangleRemovableWindow> FindTriangleRemovableWindows(
+        List<Vector2Int> path,
+        int width,
+        int height,
+        int blockedLength,
+        int frontTrim,
+        int backTrim)
+    {
+        var windows = new List<TriangleRemovableWindow>();
+        int playableEndExclusive = path.Count - backTrim;
+
+        for (int start = frontTrim + 1; start + blockedLength < playableEndExclusive; start++)
+        {
+            int end = start + blockedLength - 1;
+            if (!AreTriangleCellsAdjacent(path[start - 1], path[end + 1], width, height))
+                continue;
+
+            int interiorCount = 0;
+            for (int i = start; i <= end; i++)
+            {
+                Vector2Int cell = path[i];
+                if (cell.x > 0 && cell.x < width - 1 && cell.y > 0 && cell.y < height - 1)
+                    interiorCount++;
+            }
+
+            windows.Add(new TriangleRemovableWindow
+            {
+                startIndex = start,
+                endIndex = end,
+                interiorCount = interiorCount
+            });
+        }
+
+        return windows;
+    }
+
+    private static bool TryBuildInteriorTriangleFallback(
+        List<Vector2Int> fullPath,
+        int levelIndex,
+        CampaignConfig config,
+        System.Random rng,
+        int desiredBlocked,
+        out List<Vector2Int> playablePath,
+        out List<Vector2Int> blocked)
+    {
+        TriangleRemovableWindow? bestWindow = null;
+        int bestFrontTrim = 0;
+        int bestBackTrim = 0;
+        float bestScore = float.NegativeInfinity;
+        playablePath = null;
+        blocked = null;
+
+        for (int interiorBlockedLength = Mathf.Min(desiredBlocked, 8); interiorBlockedLength >= 2; interiorBlockedLength--)
+        {
+            if ((interiorBlockedLength & 1) != 0)
+                continue;
+
+            int edgeTrimCount = desiredBlocked - interiorBlockedLength;
+            if (edgeTrimCount < 0)
+                continue;
+
+            for (int frontTrim = 0; frontTrim <= edgeTrimCount; frontTrim++)
+            {
+                int backTrim = edgeTrimCount - frontTrim;
+                List<TriangleRemovableWindow> windows = FindTriangleRemovableWindows(
+                    fullPath,
+                    config.width,
+                    config.height,
+                    interiorBlockedLength,
+                    frontTrim,
+                    backTrim);
+
+                if (windows.Count == 0)
+                    continue;
+
+                foreach (TriangleRemovableWindow window in windows)
+                {
+                    float center = (window.startIndex + window.endIndex) * 0.5f;
+                    float centerDistance = Mathf.Abs(center - (fullPath.Count - 1) * 0.5f);
+                    float score = window.interiorCount * 100f
+                        - edgeTrimCount * 18f
+                        - centerDistance * 0.12f
+                        + (float)rng.NextDouble() * 0.5f;
+
+                    if (bestWindow == null || score > bestScore)
+                    {
+                        bestWindow = window;
+                        bestFrontTrim = frontTrim;
+                        bestBackTrim = backTrim;
+                        bestScore = score;
+                    }
+                }
+            }
+        }
+
+        if (bestWindow == null)
+            return false;
+
+        TriangleRemovableWindow chosenWindow = bestWindow.Value;
+        int playableEndExclusive = fullPath.Count - bestBackTrim;
+        blocked = new List<Vector2Int>(desiredBlocked);
+
+        for (int i = 0; i < bestFrontTrim; i++)
+            blocked.Add(fullPath[i]);
+
+        for (int i = chosenWindow.startIndex; i <= chosenWindow.endIndex; i++)
+            blocked.Add(fullPath[i]);
+
+        for (int i = playableEndExclusive; i < fullPath.Count; i++)
+            blocked.Add(fullPath[i]);
+
+        playablePath = new List<Vector2Int>(fullPath.Count - blocked.Count);
+        for (int i = bestFrontTrim; i < chosenWindow.startIndex; i++)
+            playablePath.Add(fullPath[i]);
+        for (int i = chosenWindow.endIndex + 1; i < playableEndExclusive; i++)
+            playablePath.Add(fullPath[i]);
+
+        return playablePath.Count >= config.minSegment;
+    }
+
+    private static float ScoreTriangleWindowCombination(List<TriangleRemovableWindow> windows, int edgeTrimCount)
+    {
+        if (windows == null || windows.Count == 0)
+            return float.NegativeInfinity;
+
+        float score = windows.Count * 28f - edgeTrimCount * 16f;
+        for (int i = 0; i < windows.Count; i++)
+        {
+            TriangleRemovableWindow window = windows[i];
+            int length = window.endIndex - window.startIndex + 1;
+            float center = (window.startIndex + window.endIndex) * 0.5f;
+            score += window.interiorCount * 90f;
+            score += length == 1 ? 18f : length == 2 ? 10f : length == 3 ? 3f : -4f;
+            if (window.interiorCount == 0)
+                score -= 22f;
+
+            for (int j = i + 1; j < windows.Count; j++)
+            {
+                TriangleRemovableWindow other = windows[j];
+                float otherCenter = (other.startIndex + other.endIndex) * 0.5f;
+                score += Mathf.Abs(center - otherCenter) * 0.25f;
+            }
+        }
+
+        return score;
+    }
+
+    private static void SearchTriangleWindowCombination(
+        List<TriangleRemovableWindow> windows,
+        int nextIndex,
+        int remainingLength,
+        int minGap,
+        List<TriangleRemovableWindow> current,
+        ref List<TriangleRemovableWindow> best,
+        ref float bestScore,
+        int edgeTrimCount)
+    {
+        if (remainingLength == 0)
+        {
+            float score = ScoreTriangleWindowCombination(current, edgeTrimCount);
+            if (score > bestScore)
+            {
+                bestScore = score;
+                best = new List<TriangleRemovableWindow>(current);
+            }
+            return;
+        }
+
+        for (int i = nextIndex; i < windows.Count; i++)
+        {
+            TriangleRemovableWindow window = windows[i];
+            int length = window.endIndex - window.startIndex + 1;
+            if (length > remainingLength)
+                continue;
+
+            bool overlaps = false;
+            for (int j = 0; j < current.Count; j++)
+            {
+                TriangleRemovableWindow chosen = current[j];
+                if (window.startIndex <= chosen.endIndex + minGap &&
+                    window.endIndex >= chosen.startIndex - minGap)
+                {
+                    overlaps = true;
+                    break;
+                }
+            }
+
+            if (overlaps)
+                continue;
+
+            current.Add(window);
+            SearchTriangleWindowCombination(
+                windows,
+                i + 1,
+                remainingLength - length,
+                minGap,
+                current,
+                ref best,
+                ref bestScore,
+                edgeTrimCount);
+            current.RemoveAt(current.Count - 1);
+        }
+    }
+
+    private static bool TryBuildDistributedTriangleWindows(
+        List<Vector2Int> fullPath,
+        CampaignConfig config,
+        int desiredBlocked,
+        out List<Vector2Int> playablePath,
+        out List<Vector2Int> blocked)
+    {
+        playablePath = null;
+        blocked = null;
+        List<TriangleRemovableWindow> bestWindows = null;
+        int bestFrontTrim = 0;
+        int bestBackTrim = 0;
+        float bestScore = float.NegativeInfinity;
+
+        int[] edgeTrimOptions = desiredBlocked % 2 == 0 ? new[] { 0 } : new[] { 1 };
+        foreach (int edgeTrimCount in edgeTrimOptions)
+        {
+            int interiorBlockedLength = desiredBlocked - edgeTrimCount;
+            if (interiorBlockedLength < 2)
+                continue;
+
+            for (int frontTrim = 0; frontTrim <= edgeTrimCount; frontTrim++)
+            {
+                int backTrim = edgeTrimCount - frontTrim;
+                var windows = new List<TriangleRemovableWindow>();
+                for (int length = 1; length <= Mathf.Min(interiorBlockedLength, 4); length++)
+                    windows.AddRange(FindTriangleRemovableWindows(fullPath, config.width, config.height, length, frontTrim, backTrim));
+
+                windows.Sort((a, b) =>
+                {
+                    int cmp = a.startIndex.CompareTo(b.startIndex);
+                    return cmp != 0 ? cmp : a.endIndex.CompareTo(b.endIndex);
+                });
+
+                List<TriangleRemovableWindow> candidateWindows = null;
+                float candidateScore = float.NegativeInfinity;
+                SearchTriangleWindowCombination(
+                    windows,
+                    0,
+                    interiorBlockedLength,
+                    2,
+                    new List<TriangleRemovableWindow>(),
+                    ref candidateWindows,
+                    ref candidateScore,
+                    edgeTrimCount);
+
+                if (candidateWindows != null && candidateScore > bestScore)
+                {
+                    bestWindows = candidateWindows;
+                    bestFrontTrim = frontTrim;
+                    bestBackTrim = backTrim;
+                    bestScore = candidateScore;
+                }
+            }
+        }
+
+        if (bestWindows == null)
+            return false;
+
+        var blockedIndices = new HashSet<int>();
+        for (int i = 0; i < bestFrontTrim; i++)
+            blockedIndices.Add(i);
+        for (int i = fullPath.Count - bestBackTrim; i < fullPath.Count; i++)
+            blockedIndices.Add(i);
+        foreach (TriangleRemovableWindow window in bestWindows)
+            for (int i = window.startIndex; i <= window.endIndex; i++)
+                blockedIndices.Add(i);
+
+        blocked = new List<Vector2Int>(blockedIndices.Count);
+        playablePath = new List<Vector2Int>(fullPath.Count - blockedIndices.Count);
+        for (int i = 0; i < fullPath.Count; i++)
+        {
+            if (blockedIndices.Contains(i))
+                blocked.Add(fullPath[i]);
+            else
+                playablePath.Add(fullPath[i]);
+        }
+
+        return blocked.Count == desiredBlocked && playablePath.Count >= config.minSegment;
+    }
+
+    private static LevelCandidate BuildTriangleBundledCandidate(int levelIndex, CampaignConfig config)
+    {
+        int desiredBlocked = Mathf.Clamp(
+            config.minBlocked + (levelIndex % Mathf.Max(1, config.maxBlocked - config.minBlocked + 1)),
+            config.minBlocked,
+            config.maxBlocked);
+
+        LevelCandidate bestCandidate = null;
+        for (int variantOffset = 0; variantOffset < 8; variantOffset++)
+        {
+            int variantIndex = (levelIndex * 5 + config.maxBlocked + variantOffset * 3) & 7;
+            var rng = new System.Random((levelIndex + 9000) * 6151 + variantOffset * 197);
+            List<Vector2Int> fullPath = HamiltonianPath(
+                config.width,
+                config.height,
+                new HashSet<Vector2Int>(),
+                rng,
+                triMode: true,
+                maxAttempts: 160);
+            if (fullPath == null)
+            {
+                fullPath = TransformTrianglePathVariant(
+                    TriangleSnakePath(config.width, config.height),
+                    config.width,
+                    config.height,
+                    variantIndex);
+            }
+
+            desiredBlocked = Mathf.Min(desiredBlocked, Mathf.Max(0, fullPath.Count - config.minSegment));
+            if (!TryBuildDistributedTriangleWindows(fullPath, config, desiredBlocked, out List<Vector2Int> playablePath, out List<Vector2Int> blocked))
+                continue;
+
+            List<List<Vector2Int>> segments = SplitPath(playablePath, config, rng)
+                ?? UniformSplit(playablePath, config.minSegment);
+            if (segments == null || segments.Count == 0)
+                continue;
+
+            float score = ComputeTriangleBlockedScatterScore(blocked, config) + CountTurns(playablePath) * 0.12f;
+            if (bestCandidate == null || score > bestCandidate.score)
+            {
+                bestCandidate = new LevelCandidate
+                {
+                    path = playablePath,
+                    segments = segments,
+                    signature = BuildSignature(config, segments),
+                    contentFingerprint = BuildContentFingerprint(config, segments, blocked),
+                    score = score,
+                    blocked = blocked
+                };
+            }
+        }
+
+        return bestCandidate;
+    }
+
+    private static float ComputeTriangleBlockedScatterScore(IList<Vector2Int> blocked, CampaignConfig config)
+    {
+        if (blocked == null || blocked.Count == 0)
+            return 0f;
+
+        float score = 0f;
+        var usedXBands = new HashSet<int>();
+        var usedYBands = new HashSet<int>();
+        for (int i = 0; i < blocked.Count; i++)
+        {
+            Vector2Int a = blocked[i];
+            int edgeDistance = Mathf.Min(
+                Mathf.Min(a.x, config.width - 1 - a.x),
+                Mathf.Min(a.y, config.height - 1 - a.y));
+            score += edgeDistance * 3.2f;
+            usedXBands.Add(Mathf.Min(2, (a.x * 3) / Mathf.Max(1, config.width)));
+            usedYBands.Add(Mathf.Min(2, (a.y * 3) / Mathf.Max(1, config.height)));
+
+            for (int j = i + 1; j < blocked.Count; j++)
+            {
+                Vector2Int b = blocked[j];
+                int manhattan = Mathf.Abs(a.x - b.x) + Mathf.Abs(a.y - b.y);
+                score += Mathf.Min(manhattan, 8) * 0.9f;
+
+                if (AreTriangleCellsAdjacent(a, b, config.width, config.height))
+                    score -= 15f;
+                else if (manhattan == 2)
+                    score -= 3f;
+
+                if (Mathf.Abs(a.x - b.x) <= 1 && Mathf.Abs(a.y - b.y) <= 1)
+                    score -= 4f;
+
+                if (a.x == b.x || a.y == b.y)
+                    score -= 1.75f;
+            }
+        }
+
+        score += usedXBands.Count * 1.4f;
+        score += usedYBands.Count * 1.1f;
+        return score;
+    }
+
+    private static float ComputeTriangleBlockedAnchorScore(IList<Vector2Int> blocked, CampaignConfig config, int levelIndex)
+    {
+        if (blocked == null || blocked.Count == 0)
+            return 0f;
+
+        int anchorCount = Mathf.Min(blocked.Count, 4);
+        List<Vector2> anchors = BuildTriangleBlockedAnchors(config, anchorCount, levelIndex, 0);
+
+        float score = 0f;
+        foreach (Vector2Int cell in blocked)
+        {
+            float bestDistance = float.PositiveInfinity;
+            for (int i = 0; i < anchors.Count; i++)
+            {
+                float distance = Mathf.Abs(cell.x - anchors[i].x) + Mathf.Abs(cell.y - anchors[i].y);
+                if (distance < bestDistance)
+                    bestDistance = distance;
+            }
+
+            score += Mathf.Max(0f, 6f - bestDistance) * 2.2f;
+        }
+
+        return score;
+    }
+
+    private static List<Vector2> BuildTriangleBlockedAnchors(CampaignConfig config, int count, int levelIndex, int variantSeed)
+    {
+        var anchors = new List<Vector2>(count);
+        if (count <= 0)
+            return anchors;
+
+        int interiorMaxX = Mathf.Max(1, config.width - 2);
+        int interiorMaxY = Mathf.Max(1, config.height - 2);
+        int offset = Mathf.Abs(levelIndex * 3 + variantSeed * 5) % TriangleBlockedAnchorTemplates.Length;
+        bool mirrorX = ((levelIndex + variantSeed) & 1) != 0;
+        bool mirrorY = ((levelIndex + variantSeed) & 2) != 0;
+
+        for (int i = 0; i < count; i++)
+        {
+            Vector2 normalized = TriangleBlockedAnchorTemplates[(offset + i * 2) % TriangleBlockedAnchorTemplates.Length];
+            float nx = mirrorX ? 1f - normalized.x : normalized.x;
+            float ny = mirrorY ? 1f - normalized.y : normalized.y;
+            float x = Mathf.Clamp(1f + nx * (interiorMaxX - 1), 1f, interiorMaxX);
+            float y = Mathf.Clamp(1f + ny * (interiorMaxY - 1), 1f, interiorMaxY);
+            anchors.Add(new Vector2(x, y));
+        }
+
+        return anchors;
+    }
+
+    private static float ScoreTriangleBlockedAnchorCandidate(
+        Vector2Int cell,
+        Vector2 anchor,
+        HashSet<Vector2Int> blocked,
+        CampaignConfig config)
+    {
+        int edgeDistance = Mathf.Min(
+            Mathf.Min(cell.x, config.width - 1 - cell.x),
+            Mathf.Min(cell.y, config.height - 1 - cell.y));
+        float score = edgeDistance * 6f;
+        score -= (Mathf.Abs(cell.x - anchor.x) + Mathf.Abs(cell.y - anchor.y)) * 2.4f;
+
+        foreach (Vector2Int existing in blocked)
+        {
+            if (AreTriangleCellsAdjacent(cell, existing, config.width, config.height))
+                return float.NegativeInfinity;
+
+            int dx = Mathf.Abs(cell.x - existing.x);
+            int dy = Mathf.Abs(cell.y - existing.y);
+            if (dx <= 1 && dy <= 1)
+                return float.NegativeInfinity;
+
+            int manhattan = dx + dy;
+            score += Mathf.Min(manhattan, 8) * 0.8f;
+
+            if (cell.x == existing.x || cell.y == existing.y)
+                score -= 1.5f;
+        }
+
+        return score;
+    }
+
+    private static HashSet<Vector2Int> GenerateAnchoredTriangleBlockedCellsExact(
+        CampaignConfig config,
+        int count,
+        int levelIndex,
+        int variantSeed,
+        System.Random rng)
+    {
+        var blocked = new HashSet<Vector2Int>();
+        if (count <= 0)
+            return blocked;
+
+        var allCells = new List<Vector2Int>(config.width * config.height);
+        for (int y = 0; y < config.height; y++)
+            for (int x = 0; x < config.width; x++)
+                allCells.Add(new Vector2Int(x, y));
+        Shuffle(allCells, rng);
+
+        List<Vector2> anchors = BuildTriangleBlockedAnchors(config, count, levelIndex, variantSeed);
+        foreach (Vector2 anchor in anchors)
+        {
+            Vector2Int bestCell = default;
+            float bestScore = float.NegativeInfinity;
+            bool found = false;
+
+            foreach (Vector2Int candidate in allCells)
+            {
+                if (blocked.Contains(candidate))
+                    continue;
+
+                float score = ScoreTriangleBlockedAnchorCandidate(candidate, anchor, blocked, config);
+                if (score <= bestScore)
+                    continue;
+
+                blocked.Add(candidate);
+                if (!IsGridConnected(config.width, config.height, blocked, triMode: true))
+                {
+                    blocked.Remove(candidate);
+                    continue;
+                }
+
+                blocked.Remove(candidate);
+                bestCell = candidate;
+                bestScore = score;
+                found = true;
+            }
+
+            if (!found)
+                continue;
+
+            blocked.Add(bestCell);
+        }
+
+        if (blocked.Count < count)
+        {
+            foreach (Vector2Int candidate in allCells)
+            {
+                if (blocked.Count >= count)
+                    break;
+                if (blocked.Contains(candidate))
+                    continue;
+
+                float bestScore = float.NegativeInfinity;
+                for (int i = 0; i < anchors.Count; i++)
+                    bestScore = Mathf.Max(bestScore, ScoreTriangleBlockedAnchorCandidate(candidate, anchors[i], blocked, config));
+                if (float.IsNegativeInfinity(bestScore))
+                    continue;
+
+                blocked.Add(candidate);
+                if (!IsGridConnected(config.width, config.height, blocked, triMode: true))
+                    blocked.Remove(candidate);
+            }
+        }
+
+        return blocked;
+    }
+
     public static LevelData[] GeneratePentagonCampaign(int count)
+        => GeneratePentagonCampaign(0, count);
+
+    public static LevelData[] GeneratePentagonCampaign(int startIndex, int count)
     {
         var levels = new LevelData[count];
         var recentSignatures = new Queue<string>();
@@ -1234,17 +1934,20 @@ public static class LevelGenerator
         var usedValueSetsByTier = new Dictionary<string, Dictionary<string, int>>();
         var recentRegionSets = new Queue<string>();
 
-        for (int i = 0; i < count; i++)
+        for (int localIndex = 0; localIndex < count; localIndex++)
         {
+            int i = startIndex + localIndex;
             var rng = new System.Random((i + 500) * 7919 + 11);
             CampaignConfig config = GetPentagonConfig(i);
             LevelCandidate bestCandidate = null;
+            bool fastBundledMode = UseBundledBuildOptimizations;
+            int candidateAttempts = fastBundledMode ? Mathf.Min(config.candidateCount, 8) : config.candidateCount;
 
-            for (int ci = 0; ci < config.candidateCount; ci++)
+            for (int ci = 0; ci < candidateAttempts; ci++)
             {
                 var candidateRng = new System.Random(rng.Next());
-                HashSet<Vector2Int> blocked = GenerateBlockedCells(config, candidateRng, hexMode: true);
-                List<Vector2Int> path = HamiltonianPath(config.width, config.height, blocked, candidateRng, hexMode: true);
+                HashSet<Vector2Int> blocked = GenerateBlockedCells(config, candidateRng, colHexMode: true);
+                List<Vector2Int> path = HamiltonianPath(config.width, config.height, blocked, candidateRng, colHexMode: true);
                 if (path == null) continue;
                 List<List<Vector2Int>> segments = SplitPath(path, config, candidateRng);
                 if (segments == null || segments.Count == 0) continue;
@@ -1282,14 +1985,16 @@ public static class LevelGenerator
             }
 
             // Extra de-dup loop — avoid exact duplicate puzzles
-            int extraAttempts = config.maxBlocked > 0 ? 100 : 60;
+            int extraAttempts = fastBundledMode
+                ? (config.maxBlocked > 0 ? 10 : 6)
+                : (config.maxBlocked > 0 ? 100 : 60);
             if (allFingerprints.Contains(bestCandidate.contentFingerprint))
             {
                 for (int extra = 0; extra < extraAttempts; extra++)
                 {
                     var xRng = new System.Random((i + 500) * 7919 + 11 + (extra + 1) * 1013);
-                    HashSet<Vector2Int> xBlocked = GenerateBlockedCells(config, xRng, hexMode: true);
-                    List<Vector2Int> xPath = HamiltonianPath(config.width, config.height, xBlocked, xRng, hexMode: true);
+                    HashSet<Vector2Int> xBlocked = GenerateBlockedCells(config, xRng, colHexMode: true);
+                    List<Vector2Int> xPath = HamiltonianPath(config.width, config.height, xBlocked, xRng, colHexMode: true);
                     if (xPath == null) continue;
                     List<List<Vector2Int>> xSegs = SplitPath(xPath, config, xRng);
                     if (xSegs == null || xSegs.Count == 0) continue;
@@ -1311,7 +2016,7 @@ public static class LevelGenerator
 
             LevelData ld = BuildLevelData(config, bestCandidate.segments, bestCandidate.blocked);
             ld.cellShape = CellShape.Pentagon;
-            levels[i] = ld;
+            levels[localIndex] = ld;
 
             recentSignatures.Enqueue(bestCandidate.signature);
             while (recentSignatures.Count > 15) recentSignatures.Dequeue();
@@ -1409,7 +2114,7 @@ public static class LevelGenerator
             c.rectanglePenalty = 1.2f; c.densePenalty = 0.95f;
             c.straightPenalty = 0.9f; c.turnWeight = 0.82f;
             c.squarePenalty = 0.4f; c.lateRectangleBonus = 0.15f;
-            c.minBlocked = 3; c.maxBlocked = 4;
+            c.minBlocked = 2; c.maxBlocked = 3;
         }
         else if (idx < 275)    // Tier 8: 6×11, Expert (546-575)
         {
@@ -1419,7 +2124,7 @@ public static class LevelGenerator
             c.rectanglePenalty = 1.0f; c.densePenalty = 0.75f;
             c.straightPenalty = 0.85f; c.turnWeight = 0.77f;
             c.squarePenalty = 0.3f; c.lateRectangleBonus = 0.2f;
-            c.minBlocked = 4; c.maxBlocked = 5;
+            c.minBlocked = 3; c.maxBlocked = 4;
         }
         else                   // Tier 9: 6×12, Master (576-600)
         {
@@ -1438,6 +2143,9 @@ public static class LevelGenerator
     // --- Hexagon campaign (flat-top column-offset, 6gen) ---
 
     public static LevelData[] GenerateHexagonCampaign(int count)
+        => GenerateHexagonCampaign(0, count);
+
+    public static LevelData[] GenerateHexagonCampaign(int startIndex, int count)
     {
         var levels = new LevelData[count];
         var recentSignatures = new Queue<string>();
@@ -1446,13 +2154,16 @@ public static class LevelGenerator
         var usedValueSetsByTier = new Dictionary<string, Dictionary<string, int>>();
         var recentRegionSets = new Queue<string>();
 
-        for (int i = 0; i < count; i++)
+        for (int localIndex = 0; localIndex < count; localIndex++)
         {
+            int i = startIndex + localIndex;
             var rng = new System.Random((i + 1000) * 7919 + 17);
             CampaignConfig config = GetHexagonConfig(i);
             LevelCandidate bestCandidate = null;
+            bool fastBundledMode = UseBundledBuildOptimizations;
+            int candidateAttempts = fastBundledMode ? Mathf.Min(config.candidateCount, 8) : config.candidateCount;
 
-            for (int ci = 0; ci < config.candidateCount; ci++)
+            for (int ci = 0; ci < candidateAttempts; ci++)
             {
                 var candidateRng = new System.Random(rng.Next());
                 HashSet<Vector2Int> blocked = GenerateBlockedCells(config, candidateRng, hexMode: false, colHexMode: true);
@@ -1493,7 +2204,9 @@ public static class LevelGenerator
                 };
             }
 
-            int extraAttempts = config.maxBlocked > 0 ? 100 : 60;
+            int extraAttempts = fastBundledMode
+                ? (config.maxBlocked > 0 ? 10 : 6)
+                : (config.maxBlocked > 0 ? 100 : 60);
             if (allFingerprints.Contains(bestCandidate.contentFingerprint))
             {
                 for (int extra = 0; extra < extraAttempts; extra++)
@@ -1522,7 +2235,7 @@ public static class LevelGenerator
 
             LevelData ld = BuildLevelData(config, bestCandidate.segments, bestCandidate.blocked);
             ld.cellShape = CellShape.Hexagon;
-            levels[i] = ld;
+            levels[localIndex] = ld;
 
             recentSignatures.Enqueue(bestCandidate.signature);
             while (recentSignatures.Count > 15) recentSignatures.Dequeue();
@@ -1659,6 +2372,9 @@ public static class LevelGenerator
     // --- 3gen campaign (triangle grid — equilateral triangles tile perfectly) ---
 
     public static LevelData[] GenerateThreeGenCampaign(int count)
+        => GenerateThreeGenCampaign(0, count);
+
+    public static LevelData[] GenerateThreeGenCampaign(int startIndex, int count)
     {
         var levels = new LevelData[count];
         var recentSignatures = new Queue<string>();
@@ -1666,135 +2382,138 @@ public static class LevelGenerator
         var allFingerprints = new HashSet<string>();
         var usedValueSetsByTier = new Dictionary<string, Dictionary<string, int>>();
         var recentRegionSets = new Queue<string>();
+        var usedBlockedLayouts = new Dictionary<string, int>();
+        var usedBlockedRegions = new Dictionary<string, int>();
+        bool fastSingleLevelRequest = count == 1;
 
-        for (int i = 0; i < count; i++)
+        for (int localIndex = 0; localIndex < count; localIndex++)
         {
+            int i = startIndex + localIndex;
             var rng = new System.Random((i + 3000) * 7331 + 41);
             CampaignConfig config = GetThreeGenConfig(i);
+            bool fastBundledMode = UseBundledBuildOptimizations;
+            bool fastBundledSingleLevel = fastBundledMode && fastSingleLevelRequest;
+            bool prioritizeBlockedReliability = fastSingleLevelRequest && config.maxBlocked > 0 && !fastBundledMode;
+            bool hardBlockedTier = config.maxBlocked >= 4;
+            int pathAttemptLimit = prioritizeBlockedReliability ? 220 : (fastBundledMode ? (hardBlockedTier ? 220 : (config.maxBlocked > 0 ? 112 : 64)) : (fastSingleLevelRequest ? 48 : 220));
+            int initialCandidateAttempts = prioritizeBlockedReliability ? config.candidateCount : (fastBundledMode ? (hardBlockedTier ? Mathf.Min(config.candidateCount, 28) : (config.maxBlocked > 0 ? Mathf.Min(config.candidateCount, 14) : Mathf.Min(config.candidateCount, 8))) : (fastSingleLevelRequest ? Mathf.Min(config.candidateCount, 10) : config.candidateCount));
+            int blockedRecoveryAttempts = prioritizeBlockedReliability ? config.candidateCount * 24 : (fastBundledMode ? (hardBlockedTier ? Mathf.Max(config.candidateCount * 12, 96) : Mathf.Max(config.candidateCount * 6, 30)) : (fastSingleLevelRequest ? Mathf.Max(config.candidateCount * 4, 28) : config.candidateCount * 24));
+            int easierBlockedAttempts = prioritizeBlockedReliability ? Mathf.Max(config.candidateCount * 18, 160) : (fastBundledMode ? (hardBlockedTier ? Mathf.Max(config.candidateCount * 10, 80) : Mathf.Max(config.candidateCount * 4, 24)) : (fastSingleLevelRequest ? Mathf.Max(config.candidateCount * 3, 24) : Mathf.Max(config.candidateCount * 18, 160)));
+            int guaranteedBlockedAttempts = prioritizeBlockedReliability ? Mathf.Max(config.candidateCount * 28, 240) : (fastBundledMode ? (hardBlockedTier ? Mathf.Max(config.candidateCount * 14, 120) : Mathf.Max(config.candidateCount * 6, 40)) : (fastSingleLevelRequest ? Mathf.Max(config.candidateCount * 4, 32) : Mathf.Max(config.candidateCount * 28, 240)));
             LevelCandidate bestCandidate = null;
 
-            for (int ci = 0; ci < config.candidateCount; ci++)
+            if (fastBundledSingleLevel && config.maxBlocked > 0)
+                bestCandidate = BuildTriangleBundledCandidate(i, config);
+
+            if (bestCandidate == null)
             {
-                var candidateRng = new System.Random(rng.Next());
-                HashSet<Vector2Int> blocked = GenerateBlockedCells(config, candidateRng, triMode: true);
-                List<Vector2Int> path = HamiltonianPath(config.width, config.height, blocked, candidateRng, triMode: true);
-                if (path == null) continue;
-                List<List<Vector2Int>> segments = SplitPath(path, config, candidateRng);
-                if (segments == null || segments.Count == 0) continue;
+                bestCandidate = TryGenerateThreeGenCandidate(
+                    i,
+                    config,
+                    initialCandidateAttempts,
+                    recentSignatures,
+                    usedSignatures,
+                    allFingerprints,
+                    usedValueSetsByTier,
+                    recentRegionSets,
+                    pathAttemptLimit,
+                    usedBlockedLayouts,
+                    usedBlockedRegions);
+            }
 
-                var blockedList = new List<Vector2Int>(blocked);
-                string signature = BuildSignature(config, segments);
-                string contentFingerprint = BuildContentFingerprint(config, segments, blockedList);
-                float score = ScoreCandidate(path, segments, config, signature, contentFingerprint,
-                    recentSignatures, usedSignatures, allFingerprints, usedValueSetsByTier, recentRegionSets);
+            if (bestCandidate == null && config.maxBlocked > 0)
+            {
+                bestCandidate = TryGenerateThreeGenCandidate(
+                    i,
+                    config,
+                    blockedRecoveryAttempts,
+                    recentSignatures,
+                    usedSignatures,
+                    allFingerprints,
+                    usedValueSetsByTier,
+                    recentRegionSets,
+                    pathAttemptLimit,
+                    usedBlockedLayouts,
+                    usedBlockedRegions);
+            }
 
-                if (bestCandidate == null || score > bestCandidate.score)
+            if (bestCandidate == null && config.maxBlocked > 1)
+            {
+                for (int forcedBlocked = config.maxBlocked - 1; forcedBlocked >= 1 && bestCandidate == null; forcedBlocked--)
                 {
-                    bestCandidate = new LevelCandidate
-                    {
-                        path = path, segments = segments,
-                        signature = signature, contentFingerprint = contentFingerprint,
-                        score = score, blocked = blockedList
-                    };
+                    CampaignConfig easierBlockedConfig = config;
+                    easierBlockedConfig.minBlocked = forcedBlocked;
+                    easierBlockedConfig.maxBlocked = forcedBlocked;
+                    easierBlockedConfig.candidateCount = easierBlockedAttempts;
+                        bestCandidate = TryGenerateThreeGenCandidate(
+                            i,
+                            easierBlockedConfig,
+                            easierBlockedConfig.candidateCount,
+                            recentSignatures,
+                            usedSignatures,
+                            allFingerprints,
+                            usedValueSetsByTier,
+                            recentRegionSets,
+                            pathAttemptLimit,
+                            usedBlockedLayouts,
+                            usedBlockedRegions);
                 }
             }
 
             if (bestCandidate == null && config.maxBlocked > 0)
             {
-                int recoveryAttempts = config.candidateCount * 25;
-                for (int retry = 0; retry < recoveryAttempts; retry++)
-                {
-                    var retryRng = new System.Random((i + 3000) * 7331 + 41 + (retry + 1) * 1237);
-                    HashSet<Vector2Int> retryBlocked = GenerateBlockedCells(config, retryRng, triMode: true);
-                    if (retryBlocked.Count == 0) continue;
-
-                    List<Vector2Int> retryPath = HamiltonianPath(config.width, config.height, retryBlocked, retryRng, triMode: true);
-                    if (retryPath == null) continue;
-
-                    List<List<Vector2Int>> retrySegs = SplitPath(retryPath, config, retryRng);
-                    if (retrySegs == null || retrySegs.Count == 0) continue;
-
-                    var retryBlockedList = new List<Vector2Int>(retryBlocked);
-                    string retrySignature = BuildSignature(config, retrySegs);
-                    string retryFingerprint = BuildContentFingerprint(config, retrySegs, retryBlockedList);
-                    float retryScore = ScoreCandidate(retryPath, retrySegs, config, retrySignature, retryFingerprint,
-                        recentSignatures, usedSignatures, allFingerprints, usedValueSetsByTier, recentRegionSets);
-
-                    bestCandidate = new LevelCandidate
-                    {
-                        path = retryPath,
-                        segments = retrySegs,
-                        signature = retrySignature,
-                        contentFingerprint = retryFingerprint,
-                        score = retryScore,
-                        blocked = retryBlockedList
-                    };
-                    break;
-                }
-            }
-
-            if (bestCandidate == null && config.width % 2 == 1)
-            {
-                config.width -= 1;
-
-                if (config.maxBlocked > 0)
-                {
-                    int reducedWidthRecoveryAttempts = config.candidateCount * 12;
-                    for (int retry = 0; retry < reducedWidthRecoveryAttempts; retry++)
-                    {
-                        var retryRng = new System.Random((i + 3000) * 7331 + 41 + (retry + 1) * 1619);
-                        HashSet<Vector2Int> retryBlocked = GenerateBlockedCells(config, retryRng, triMode: true);
-                        if (retryBlocked.Count == 0) continue;
-
-                        List<Vector2Int> retryPath = HamiltonianPath(config.width, config.height, retryBlocked, retryRng, triMode: true);
-                        if (retryPath == null) continue;
-
-                        List<List<Vector2Int>> retrySegs = SplitPath(retryPath, config, retryRng);
-                        if (retrySegs == null || retrySegs.Count == 0) continue;
-
-                        var retryBlockedList = new List<Vector2Int>(retryBlocked);
-                        string retrySignature = BuildSignature(config, retrySegs);
-                        string retryFingerprint = BuildContentFingerprint(config, retrySegs, retryBlockedList);
-                        float retryScore = ScoreCandidate(retryPath, retrySegs, config, retrySignature, retryFingerprint,
-                            recentSignatures, usedSignatures, allFingerprints, usedValueSetsByTier, recentRegionSets);
-
-                        bestCandidate = new LevelCandidate
-                        {
-                            path = retryPath,
-                            segments = retrySegs,
-                            signature = retrySignature,
-                            contentFingerprint = retryFingerprint,
-                            score = retryScore,
-                            blocked = retryBlockedList
-                        };
-                        break;
-                    }
-                }
+                CampaignConfig guaranteedBlockedConfig = config;
+                guaranteedBlockedConfig.minBlocked = 1;
+                guaranteedBlockedConfig.maxBlocked = 1;
+                guaranteedBlockedConfig.candidateCount = guaranteedBlockedAttempts;
+                bestCandidate = TryGenerateThreeGenCandidate(
+                    i,
+                    guaranteedBlockedConfig,
+                    guaranteedBlockedConfig.candidateCount,
+                    recentSignatures,
+                    usedSignatures,
+                    allFingerprints,
+                    usedValueSetsByTier,
+                    recentRegionSets,
+                    pathAttemptLimit,
+                    usedBlockedLayouts,
+                    usedBlockedRegions);
             }
 
             if (bestCandidate == null)
             {
-                var emptyBlocked = new List<Vector2Int>();
-                List<Vector2Int> fallbackPath = TriangleSnakePath(config.width, config.height);
-                List<List<Vector2Int>> fallbackSegs = SplitPath(fallbackPath, config, rng)
-                    ?? UniformSplit(fallbackPath, config.minSegment);
-                bestCandidate = new LevelCandidate
-                {
-                    path = fallbackPath, segments = fallbackSegs,
-                    signature = BuildSignature(config, fallbackSegs),
-                    contentFingerprint = BuildContentFingerprint(config, fallbackSegs, emptyBlocked),
-                    score = 0f, blocked = emptyBlocked
-                };
+                bestCandidate = BuildTriangleFallbackCandidate(i, config, rng);
             }
 
-            int extraAttempts = config.maxBlocked > 0 ? 100 : 60;
-            if (allFingerprints.Contains(bestCandidate.contentFingerprint))
+            string bestBlockedLayout = BuildBlockedLayoutFingerprint(bestCandidate.blocked);
+            int bestBlockedLayoutUses = 0;
+            if (!string.IsNullOrEmpty(bestBlockedLayout))
+                usedBlockedLayouts.TryGetValue(bestBlockedLayout, out bestBlockedLayoutUses);
+            string bestBlockedRegion = BuildBlockedRegionFingerprint(config, bestCandidate.blocked);
+            int bestBlockedRegionUses = 0;
+            if (!string.IsNullOrEmpty(bestBlockedRegion))
+                usedBlockedRegions.TryGetValue(bestBlockedRegion, out bestBlockedRegionUses);
+
+            int extraAttempts = fastBundledMode
+                ? (config.maxBlocked > 0 ? 8 : 5)
+                : prioritizeBlockedReliability
+                ? 100
+                : (fastSingleLevelRequest
+                ? (config.maxBlocked > 0 ? 12 : 8)
+                : (config.maxBlocked > 0 ? 100 : 60));
+            if (allFingerprints.Contains(bestCandidate.contentFingerprint) || bestBlockedLayoutUses > 0)
             {
                 for (int extra = 0; extra < extraAttempts; extra++)
                 {
                     var xRng = new System.Random((i + 3000) * 7331 + 41 + (extra + 1) * 997);
-                    HashSet<Vector2Int> xBlocked = GenerateBlockedCells(config, xRng, triMode: true);
-                    List<Vector2Int> xPath = HamiltonianPath(config.width, config.height, xBlocked, xRng, triMode: true);
+                    int xBlockedCount = config.minBlocked == config.maxBlocked
+                        ? config.minBlocked
+                        : xRng.Next(config.minBlocked, config.maxBlocked + 1);
+                    HashSet<Vector2Int> xBlocked = GenerateAnchoredTriangleBlockedCellsExact(config, xBlockedCount, i, extra + 101, xRng);
+                    if (xBlocked.Count != xBlockedCount)
+                        xBlocked = GenerateBlockedCellsExact(config, xBlockedCount, xRng, triMode: true);
+                    if (config.maxBlocked > 0 && xBlocked.Count == 0) continue;
+                    List<Vector2Int> xPath = HamiltonianPath(config.width, config.height, xBlocked, xRng, triMode: true, maxAttempts: pathAttemptLimit);
                     if (xPath == null) continue;
                     List<List<Vector2Int>> xSegs = SplitPath(xPath, config, xRng);
                     if (xSegs == null || xSegs.Count == 0) continue;
@@ -1802,6 +2521,20 @@ public static class LevelGenerator
                     string xFp = BuildContentFingerprint(config, xSegs, xBlockedList);
                     if (!allFingerprints.Contains(xFp))
                     {
+                        string xBlockedLayout = BuildBlockedLayoutFingerprint(xBlockedList);
+                        int xBlockedLayoutUses = 0;
+                        if (!string.IsNullOrEmpty(xBlockedLayout))
+                            usedBlockedLayouts.TryGetValue(xBlockedLayout, out xBlockedLayoutUses);
+                        string xBlockedRegion = BuildBlockedRegionFingerprint(config, xBlockedList);
+                        int xBlockedRegionUses = 0;
+                        if (!string.IsNullOrEmpty(xBlockedRegion))
+                            usedBlockedRegions.TryGetValue(xBlockedRegion, out xBlockedRegionUses);
+
+                        if (xBlockedLayoutUses > bestBlockedLayoutUses)
+                            continue;
+                        if (xBlockedLayoutUses == bestBlockedLayoutUses && xBlockedRegionUses > bestBlockedRegionUses)
+                            continue;
+
                         bestCandidate = new LevelCandidate
                         {
                             path = xPath, segments = xSegs,
@@ -1809,14 +2542,19 @@ public static class LevelGenerator
                             contentFingerprint = xFp,
                             score = float.PositiveInfinity, blocked = xBlockedList
                         };
-                        break;
+                        bestBlockedLayout = xBlockedLayout;
+                        bestBlockedLayoutUses = xBlockedLayoutUses;
+                        bestBlockedRegion = xBlockedRegion;
+                        bestBlockedRegionUses = xBlockedRegionUses;
+                        if (xBlockedLayoutUses == 0 && xBlockedRegionUses == 0)
+                            break;
                     }
                 }
             }
 
             LevelData ld = BuildLevelData(config, bestCandidate.segments, bestCandidate.blocked);
             ld.cellShape = CellShape.ThreeGen;
-            levels[i] = ld;
+            levels[localIndex] = ld;
 
             recentSignatures.Enqueue(bestCandidate.signature);
             while (recentSignatures.Count > 15) recentSignatures.Dequeue();
@@ -1837,9 +2575,203 @@ public static class LevelGenerator
             while (recentRegionSets.Count > 10) recentRegionSets.Dequeue();
 
             allFingerprints.Add(bestCandidate.contentFingerprint);
+            if (!string.IsNullOrEmpty(bestBlockedLayout))
+            {
+                if (!usedBlockedLayouts.ContainsKey(bestBlockedLayout))
+                    usedBlockedLayouts[bestBlockedLayout] = 0;
+                usedBlockedLayouts[bestBlockedLayout]++;
+            }
+            if (!string.IsNullOrEmpty(bestBlockedRegion))
+            {
+                if (!usedBlockedRegions.ContainsKey(bestBlockedRegion))
+                    usedBlockedRegions[bestBlockedRegion] = 0;
+                usedBlockedRegions[bestBlockedRegion]++;
+            }
         }
 
         return levels;
+    }
+
+    private static LevelCandidate TryGenerateThreeGenCandidate(
+        int levelIndex,
+        CampaignConfig config,
+        int attempts,
+        Queue<string> recentSignatures,
+        Dictionary<string, int> usedSignatures,
+        HashSet<string> allFingerprints,
+        Dictionary<string, Dictionary<string, int>> usedValueSetsByTier,
+        Queue<string> recentRegionSets,
+        int pathAttemptLimit,
+        Dictionary<string, int> usedBlockedLayouts,
+        Dictionary<string, int> usedBlockedRegions)
+    {
+        LevelCandidate bestCandidate = null;
+        int baseSeed = (levelIndex + 3000) * 7331 + 41;
+
+        for (int attempt = 0; attempt < attempts; attempt++)
+        {
+            var candidateRng = new System.Random(baseSeed + (attempt + 1) * 1237);
+            int desiredBlockedCount = config.minBlocked == config.maxBlocked
+                ? config.minBlocked
+                : candidateRng.Next(config.minBlocked, config.maxBlocked + 1);
+            HashSet<Vector2Int> blocked = GenerateAnchoredTriangleBlockedCellsExact(config, desiredBlockedCount, levelIndex, attempt + 1, candidateRng);
+            if (blocked.Count != desiredBlockedCount)
+                blocked = GenerateBlockedCellsExact(config, desiredBlockedCount, candidateRng, triMode: true);
+            if (config.maxBlocked > 0 && blocked.Count == 0)
+                continue;
+
+            List<Vector2Int> path = HamiltonianPath(config.width, config.height, blocked, candidateRng, triMode: true, maxAttempts: pathAttemptLimit);
+            if (path == null) continue;
+
+            List<List<Vector2Int>> segments = SplitPath(path, config, candidateRng);
+            if (segments == null || segments.Count == 0) continue;
+
+            var blockedList = new List<Vector2Int>(blocked);
+            string signature = BuildSignature(config, segments);
+            string contentFingerprint = BuildContentFingerprint(config, segments, blockedList);
+            float score = ScoreCandidate(path, segments, config, signature, contentFingerprint,
+                recentSignatures, usedSignatures, allFingerprints, usedValueSetsByTier, recentRegionSets);
+            score += ComputeTriangleBlockedScatterScore(blockedList, config);
+            score += ComputeTriangleBlockedAnchorScore(blockedList, config, levelIndex);
+            string blockedLayout = BuildBlockedLayoutFingerprint(blockedList);
+            if (!string.IsNullOrEmpty(blockedLayout) && usedBlockedLayouts.TryGetValue(blockedLayout, out int blockedLayoutUses))
+                score -= blockedLayoutUses * 18f;
+            string blockedRegion = BuildBlockedRegionFingerprint(config, blockedList);
+            if (!string.IsNullOrEmpty(blockedRegion) && usedBlockedRegions.TryGetValue(blockedRegion, out int blockedRegionUses))
+                score -= blockedRegionUses * 12f;
+
+            if (bestCandidate == null || score > bestCandidate.score)
+            {
+                bestCandidate = new LevelCandidate
+                {
+                    path = path,
+                    segments = segments,
+                    signature = signature,
+                    contentFingerprint = contentFingerprint,
+                    score = score,
+                    blocked = blockedList
+                };
+            }
+        }
+
+        return bestCandidate;
+    }
+
+    private static LevelCandidate BuildTriangleFallbackCandidate(int levelIndex, CampaignConfig config, System.Random rng)
+    {
+        int variantIndex = (levelIndex * 5 + config.maxBlocked) & 7;
+        List<Vector2Int> fullPath = HamiltonianPath(
+            config.width,
+            config.height,
+            new HashSet<Vector2Int>(),
+            rng,
+            triMode: true,
+            maxAttempts: 240);
+        if (fullPath == null)
+        {
+            fullPath = TransformTrianglePathVariant(
+                TriangleSnakePath(config.width, config.height),
+                config.width,
+                config.height,
+                variantIndex);
+        }
+        var blocked = new List<Vector2Int>();
+        List<Vector2Int> playablePath = fullPath;
+
+        if (config.maxBlocked > 0 && fullPath.Count > config.minSegment + config.minBlocked)
+        {
+            int desiredBlocked = Mathf.Clamp(
+                config.minBlocked + (levelIndex % Mathf.Max(1, config.maxBlocked - config.minBlocked + 1)),
+                config.minBlocked,
+                config.maxBlocked);
+
+            desiredBlocked = Mathf.Min(desiredBlocked, Mathf.Max(0, fullPath.Count - config.minSegment));
+            LevelCandidate bestScatteredCandidate = null;
+            for (int blockedTarget = desiredBlocked; blockedTarget >= 1; blockedTarget--)
+            {
+                int scatteredAttempts = Mathf.Max(config.candidateCount * 4, blockedTarget >= 4 ? 120 : 96);
+                for (int attempt = 0; attempt < scatteredAttempts; attempt++)
+                {
+                    var attemptRng = new System.Random((levelIndex + 7000) * 9151 + blockedTarget * 131 + (attempt + 1) * 53);
+                    HashSet<Vector2Int> scatteredBlocked = GenerateAnchoredTriangleBlockedCellsExact(config, blockedTarget, levelIndex, attempt + 1, attemptRng);
+                    if (scatteredBlocked.Count != blockedTarget)
+                        scatteredBlocked = GenerateBlockedCellsExact(config, blockedTarget, attemptRng, triMode: true);
+                    if (scatteredBlocked.Count != blockedTarget)
+                        continue;
+
+                    List<Vector2Int> scatteredPath = HamiltonianPath(
+                        config.width,
+                        config.height,
+                        scatteredBlocked,
+                        attemptRng,
+                        triMode: true,
+                        maxAttempts: blockedTarget >= 4 ? 420 : 320);
+                    if (scatteredPath == null)
+                        continue;
+
+                    List<List<Vector2Int>> scatteredSegments = SplitPath(scatteredPath, config, attemptRng);
+                    if (scatteredSegments == null || scatteredSegments.Count == 0)
+                        continue;
+
+                    var scatteredBlockedList = new List<Vector2Int>(scatteredBlocked);
+                    float scatteredScore = ComputeTriangleBlockedScatterScore(scatteredBlockedList, config)
+                        + ComputeTriangleBlockedAnchorScore(scatteredBlockedList, config, levelIndex)
+                        + blockedTarget * 2.5f;
+                    if (bestScatteredCandidate == null || scatteredScore > bestScatteredCandidate.score)
+                    {
+                        bestScatteredCandidate = new LevelCandidate
+                        {
+                            path = scatteredPath,
+                            segments = scatteredSegments,
+                            signature = BuildSignature(config, scatteredSegments),
+                            contentFingerprint = BuildContentFingerprint(config, scatteredSegments, scatteredBlockedList),
+                            score = scatteredScore,
+                            blocked = scatteredBlockedList
+                        };
+                    }
+                }
+            }
+
+            if (bestScatteredCandidate != null)
+                return bestScatteredCandidate;
+
+            LevelCandidate distributedFallbackCandidate = BuildTriangleBundledCandidate(levelIndex, config);
+            if (distributedFallbackCandidate != null)
+                return distributedFallbackCandidate;
+
+            if (!TryBuildInteriorTriangleFallback(fullPath, levelIndex, config, rng, desiredBlocked, out playablePath, out blocked))
+            {
+                blocked = new List<Vector2Int>();
+                int frontBlocked = desiredBlocked / 2;
+                int backBlocked = desiredBlocked - frontBlocked;
+
+                if ((levelIndex & 1) == 0)
+                {
+                    int temp = frontBlocked;
+                    frontBlocked = backBlocked;
+                    backBlocked = temp;
+                }
+
+                blocked.AddRange(fullPath.GetRange(0, frontBlocked));
+                if (backBlocked > 0)
+                    blocked.AddRange(fullPath.GetRange(fullPath.Count - backBlocked, backBlocked));
+
+                playablePath = fullPath.GetRange(frontBlocked, fullPath.Count - frontBlocked - backBlocked);
+            }
+        }
+
+        List<List<Vector2Int>> fallbackSegs = SplitPath(playablePath, config, rng)
+            ?? UniformSplit(playablePath, config.minSegment);
+
+        return new LevelCandidate
+        {
+            path = playablePath,
+            segments = fallbackSegs,
+            signature = BuildSignature(config, fallbackSegs),
+            contentFingerprint = BuildContentFingerprint(config, fallbackSegs, blocked),
+            score = 0f,
+            blocked = blocked
+        };
     }
 
     private static CampaignConfig GetThreeGenConfig(int idx)
@@ -1866,9 +2798,9 @@ public static class LevelGenerator
             c.squarePenalty = 1.3f; c.lateRectangleBonus = 0f;
             c.minBlocked = 0; c.maxBlocked = 0;
         }
-        else if (idx < 75)     // Tier 3: 9×7  Easy+   (946-975)
+        else if (idx < 75)     // Tier 3: 9×8  Easy+   (946-975)
         {
-            c.width = 9; c.height = 7;
+            c.width = 9; c.height = 8;
             c.minSegment = 3; c.maxSegment = 7; c.candidateCount = 30;
             c.tierName = "3gen Easy";
             c.rectanglePenalty = 3.0f; c.densePenalty = 2.1f;
@@ -1876,17 +2808,17 @@ public static class LevelGenerator
             c.squarePenalty = 1.1f; c.lateRectangleBonus = 0f;
             c.minBlocked = 0; c.maxBlocked = 0;
         }
-        else if (idx < 105)    // Tier 4: 11×7  Normal  (976-1005)
+        else if (idx < 100)    // Tier 4: 11×8  Normal  (976-1000)
         {
-            c.width = 11; c.height = 7;
+            c.width = 11; c.height = 8;
             c.minSegment = 3; c.maxSegment = 8; c.candidateCount = 32;
             c.tierName = "3gen Normal";
             c.rectanglePenalty = 2.6f; c.densePenalty = 1.9f;
             c.straightPenalty = 1.6f; c.turnWeight = 1.05f;
             c.squarePenalty = 0.9f; c.lateRectangleBonus = 0f;
-            c.minBlocked = 1; c.maxBlocked = 2;
+            c.minBlocked = 0; c.maxBlocked = 0;
         }
-        else if (idx < 140)    // Tier 5: 11×8  Normal+ (1006-1040)
+        else if (idx < 135)    // Tier 5: 11×8  Normal+ (1001-1035)
         {
             c.width = 11; c.height = 8;
             c.minSegment = 3; c.maxSegment = 9; c.candidateCount = 34;
@@ -1894,9 +2826,9 @@ public static class LevelGenerator
             c.rectanglePenalty = 2.2f; c.densePenalty = 1.7f;
             c.straightPenalty = 1.4f; c.turnWeight = 1.0f;
             c.squarePenalty = 0.75f; c.lateRectangleBonus = 0f;
-            c.minBlocked = 2; c.maxBlocked = 3;
+            c.minBlocked = 1; c.maxBlocked = 2;
         }
-        else if (idx < 175)    // Tier 6: 13×8  Hard    (1041-1075)
+        else if (idx < 170)    // Tier 6: 13×8  Hard    (1036-1070)
         {
             c.width = 13; c.height = 8;
             c.minSegment = 4; c.maxSegment = 10; c.candidateCount = 36;
@@ -1904,29 +2836,29 @@ public static class LevelGenerator
             c.rectanglePenalty = 1.9f; c.densePenalty = 1.5f;
             c.straightPenalty = 1.2f; c.turnWeight = 0.95f;
             c.squarePenalty = 0.65f; c.lateRectangleBonus = 0.05f;
-            c.minBlocked = 3; c.maxBlocked = 4;
+            c.minBlocked = 2; c.maxBlocked = 3;
         }
-        else if (idx < 215)    // Tier 7: 13×9  Hard+   (1076-1115)
+        else if (idx < 210)    // Tier 7: 13×10 Hard+   (1071-1110)
         {
-            c.width = 13; c.height = 9;
+            c.width = 13; c.height = 10;
             c.minSegment = 4; c.maxSegment = 10; c.candidateCount = 38;
             c.tierName = "3gen Hard";
             c.rectanglePenalty = 1.6f; c.densePenalty = 1.3f;
             c.straightPenalty = 1.1f; c.turnWeight = 0.9f;
             c.squarePenalty = 0.55f; c.lateRectangleBonus = 0.1f;
-            c.minBlocked = 4; c.maxBlocked = 5;
+            c.minBlocked = 3; c.maxBlocked = 4;
         }
-        else if (idx < 255)    // Tier 8: 15×9  Advanced(1116-1155)
+        else if (idx < 250)    // Tier 8: 15×10 Advanced (1111-1150)
         {
-            c.width = 15; c.height = 9;
+            c.width = 15; c.height = 10;
             c.minSegment = 4; c.maxSegment = 11; c.candidateCount = 40;
             c.tierName = "3gen Advanced";
             c.rectanglePenalty = 1.3f; c.densePenalty = 1.0f;
             c.straightPenalty = 0.95f; c.turnWeight = 0.85f;
             c.squarePenalty = 0.45f; c.lateRectangleBonus = 0.15f;
-            c.minBlocked = 5; c.maxBlocked = 6;
+            c.minBlocked = 3; c.maxBlocked = 4;
         }
-        else if (idx < 275)    // Tier 9: 15×10 Expert  (1156-1175)
+        else if (idx < 275)    // Tier 9: 15×10 Expert  (1151-1175)
         {
             c.width = 15; c.height = 10;
             c.minSegment = 5; c.maxSegment = 12; c.candidateCount = 42;
@@ -1934,17 +2866,17 @@ public static class LevelGenerator
             c.rectanglePenalty = 1.0f; c.densePenalty = 0.8f;
             c.straightPenalty = 0.85f; c.turnWeight = 0.78f;
             c.squarePenalty = 0.35f; c.lateRectangleBonus = 0.2f;
-            c.minBlocked = 6; c.maxBlocked = 7;
+            c.minBlocked = 3; c.maxBlocked = 4;
         }
-        else                   // Tier 10: 15×11 Master (1176-1200)
+        else                   // Tier 10: 15×12 Master (1176-1200)
         {
-            c.width = 15; c.height = 11;
+            c.width = 15; c.height = 12;
             c.minSegment = 5; c.maxSegment = 12; c.candidateCount = 44;
             c.tierName = "3gen Master";
             c.rectanglePenalty = 0.8f; c.densePenalty = 0.6f;
             c.straightPenalty = 0.75f; c.turnWeight = 0.7f;
             c.squarePenalty = 0.25f; c.lateRectangleBonus = 0.3f;
-            c.minBlocked = 7; c.maxBlocked = 8;
+            c.minBlocked = 3; c.maxBlocked = 4;
         }
 
         return c;
