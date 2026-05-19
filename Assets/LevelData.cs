@@ -354,6 +354,35 @@ public static class LevelDatabase
         return JsonUtility.ToJson(payload, prettyPrint);
     }
 
+    // Regenerates only triangle levels (600–899) in an existing bundled JSON.
+    public static string RebuildTriangleLevelsJson(string existingJson)
+    {
+        BundledLevelsPayload payload = JsonUtility.FromJson<BundledLevelsPayload>(existingJson);
+        if (payload == null || payload.levels == null || payload.levels.Length != TotalLevels)
+            return BuildBundledLevelsJson();
+
+        bool prev = LevelGenerator.UseBundledBuildOptimizations;
+        LevelGenerator.UseBundledBuildOptimizations = true;
+        try
+        {
+            const int bundleChunkSize = 25;
+            Parallel.For(0, Mathf.CeilToInt(300f / bundleChunkSize), chunkIndex =>
+            {
+                int start = chunkIndex * bundleChunkSize;
+                int count = Math.Min(bundleChunkSize, 300 - start);
+                LevelData[] chunk = LevelGenerator.GenerateThreeGenCampaign(start, count);
+                for (int i = 0; i < count; i++)
+                    payload.levels[600 + start + i] = chunk[i];
+            });
+        }
+        finally
+        {
+            LevelGenerator.UseBundledBuildOptimizations = prev;
+        }
+
+        return JsonUtility.ToJson(payload, false);
+    }
+
     private static LevelData[] BuildAllLevelsProcedurally()
     {
         bool previousBundledBuildMode = LevelGenerator.UseBundledBuildOptimizations;
