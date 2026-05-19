@@ -79,8 +79,11 @@ public class Cell : MonoBehaviour
         var numObj = new GameObject("Number");
         numObj.transform.SetParent(transform);
         numObj.transform.localPosition = new Vector3(0, 0f, -0.01f);
-        numObj.transform.localScale = new Vector3(isTriangleMode ? 0.42f : 0.5f,
-                                                   isTriangleMode ? 0.42f : 0.5f, 1f);
+        float numScale = isTriangleMode ? 0.42f : 0.5f;
+        // For pentagon, the cell has non-uniform scale (x=HexCVS, y=PentagonCVSY). Compensate so
+        // the number sprite appears undistorted: numScaleY = numScale * (cellScaleX / cellScaleY).
+        float numScaleY = isPentagonMode ? numScale * 1.1547f * 126f * 1.5f / 256f : numScale;
+        numObj.transform.localScale = new Vector3(numScale, numScaleY, 1f);
         numberRenderer = numObj.AddComponent<SpriteRenderer>();
         numberRenderer.sortingOrder = 15;
         numberRenderer.sharedMaterial = SpriteGenerator.UnlitMaterial;
@@ -365,14 +368,7 @@ public class Cell : MonoBehaviour
         int dx = other.GridX - GridX;
         int dy = other.GridY - GridY;
 
-        if (_isPentagonMode)
-        {
-            // Pointy-top row-offset hex (odd rows shifted +0.5 in X)
-            if (dy == 0) return Mathf.Abs(dx) == 1;
-            if (Mathf.Abs(dy) != 1) return false;
-            return GridY % 2 == 0 ? (dx == -1 || dx == 0) : (dx == 0 || dx == 1);
-        }
-
+        // Column-offset hex adjacency (both 5gen and 6gen)
         // Flat-top column-offset hex (odd columns shifted down 0.5)
         if (dx == 0) return Mathf.Abs(dy) == 1;
         if (Mathf.Abs(dx) != 1) return false;

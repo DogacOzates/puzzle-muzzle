@@ -18,18 +18,21 @@ public class GridManager : MonoBehaviour
     private bool isThreeGenMode;
     // CellVisualSize = 2/√3 ≈ 1.1547: hexagon apothem = r*cos(30°) = 0.5*0.866; 2*apothem*CVS = 1.0 → no gaps
     private const float HexCellVisualSize = 1.1547f;
+    // Pentagon in column-offset hex grid (r=126px, PPU=256):
+    //   X scale = HexCellVisualSize so horizontal contacts behave like hexagons.
+    //   Y scale = 256/(126*1.5) ≈ 1.354 so flat-bottom exactly touches down-neighbor's top vertex
+    //   (k_y = r*scaleY/256 = 2/3; flat-bottom at -k_y/2 = -1/3; neighbor top at -1+k_y = -1/3 ✓).
+    private const float PentagonCellVisualSizeY = 256f / (126f * 1.5f); // ≈ 1.354
     // Triangle: circumradius R=120 in 256px texture; touching distance = 1/√3 world units (CellSpacing=0.5)
     // CellVisualSize = 256/(120*√3) ≈ 1.232 makes cells touch edge-to-edge exactly.
     // 1.16 ≈ 94% of that → ~0.036 world unit gap between adjacent cell edges (≈ 5 px on screen).
     private const float TriangleCVS = 1.16f;
 
-    public float BoardVisualWidth => isHexagonMode
+    public float BoardVisualWidth => (isHexagonMode || isPentagonMode)
         ? (GridWidth - 1) * CellSpacing + CellVisualSize
-        : (isPentagonMode
-            ? (GridWidth - 0.5f) * CellSpacing + CellVisualSize
-            : (GridWidth - 1) * CellSpacing + CellVisualSize);
-    public float BoardVisualHeight => isHexagonMode
-        ? (GridHeight - 0.5f) * RowSpacing + CellVisualSize
+        : (GridWidth - 1) * CellSpacing + CellVisualSize;
+    public float BoardVisualHeight => (isHexagonMode || isPentagonMode)
+        ? (GridHeight - 0.5f) * RowSpacing + (isPentagonMode ? PentagonCellVisualSizeY : CellVisualSize)
         : (isThreeGenMode
             ? GridHeight * RowSpacing + CellVisualSize * 0.5f
             : (GridHeight - 1) * RowSpacing + CellVisualSize);
@@ -74,9 +77,9 @@ public class GridManager : MonoBehaviour
         isHexagonMode  = level.cellShape == CellShape.Hexagon;
         CellVisualSize = isThreeGenMode ? TriangleCVS
                        : (isPentagonMode || isHexagonMode) ? HexCellVisualSize : 0.9f;
-        if (isHexagonMode)
+        if (isHexagonMode || isPentagonMode)
         {
-            // Flat-top column-offset: ColSpacing=√3/2, RowSpacing=1.0
+            // Column-offset hex grid: ColSpacing=√3/2, RowSpacing=1.0 (both 5gen and 6gen)
             CellSpacing = Mathf.Sqrt(3f) / 2f;
             RowSpacing = 1.0f;
         }
@@ -89,7 +92,7 @@ public class GridManager : MonoBehaviour
         else
         {
             CellSpacing = 1.0f;
-            RowSpacing = isPentagonMode ? CellSpacing * Mathf.Sqrt(3f) / 2f : CellSpacing;
+            RowSpacing = CellSpacing;
         }
         cells = new Cell[GridWidth, GridHeight];
 
@@ -105,17 +108,12 @@ public class GridManager : MonoBehaviour
     private void CalculateGridOrigin()
     {
         float gridWorldWidth, gridWorldHeight;
-        if (isHexagonMode)
+        if (isHexagonMode || isPentagonMode)
         {
-            // Flat-top column-offset: odd columns shift down 0.5*RowSpacing
+            // Column-offset: odd columns shift down 0.5*RowSpacing (both 5gen and 6gen)
             gridWorldWidth = (GridWidth - 1) * CellSpacing;
             gridWorldHeight = (GridHeight - 1) * RowSpacing;
             if (GridWidth >= 2) gridWorldHeight += 0.5f * RowSpacing;
-        }
-        else if (isPentagonMode)
-        {
-            gridWorldWidth = (GridWidth - 0.5f) * CellSpacing;
-            gridWorldHeight = (GridHeight - 1) * RowSpacing;
         }
         else if (isThreeGenMode)
         {
@@ -139,15 +137,10 @@ public class GridManager : MonoBehaviour
     private void CreateGridBackground()
     {
         float bgWidth, bgHeight;
-        if (isHexagonMode)
+        if (isHexagonMode || isPentagonMode)
         {
             bgWidth = (GridWidth - 1) * CellSpacing + CellVisualSize;
-            bgHeight = (GridHeight - 0.5f) * RowSpacing + CellVisualSize;
-        }
-        else if (isPentagonMode)
-        {
-            bgWidth = (GridWidth - 0.5f) * CellSpacing + CellVisualSize;
-            bgHeight = (GridHeight - 1) * RowSpacing + CellVisualSize;
+            bgHeight = (GridHeight - 0.5f) * RowSpacing + (isPentagonMode ? PentagonCellVisualSizeY : CellVisualSize);
         }
         else if (isThreeGenMode)
         {
@@ -192,7 +185,7 @@ public class GridManager : MonoBehaviour
     {
         Sprite cellSprite = isThreeGenMode ? SpriteGenerator.Triangle
             : (isHexagonMode ? SpriteGenerator.FlatHexagon
-            : (isPentagonMode ? SpriteGenerator.Hexagon : SpriteGenerator.RoundedRect));
+            : (isPentagonMode ? SpriteGenerator.Pentagon : SpriteGenerator.RoundedRect));
 
         // Build a fast lookup set for blocked positions
         var blockedSet = new System.Collections.Generic.HashSet<Vector2Int>();
@@ -225,7 +218,7 @@ public class GridManager : MonoBehaviour
                 var cellObj = new GameObject($"Cell_{x}_{y}");
                 cellObj.transform.SetParent(gridContainer.transform);
                 cellObj.transform.position = worldPos;
-                cellObj.transform.localScale = new Vector3(CellVisualSize, CellVisualSize, 1f);
+                cellObj.transform.localScale = new Vector3(CellVisualSize, isPentagonMode ? PentagonCellVisualSizeY : CellVisualSize, 1f);
 
                 var cell = cellObj.AddComponent<Cell>();
                 cell.Initialize(x, y, number, cellSprite, isBlocked, isPentagonMode, isHexagonMode, isThreeGenMode);
@@ -546,9 +539,9 @@ public class GridManager : MonoBehaviour
                 0f
             );
         }
-        if (isHexagonMode)
+        if (isHexagonMode || isPentagonMode)
         {
-            // Flat-top column-offset: odd columns shift down 0.5*RowSpacing
+            // Column-offset: odd columns shift down 0.5*RowSpacing (both 5gen and 6gen)
             float colOffset = (x % 2 == 1) ? RowSpacing * 0.5f : 0f;
             return new Vector3(
                 GridOrigin.x + x * CellSpacing,
@@ -556,9 +549,8 @@ public class GridManager : MonoBehaviour
                 0f
             );
         }
-        float xOffset = (isPentagonMode && y % 2 == 1) ? CellSpacing * 0.5f : 0f;
         return new Vector3(
-            GridOrigin.x + x * CellSpacing + xOffset,
+            GridOrigin.x + x * CellSpacing,
             GridOrigin.y - y * RowSpacing,
             0f
         );
@@ -590,9 +582,9 @@ public class GridManager : MonoBehaviour
             return new Vector2Int(x, y);
         }
 
-        if (isHexagonMode)
+        if (isHexagonMode || isPentagonMode)
         {
-            // Column-offset: find nearest cell by brute-force over nearby columns
+            // Column-offset: find nearest cell by brute-force over nearby columns (both 5gen and 6gen)
             int approxX = Mathf.RoundToInt((worldPos.x - GridOrigin.x) / CellSpacing);
             float bestDist2 = float.MaxValue;
             Vector2Int bestCell = Vector2Int.zero;
@@ -612,25 +604,7 @@ public class GridManager : MonoBehaviour
             return bestCell;
         }
 
-        // Pentagon (row-offset): find nearest cell center to handle row seam correctly
-        int approxYp = Mathf.RoundToInt((GridOrigin.y - worldPos.y) / RowSpacing);
-        float bestDist2p = float.MaxValue;
-        Vector2Int bestCellp = Vector2Int.zero;
-
-        for (int cy = Mathf.Max(0, approxYp - 1); cy <= Mathf.Min(GridHeight - 1, approxYp + 1); cy++)
-        {
-            float rowOffset = (cy % 2 == 1) ? CellSpacing * 0.5f : 0f;
-            int approxX = Mathf.RoundToInt((worldPos.x - GridOrigin.x - rowOffset) / CellSpacing);
-            for (int cx = Mathf.Max(0, approxX - 1); cx <= Mathf.Min(GridWidth - 1, approxX + 1); cx++)
-            {
-                Vector3 cellWorld = GridToWorld(cx, cy);
-                float dx = worldPos.x - cellWorld.x, dy = worldPos.y - cellWorld.y;
-                float dist2 = dx * dx + dy * dy;
-                if (dist2 < bestDist2p) { bestDist2p = dist2; bestCellp = new Vector2Int(cx, cy); }
-            }
-        }
-
-        return bestCellp;
+        return Vector2Int.zero;
     }
 
     public bool IsValidGridPos(int x, int y)
