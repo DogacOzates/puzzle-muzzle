@@ -15,11 +15,11 @@ public class DailyNotificationManager : MonoBehaviour
 
     private static readonly string[] ReminderMessages =
     {
-        "Bugünkü bulmacalarını çözdün mü? 🧩",
-        "Bir sonraki bölüm seni bekliyor! 🎯",
-        "Günlük beyin egzersizi vakti 🧠",
-        "Yeni bölümler seni bekliyor ✨",
-        "Kafanı biraz çalıştır! 💡",
+        "Did you solve today's puzzles? 🧩",
+        "Your next level is waiting! 🎯",
+        "Time for your daily brain workout 🧠",
+        "New levels are waiting for you ✨",
+        "Give your brain a challenge! 💡",
     };
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
