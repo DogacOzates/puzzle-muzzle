@@ -608,12 +608,15 @@ public class UIManager : MonoBehaviour
         gtTxt.alignment = TextAnchor.MiddleCenter;
         gtTxt.color = new Color(0.80f, 0.64f, 0.20f, 1f);
 
-        // ── ScrollView (fills below header) ────────────────────────────────────────
+        // ── Daily Challenge Card (fixed, below header) ─────────────────────────────
+        LsBuildDailyChallengeCard(panelObj.transform);
+
+        // ── ScrollView (fills below header + daily card) ────────────────────────────
         var scrollObj = new GameObject("ScrollView");
         scrollObj.transform.SetParent(panelObj.transform, false);
         var scrollRT = scrollObj.AddComponent<RectTransform>();
         scrollRT.anchorMin = Vector2.zero; scrollRT.anchorMax = Vector2.one;
-        scrollRT.offsetMin = Vector2.zero; scrollRT.offsetMax = new Vector2(0f, -121f);
+        scrollRT.offsetMin = Vector2.zero; scrollRT.offsetMax = new Vector2(0f, -341f);
         var scrollRect = scrollObj.AddComponent<ScrollRect>();
         scrollRect.horizontal = false;
         scrollRect.movementType = ScrollRect.MovementType.Clamped;
@@ -647,9 +650,6 @@ public class UIManager : MonoBehaviour
         scrollRect.viewport = vpRect;
         scrollRect.content = cRect;
 
-        // ── Daily Challenge Card ────────────────────────────────────────────────────
-        LsBuildDailyChallengeCard(content.transform);
-
         // ── Group Tabs ──────────────────────────────────────────────────────────────
         LsBuildGroupTabsRow(content.transform);
 
@@ -675,9 +675,11 @@ public class UIManager : MonoBehaviour
     {
         var card = new GameObject("DailyCard");
         card.transform.SetParent(parent, false);
-        card.AddComponent<RectTransform>();
-        var le = card.AddComponent<LayoutElement>();
-        le.preferredHeight = 200f; le.minHeight = 200f; le.flexibleWidth = 1f;
+        var cardRT = card.AddComponent<RectTransform>();
+        cardRT.anchorMin = new Vector2(0f, 1f); cardRT.anchorMax = new Vector2(1f, 1f);
+        cardRT.pivot = new Vector2(0.5f, 1f);
+        cardRT.anchoredPosition = new Vector2(0f, -120f);
+        cardRT.sizeDelta = new Vector2(0f, 220f);
 
         // Card background — fills the card slot with margins
         var outer = new GameObject("Outer");
