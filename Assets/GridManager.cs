@@ -16,6 +16,7 @@ public class GridManager : MonoBehaviour
     private bool isPentagonMode;
     private bool isHexagonMode;
     private bool isThreeGenMode;
+    public bool IsTriangleMode => isThreeGenMode;
     // CellVisualSize = 2/√3 ≈ 1.1547: hexagon apothem = r*cos(30°) = 0.5*0.866; 2*apothem*CVS = 1.0 → no gaps
     private const float HexCellVisualSize = 1.1547f;
     // Pentagon in column-offset hex grid (r=126px, PPU=256):

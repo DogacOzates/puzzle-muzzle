@@ -84,17 +84,40 @@ public class InputHandler : MonoBehaviour
         if (cell == null || cell == _lastDragCell) return;
         if (cell.IsBlocked) return;
 
-        _lastDragCell = cell;
-
-        if (!gridManager.HasActiveSelection) return;
+        if (!gridManager.HasActiveSelection)
+        {
+            _lastDragCell = cell;
+            return;
+        }
 
         // Drag back to second-to-last cell undoes the last step
         if (gridManager.IsSecondToLastInChain(cell))
         {
+            _lastDragCell = cell;
             gridManager.UndoLastStep();
             AudioManager.Instance?.OnUndo();
             return;
         }
+
+        // Triangle mode: require finger to cross the x-midpoint between columns before accepting
+        // a horizontal column jump. This prevents unintentional zigzag along the grid edge
+        // (e.g. slight rightward drift turning (0,1)→(1,1)→(1,2)→(0,2) into a "vertical" slide).
+        // _lastDragCell is NOT updated on rejection so the guard is retried each frame.
+        if (gridManager.IsTriangleMode)
+        {
+            Cell lastSel = gridManager.ActiveChain[gridManager.ActiveChain.Count - 1];
+            if (cell.GridX != lastSel.GridX)
+            {
+                Vector3 cellW = gridManager.GridToWorld(cell.GridX, cell.GridY);
+                Vector3 lastW = gridManager.GridToWorld(lastSel.GridX, lastSel.GridY);
+                float xMid = (cellW.x + lastW.x) * 0.5f;
+                if ((cellW.x > lastW.x && worldPos.x < xMid) ||
+                    (cellW.x < lastW.x && worldPos.x > xMid))
+                    return;
+            }
+        }
+
+        _lastDragCell = cell;
 
         // Try to extend chain to the new cell
         if (cell.State == CellState.Empty || cell.State == CellState.NumberTarget)
