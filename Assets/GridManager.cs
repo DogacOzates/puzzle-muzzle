@@ -563,6 +563,9 @@ public class GridManager : MonoBehaviour
         {
             int approxX = Mathf.RoundToInt((worldPos.x - GridOrigin.x) / CellSpacing);
             int approxY = Mathf.RoundToInt((GridOrigin.y - worldPos.y) / RowSpacing);
+            // Reject taps that are clearly outside the grid boundary
+            if (approxX < 0 || approxX >= GridWidth || approxY < 0 || approxY >= GridHeight)
+                return new Vector2Int(-1, -1);
             float bestDist2 = float.MaxValue;
             Vector2Int bestCell = Vector2Int.zero;
             for (int cy = Mathf.Max(0, approxY - 1); cy <= Mathf.Min(GridHeight - 1, approxY + 1); cy++)
@@ -580,6 +583,7 @@ public class GridManager : MonoBehaviour
         {
             int x = Mathf.RoundToInt((worldPos.x - GridOrigin.x) / CellSpacing);
             int y = Mathf.RoundToInt((GridOrigin.y - worldPos.y) / CellSpacing);
+            // Out-of-bounds coords are already rejected by IsValidGridPos; return as-is
             return new Vector2Int(x, y);
         }
 
@@ -587,6 +591,14 @@ public class GridManager : MonoBehaviour
         {
             // Column-offset: find nearest cell by brute-force over nearby columns (both 5gen and 6gen)
             int approxX = Mathf.RoundToInt((worldPos.x - GridOrigin.x) / CellSpacing);
+            // Reject taps that are clearly outside the grid boundary
+            if (approxX < 0 || approxX >= GridWidth)
+                return new Vector2Int(-1, -1);
+            float colOffset0 = (approxX % 2 == 1) ? RowSpacing * 0.5f : 0f;
+            int approxY0 = Mathf.RoundToInt((GridOrigin.y - worldPos.y - colOffset0) / RowSpacing);
+            if (approxY0 < 0 || approxY0 >= GridHeight)
+                return new Vector2Int(-1, -1);
+
             float bestDist2 = float.MaxValue;
             Vector2Int bestCell = Vector2Int.zero;
 
