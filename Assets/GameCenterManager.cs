@@ -59,18 +59,8 @@ public class GameCenterManager : MonoBehaviour
     public void ShowLeaderboard()
     {
 #if UNITY_IOS && !UNITY_EDITOR
-        if (!isAuthenticated)
-        {
-            Social.localUser.Authenticate(success =>
-            {
-                isAuthenticated = success;
-                if (success) Social.ShowLeaderboardUI();
-            });
-        }
-        else
-        {
-            Social.ShowLeaderboardUI();
-        }
+        Debug.Log("[GameCenter] ShowLeaderboard called, isAuthenticated=" + isAuthenticated);
+        Social.ShowLeaderboardUI();
 #endif
     }
 

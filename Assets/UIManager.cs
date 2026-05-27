@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using UnityEngine;
+using UnityEngine.SocialPlatforms;
 using UnityEngine.UI;
 
 public class UIManager : MonoBehaviour
@@ -227,7 +228,17 @@ public class UIManager : MonoBehaviour
 
         // Leaderboard button (left side of top bar) — reuse CreateIconButton for consistent interaction
         var lbBtn = CreateIconButton("Leaderboard", bar.transform, new Vector2(100f, topBarElementY), 90f, "icons/top-three");
-        lbBtn.onClick.AddListener(() => GameCenterManager.Instance?.ShowLeaderboard());
+        lbBtn.onClick.AddListener(() => {
+            Debug.Log("[LB] Leaderboard button pressed, Instance=" + (GameCenterManager.Instance != null));
+            if (GameCenterManager.Instance != null)
+                GameCenterManager.Instance.ShowLeaderboard();
+            else
+            {
+#if UNITY_IOS && !UNITY_EDITOR
+                Social.ShowLeaderboardUI();
+#endif
+            }
+        });
         leaderboardButtonBg = lbBtn.GetComponent<Image>();
 
         // Settings gear button (right side of top bar)
