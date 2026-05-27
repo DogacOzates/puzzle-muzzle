@@ -77,6 +77,7 @@ public class UIManager : MonoBehaviour
     private Image levelSelectFrameBg;
     private Image settingsButtonBg;
     private Image settingsIconImg;
+    private Image leaderboardButtonBg;
     private Text levelProgressTextRef;  // alias — same as levelProgressText
 
     // Colors
@@ -223,6 +224,43 @@ public class UIManager : MonoBehaviour
 
         levelSelectToggleButton = CreateInvisibleButton("LevelSelect", bar.transform, new Vector2(0, topBarElementY), new Vector2(520, 84));
         levelSelectToggleButton.onClick.AddListener(() => FindAnyObjectByType<GameManager>().ToggleLevelSelectMenu());
+
+        // Leaderboard button (left side of top bar)
+        var lbObj = new GameObject("LeaderboardBtn");
+        lbObj.transform.SetParent(bar.transform, false);
+        var lbRect = lbObj.AddComponent<RectTransform>();
+        lbRect.anchorMin = new Vector2(0f, 1f);
+        lbRect.anchorMax = new Vector2(0f, 1f);
+        lbRect.pivot = new Vector2(0.5f, 0.5f);
+        lbRect.anchoredPosition = new Vector2(100f, topBarElementY);
+        lbRect.sizeDelta = new Vector2(90f, 90f);
+
+        var lbImg = lbObj.AddComponent<Image>();
+        lbImg.sprite = SpriteGenerator.RoundedRect;
+        lbImg.color = Color.clear;
+        leaderboardButtonBg = lbImg;
+
+        var lbBtn = lbObj.AddComponent<Button>();
+        lbBtn.targetGraphic = lbImg;
+        var lbc = lbBtn.colors;
+        lbc.highlightedColor = new Color(0.88f, 0.86f, 0.80f, 1f);
+        lbc.pressedColor    = new Color(0.78f, 0.76f, 0.70f, 1f);
+        lbBtn.colors = lbc;
+        lbBtn.onClick.AddListener(() => GameCenterManager.Instance?.ShowLeaderboard());
+
+        var lbIconObj = new GameObject("Emoji");
+        lbIconObj.transform.SetParent(lbObj.transform, false);
+        var lbIconRect = lbIconObj.AddComponent<RectTransform>();
+        lbIconRect.anchorMin = Vector2.zero;
+        lbIconRect.anchorMax = Vector2.one;
+        lbIconRect.offsetMin = Vector2.zero;
+        lbIconRect.offsetMax = Vector2.zero;
+        var lbIconTxt = lbIconObj.AddComponent<Text>();
+        lbIconTxt.font = defaultFont;
+        lbIconTxt.text = "🏆";
+        lbIconTxt.fontSize = 40;
+        lbIconTxt.alignment = TextAnchor.MiddleCenter;
+        lbIconTxt.color = isDark ? Color.white : TextDark;
 
         // Settings gear button (right side of top bar)
         var settingsObj = new GameObject("SettingsBtn");
@@ -1880,7 +1918,6 @@ public class UIManager : MonoBehaviour
         var tm = ThemeManager.Instance;
         Color cardColor   = tm != null ? tm.CardBg    : new Color(1f, 1f, 1f, 0.98f);
         Color textColor   = tm != null ? tm.TextPrimary : TextDark;
-        Color divColor    = tm != null ? (tm.IsDarkMode ? new Color(0.30f, 0.29f, 0.35f) : new Color(0.85f, 0.83f, 0.78f)) : new Color(0.85f, 0.83f, 0.78f);
 
         var popup = new GameObject("SettingsPopup");
         popup.transform.SetParent(canvas.transform, false);
@@ -1905,7 +1942,7 @@ public class UIManager : MonoBehaviour
         shadowRect.anchorMin = new Vector2(0.5f, 0.5f);
         shadowRect.anchorMax = new Vector2(0.5f, 0.5f);
         shadowRect.pivot = new Vector2(0.5f, 0.5f);
-        shadowRect.sizeDelta = new Vector2(666f, 696f);
+        shadowRect.sizeDelta = new Vector2(666f, 460f);
         shadowRect.anchoredPosition = new Vector2(4f, -8f);
         var shadowImg = shadowObj.AddComponent<Image>();
         shadowImg.sprite = SpriteGenerator.RoundedRect;
@@ -1918,63 +1955,36 @@ public class UIManager : MonoBehaviour
         cardRect.anchorMin = new Vector2(0.5f, 0.5f);
         cardRect.anchorMax = new Vector2(0.5f, 0.5f);
         cardRect.pivot = new Vector2(0.5f, 0.5f);
-        cardRect.sizeDelta = new Vector2(640f, 670f);
+        cardRect.sizeDelta = new Vector2(640f, 430f);
         var cardImg = card.AddComponent<Image>();
         cardImg.sprite = SpriteGenerator.RoundedRect;
         cardImg.color = cardColor;
 
         // Title
-        var title = MakeCardText("Title", card.transform, new Vector2(0, 272), 44, FontStyle.Bold, textColor);
+        var title = MakeCardText("Title", card.transform, new Vector2(0, 165), 44, FontStyle.Bold, textColor);
         title.text = "⚙️  Settings";
 
         // ─── Sound toggle ────────────────────────────────────────────────────
         bool soundOn = !(AudioManager.Instance?.IsMuted ?? false);
-        CreateToggleRow(card.transform, "🔊  Sound", soundOn, new Vector2(0, 180), (val) =>
+        CreateToggleRow(card.transform, "🔊  Sound", soundOn, new Vector2(0, 70), (val) =>
         {
             AudioManager.Instance?.SetMuted(!val);
         });
 
         // ─── Haptic toggle ───────────────────────────────────────────────────
         bool hapticOn = HapticManager.Instance?.IsHapticsEnabled ?? true;
-        CreateToggleRow(card.transform, "📳  Haptics", hapticOn, new Vector2(0, 80), (val) =>
+        CreateToggleRow(card.transform, "📳  Haptics", hapticOn, new Vector2(0, -35), (val) =>
         {
             if (HapticManager.Instance != null) HapticManager.Instance.IsHapticsEnabled = val;
         });
 
         // ─── Dark Mode toggle ────────────────────────────────────────────────
         bool darkOn = tm?.IsDarkMode ?? false;
-        CreateToggleRow(card.transform, "🌙  Dark Mode", darkOn, new Vector2(0, -20), (val) =>
+        CreateToggleRow(card.transform, "🌙  Dark Mode", darkOn, new Vector2(0, -140), (val) =>
         {
             if (ThemeManager.Instance != null) ThemeManager.Instance.IsDarkMode = val;
             // Update card color live
             cardImg.color = ThemeManager.Instance != null ? ThemeManager.Instance.CardBg : cardColor;
-        });
-
-        // Divider
-        var divObj = new GameObject("Divider");
-        divObj.transform.SetParent(card.transform, false);
-        var divRect = divObj.AddComponent<RectTransform>();
-        divRect.anchorMin = new Vector2(0.5f, 0.5f);
-        divRect.anchorMax = new Vector2(0.5f, 0.5f);
-        divRect.pivot = new Vector2(0.5f, 0.5f);
-        divRect.anchoredPosition = new Vector2(0, -90f);
-        divRect.sizeDelta = new Vector2(560f, 2f);
-        divObj.AddComponent<Image>().color = divColor;
-
-        // Achievements button
-        var achBtn = CreateCardButton("🏆  Achievements", card.transform, new Vector2(0, -155f), BtnTeal);
-        achBtn.onClick.AddListener(() =>
-        {
-            Destroy(popup);
-            GameCenterManager.Instance?.ShowAchievements();
-        });
-
-        // Leaderboard button
-        var lbBtn = CreateCardButton("📊  Leaderboard", card.transform, new Vector2(0, -250f), new Color(0.38f, 0.32f, 0.58f));
-        lbBtn.onClick.AddListener(() =>
-        {
-            Destroy(popup);
-            GameCenterManager.Instance?.ShowLeaderboard();
         });
     }
 
