@@ -258,7 +258,7 @@ public class UIManager : MonoBehaviour
         lbIconRect.offsetMax = Vector2.zero;
         var lbIconImg = lbIconObj.AddComponent<Image>();
         string lbPath = isDark ? "icons/top-three_white" : "icons/top-three";
-        var lbSprite = Resources.Load<Sprite>(lbPath) ?? Resources.Load<Sprite>("icons/top-three");
+        var lbSprite = LoadIconSprite(lbPath) ?? LoadIconSprite("icons/top-three");
         if (lbSprite != null)
         {
             lbIconImg.sprite = lbSprite;
