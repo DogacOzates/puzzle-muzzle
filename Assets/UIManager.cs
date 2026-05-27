@@ -225,47 +225,10 @@ public class UIManager : MonoBehaviour
         levelSelectToggleButton = CreateInvisibleButton("LevelSelect", bar.transform, new Vector2(0, topBarElementY), new Vector2(520, 84));
         levelSelectToggleButton.onClick.AddListener(() => FindAnyObjectByType<GameManager>().ToggleLevelSelectMenu());
 
-        // Leaderboard button (left side of top bar)
-        bool isDark = ThemeManager.Instance?.IsDarkMode ?? false;
-        var lbObj = new GameObject("LeaderboardBtn");
-        lbObj.transform.SetParent(bar.transform, false);
-        var lbRect = lbObj.AddComponent<RectTransform>();
-        lbRect.anchorMin = new Vector2(0f, 1f);
-        lbRect.anchorMax = new Vector2(0f, 1f);
-        lbRect.pivot = new Vector2(0.5f, 0.5f);
-        lbRect.anchoredPosition = new Vector2(100f, topBarElementY);
-        lbRect.sizeDelta = new Vector2(90f, 90f);
-
-        var lbImg = lbObj.AddComponent<Image>();
-        lbImg.sprite = SpriteGenerator.RoundedRect;
-        lbImg.color = Color.clear;
-        leaderboardButtonBg = lbImg;
-
-        var lbBtn = lbObj.AddComponent<Button>();
-        lbBtn.targetGraphic = lbImg;
-        var lbc = lbBtn.colors;
-        lbc.highlightedColor = new Color(0.88f, 0.86f, 0.80f, 1f);
-        lbc.pressedColor    = new Color(0.78f, 0.76f, 0.70f, 1f);
-        lbBtn.colors = lbc;
+        // Leaderboard button (left side of top bar) — reuse CreateIconButton for consistent interaction
+        var lbBtn = CreateIconButton("Leaderboard", bar.transform, new Vector2(100f, topBarElementY), 90f, "icons/top-three");
         lbBtn.onClick.AddListener(() => GameCenterManager.Instance?.ShowLeaderboard());
-
-        var lbIconObj = new GameObject("Icon");
-        lbIconObj.transform.SetParent(lbObj.transform, false);
-        var lbIconRect = lbIconObj.AddComponent<RectTransform>();
-        lbIconRect.anchorMin = new Vector2(0.15f, 0.15f);
-        lbIconRect.anchorMax = new Vector2(0.85f, 0.85f);
-        lbIconRect.offsetMin = Vector2.zero;
-        lbIconRect.offsetMax = Vector2.zero;
-        var lbIconImg = lbIconObj.AddComponent<Image>();
-        string lbPath = isDark ? "icons/top-three_white" : "icons/top-three";
-        var lbSprite = LoadIconSprite(lbPath) ?? LoadIconSprite("icons/top-three");
-        if (lbSprite != null)
-        {
-            lbIconImg.sprite = lbSprite;
-            lbIconImg.preserveAspect = true;
-            lbBtn.targetGraphic = lbIconImg;
-            themedIcons.Add(("icons/top-three", lbIconImg));
-        }
+        leaderboardButtonBg = lbBtn.GetComponent<Image>();
 
         // Settings gear button (right side of top bar)
         var settingsObj = new GameObject("SettingsBtn");
