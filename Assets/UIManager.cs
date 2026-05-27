@@ -229,7 +229,6 @@ public class UIManager : MonoBehaviour
         // Leaderboard button (left side of top bar) — reuse CreateIconButton for consistent interaction
         var lbBtn = CreateIconButton("Leaderboard", bar.transform, new Vector2(100f, topBarElementY), 68f, "icons/top-three");
         lbBtn.onClick.AddListener(() => {
-            Debug.Log("[LB] Leaderboard button pressed, Instance=" + (GameCenterManager.Instance != null));
             if (GameCenterManager.Instance != null)
                 GameCenterManager.Instance.ShowLeaderboard();
             else
