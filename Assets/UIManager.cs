@@ -226,6 +226,7 @@ public class UIManager : MonoBehaviour
         levelSelectToggleButton.onClick.AddListener(() => FindAnyObjectByType<GameManager>().ToggleLevelSelectMenu());
 
         // Leaderboard button (left side of top bar)
+        bool isDark = ThemeManager.Instance?.IsDarkMode ?? false;
         var lbObj = new GameObject("LeaderboardBtn");
         lbObj.transform.SetParent(bar.transform, false);
         var lbRect = lbObj.AddComponent<RectTransform>();
@@ -293,7 +294,6 @@ public class UIManager : MonoBehaviour
         siRect.offsetMin = Vector2.zero;
         siRect.offsetMax = Vector2.zero;
         var siImg = settingsIconObj.AddComponent<Image>();
-        bool isDark = ThemeManager.Instance?.IsDarkMode ?? false;
         string settingsPath = isDark ? "icons/settings_white" : "icons/settings";
         var settingsSprite = Resources.Load<Sprite>(settingsPath)
                           ?? Resources.Load<Sprite>("icons/settings");
