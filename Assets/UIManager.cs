@@ -238,18 +238,19 @@ public class UIManager : MonoBehaviour
 
         var lbImg = lbObj.AddComponent<Image>();
         lbImg.sprite = SpriteGenerator.RoundedRect;
-        lbImg.color = Color.clear;
+        lbImg.color = new Color(0.38f, 0.32f, 0.58f, 0.88f); // purple
         leaderboardButtonBg = lbImg;
 
         var lbBtn = lbObj.AddComponent<Button>();
         lbBtn.targetGraphic = lbImg;
         var lbc = lbBtn.colors;
-        lbc.highlightedColor = new Color(0.88f, 0.86f, 0.80f, 1f);
-        lbc.pressedColor    = new Color(0.78f, 0.76f, 0.70f, 1f);
+        lbc.normalColor    = Color.white;
+        lbc.highlightedColor = new Color(0.88f, 0.84f, 1.0f, 1f);
+        lbc.pressedColor   = new Color(0.68f, 0.62f, 0.88f, 1f);
         lbBtn.colors = lbc;
         lbBtn.onClick.AddListener(() => GameCenterManager.Instance?.ShowLeaderboard());
 
-        var lbIconObj = new GameObject("Emoji");
+        var lbIconObj = new GameObject("Label");
         lbIconObj.transform.SetParent(lbObj.transform, false);
         var lbIconRect = lbIconObj.AddComponent<RectTransform>();
         lbIconRect.anchorMin = Vector2.zero;
@@ -258,10 +259,11 @@ public class UIManager : MonoBehaviour
         lbIconRect.offsetMax = Vector2.zero;
         var lbIconTxt = lbIconObj.AddComponent<Text>();
         lbIconTxt.font = defaultFont;
-        lbIconTxt.text = "🏆";
-        lbIconTxt.fontSize = 40;
+        lbIconTxt.text = "LB";
+        lbIconTxt.fontSize = 28;
+        lbIconTxt.fontStyle = FontStyle.Bold;
         lbIconTxt.alignment = TextAnchor.MiddleCenter;
-        lbIconTxt.color = isDark ? Color.white : TextDark;
+        lbIconTxt.color = Color.white;
 
         // Settings gear button (right side of top bar)
         var settingsObj = new GameObject("SettingsBtn");
