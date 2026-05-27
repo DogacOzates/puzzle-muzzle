@@ -231,6 +231,7 @@ public class UIManager : MonoBehaviour
         leaderboardButtonBg = lbBtn.GetComponent<Image>();
 
         // Settings gear button (right side of top bar)
+        bool isDark = ThemeManager.Instance?.IsDarkMode ?? false;
         var settingsObj = new GameObject("SettingsBtn");
         settingsObj.transform.SetParent(bar.transform, false);
         var settingsRect = settingsObj.AddComponent<RectTransform>();
