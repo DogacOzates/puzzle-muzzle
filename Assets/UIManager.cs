@@ -1409,7 +1409,7 @@ public class UIManager : MonoBehaviour
         shadowRect.anchorMin = new Vector2(0.5f, 0.5f);
         shadowRect.anchorMax = new Vector2(0.5f, 0.5f);
         shadowRect.pivot = new Vector2(0.5f, 0.5f);
-        shadowRect.sizeDelta = new Vector2(636f, 436f);
+        shadowRect.sizeDelta = new Vector2(636f, 466f);
         shadowRect.anchoredPosition = new Vector2(4f, -8f);
         var shadowImg = shadowObj.AddComponent<Image>();
         shadowImg.sprite = SpriteGenerator.RoundedRect;
@@ -1422,32 +1422,32 @@ public class UIManager : MonoBehaviour
         cardRect.anchorMin = new Vector2(0.5f, 0.5f);
         cardRect.anchorMax = new Vector2(0.5f, 0.5f);
         cardRect.pivot = new Vector2(0.5f, 0.5f);
-        cardRect.sizeDelta = new Vector2(610f, 410f);
+        cardRect.sizeDelta = new Vector2(610f, 440f);
         var cardImg = card.AddComponent<Image>();
         cardImg.sprite = SpriteGenerator.RoundedRect;
         cardImg.color = new Color(1f, 1f, 1f, 0.98f);
 
         // Emoji
-        var emoji = MakeCardText("Emoji", card.transform, new Vector2(0, 148), 52, FontStyle.Normal, TextDark);
+        var emoji = MakeCardText("Emoji", card.transform, new Vector2(0, 158), 52, FontStyle.Normal, TextDark);
         emoji.text = "⭐⭐⭐⭐⭐";
         emoji.fontSize = 44;
 
         // Title
-        var title = MakeCardText("Title", card.transform, new Vector2(0, 80), 42, FontStyle.Bold, TextDark);
+        var title = MakeCardText("Title", card.transform, new Vector2(0, 88), 42, FontStyle.Bold, TextDark);
         title.text = "Enjoying Puzzle Muzzle?";
         title.GetComponent<RectTransform>().sizeDelta = new Vector2(530f, 60f);
 
         // Subtitle
-        var sub = MakeCardText("Subtitle", card.transform, new Vector2(0, 20), 28, FontStyle.Normal, TextMuted);
+        var sub = MakeCardText("Subtitle", card.transform, new Vector2(0, 22), 28, FontStyle.Normal, TextMuted);
         sub.text = "A quick rating helps us a lot!";
         sub.GetComponent<RectTransform>().sizeDelta = new Vector2(530f, 50f);
 
         // Rate button
-        var rateBtn = CreateCardButton("⭐  Rate Now", card.transform, new Vector2(0, -80), BtnTeal);
+        var rateBtn = CreateCardButton("⭐  Rate Now", card.transform, new Vector2(0, -65), BtnTeal);
         rateBtn.onClick.AddListener(() => { HideRatePopup(); onRate?.Invoke(); });
 
         // Dismiss button
-        var dismissBtn = CreateCardButton("Not Now", card.transform, new Vector2(0, -170), new Color(0.88f, 0.86f, 0.84f));
+        var dismissBtn = CreateCardButton("Not Now", card.transform, new Vector2(0, -157), new Color(0.88f, 0.86f, 0.84f));
         var dismissText = dismissBtn.GetComponentInChildren<Text>();
         if (dismissText != null) { dismissText.color = TextMuted; dismissText.fontSize = 26; }
         dismissBtn.onClick.AddListener(() => { HideRatePopup(); onDismiss?.Invoke(); });
