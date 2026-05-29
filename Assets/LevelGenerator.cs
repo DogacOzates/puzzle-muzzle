@@ -1867,7 +1867,7 @@ public static class LevelGenerator
             int dx = Mathf.Abs(cell.x - existing.x);
             int dy = Mathf.Abs(cell.y - existing.y);
             int manhattan = dx + dy;
-            if (manhattan < 4)
+            if (manhattan < 3)
                 return float.NegativeInfinity;
 
             score += Mathf.Min(manhattan, 8) * 1.5f;
