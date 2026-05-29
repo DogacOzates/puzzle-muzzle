@@ -2871,15 +2871,15 @@ public static class LevelGenerator
             c.squarePenalty = 0.65f; c.lateRectangleBonus = 0.05f;
             c.minBlocked = 2; c.maxBlocked = 3;
         }
-        else if (idx < 210)    // Tier 7: 13×10 Hard+   (1071-1110)
+        else if (idx < 210)    // Tier 7: 13×8 Hard+   (1071-1110)
         {
-            c.width = 13; c.height = 10;
+            c.width = 13; c.height = 8;
             c.minSegment = 4; c.maxSegment = 10; c.candidateCount = 38;
             c.tierName = "3gen Hard";
             c.rectanglePenalty = 1.6f; c.densePenalty = 1.3f;
             c.straightPenalty = 1.1f; c.turnWeight = 0.9f;
             c.squarePenalty = 0.55f; c.lateRectangleBonus = 0.1f;
-            c.minBlocked = 3; c.maxBlocked = 4;
+            c.minBlocked = 3; c.maxBlocked = 3;
         }
         else if (idx < 250)    // Tier 8: 13×8 Advanced (1111-1150)
         {
@@ -2889,7 +2889,7 @@ public static class LevelGenerator
             c.rectanglePenalty = 1.3f; c.densePenalty = 1.0f;
             c.straightPenalty = 0.95f; c.turnWeight = 0.85f;
             c.squarePenalty = 0.45f; c.lateRectangleBonus = 0.15f;
-            c.minBlocked = 3; c.maxBlocked = 4;
+            c.minBlocked = 3; c.maxBlocked = 3;
         }
         else if (idx < 275)    // Tier 9: 13×8 Expert  (1151-1175)
         {
@@ -2899,17 +2899,17 @@ public static class LevelGenerator
             c.rectanglePenalty = 1.0f; c.densePenalty = 0.8f;
             c.straightPenalty = 0.85f; c.turnWeight = 0.78f;
             c.squarePenalty = 0.35f; c.lateRectangleBonus = 0.2f;
-            c.minBlocked = 3; c.maxBlocked = 4;
+            c.minBlocked = 3; c.maxBlocked = 3;
         }
-        else                   // Tier 10: 13×10 Master (1176-1200)
+        else                   // Tier 10: 13×8 Master (1176-1200)
         {
-            c.width = 13; c.height = 10;
+            c.width = 13; c.height = 8;
             c.minSegment = 5; c.maxSegment = 12; c.candidateCount = 44;
             c.tierName = "3gen Master";
             c.rectanglePenalty = 0.8f; c.densePenalty = 0.6f;
             c.straightPenalty = 0.75f; c.turnWeight = 0.7f;
             c.squarePenalty = 0.25f; c.lateRectangleBonus = 0.3f;
-            c.minBlocked = 3; c.maxBlocked = 4;
+            c.minBlocked = 3; c.maxBlocked = 3;
         }
 
         return c;
