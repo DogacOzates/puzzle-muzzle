@@ -509,9 +509,15 @@ public class GridManager : MonoBehaviour
             int blockId = nextBlockId++;
             Color blockColor = BlockPalette[blockId % BlockPalette.Length];
             var block = new List<Cell>();
+
+            // For triangle grids, reorder indices so displayed numbers follow valid adjacency.
+            int[] hintOrder = null;
+            if (isThreeGenMode) TryGetValidTriangleHintOrder(path, out hintOrder);
+
             for (int i = 0; i < path.Length; i++)
             {
-                Cell c = GetCell(path.GetX(i), path.GetY(i));
+                int pathIdx = hintOrder != null ? hintOrder[i] : i;
+                Cell c = GetCell(path.GetX(pathIdx), path.GetY(pathIdx));
                 c.SetState(CellState.Completed, i + 1);
                 c.SetCompletedColor(blockColor);
                 c.BlockId = blockId;
@@ -521,6 +527,76 @@ public class GridManager : MonoBehaviour
             return true;
         }
 
+        return false;
+    }
+
+    // Reorders path indices so consecutive hint numbers are on adjacent triangle cells.
+    // Last cell must be index n-1 (the target). Tries all possible start cells.
+    private bool TryGetValidTriangleHintOrder(SolutionPath path, out int[] order)
+    {
+        order = null;
+        int n = path.Length;
+        if (n <= 1) { order = new[] { 0 }; return true; }
+
+        var coords = new Vector2Int[n];
+        for (int i = 0; i < n; i++)
+            coords[i] = new Vector2Int(path.GetX(i), path.GetY(i));
+
+        var result = new int[n];
+        var used = new bool[n];
+
+        // Try stored start first (index 0), then any other non-target cell
+        var startCandidates = new List<int>(n) { 0 };
+        for (int i = 1; i < n - 1; i++) startCandidates.Add(i);
+
+        foreach (int startIdx in startCandidates)
+        {
+            System.Array.Clear(used, 0, n);
+            result[0] = startIdx;
+            used[startIdx] = true;
+            if (DFSTriangleHintOrder(coords, used, result, 1, n))
+            {
+                order = result;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private bool DFSTriangleHintOrder(Vector2Int[] coords, bool[] used, int[] result, int step, int n)
+    {
+        if (step == n)
+            return result[step - 1] == n - 1; // final cell must be the stored target (last index)
+
+        Vector2Int current = coords[result[step - 1]];
+        bool isLastStep = step == n - 1;
+
+        for (int i = 0; i < n; i++)
+        {
+            if (used[i]) continue;
+            if (isLastStep && i != n - 1) continue;  // last step must land on target
+            if (!isLastStep && i == n - 1) continue; // don't visit target early
+            if (IsTriangleAdjacent(current, coords[i]))
+            {
+                used[i] = true;
+                result[step] = i;
+                if (DFSTriangleHintOrder(coords, used, result, step + 1, n))
+                    return true;
+                used[i] = false;
+            }
+        }
+        return false;
+    }
+
+    private static bool IsTriangleAdjacent(Vector2Int a, Vector2Int b)
+    {
+        int dx = b.x - a.x, dy = b.y - a.y;
+        if (dy == 0 && (dx == 1 || dx == -1)) return true; // same row
+        if (dx == 0 && (dy == 1 || dy == -1))
+        {
+            bool aIsUp = (a.x + a.y) % 2 == 0;
+            return aIsUp ? dy == 1 : dy == -1;    // up→down below; down→up above
+        }
         return false;
     }
 
