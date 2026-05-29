@@ -1432,6 +1432,111 @@ public static class LevelGenerator
         return windows;
     }
 
+    // Picks desiredBlocked interior cells directly from the path (no window adjacency required).
+    // Uses quantile-based X-bands so cells are spatially spread across the grid.
+    // This bypasses the window-based approach which only finds edge cells for odd blocked counts.
+    private static bool TryDirectScatterBlocked(
+        List<Vector2Int> fullPath,
+        CampaignConfig config,
+        int desiredBlocked,
+        System.Random rng,
+        int levelIndex,
+        out List<Vector2Int> playablePath,
+        out List<Vector2Int> blocked)
+    {
+        playablePath = null;
+        blocked = null;
+
+        if (desiredBlocked <= 0)
+        {
+            playablePath = new List<Vector2Int>(fullPath);
+            blocked = new List<Vector2Int>();
+            return true;
+        }
+
+        int W = config.width, H = config.height;
+
+        // Collect interior candidate path indices (skip path endpoints)
+        var candidates = new List<int>();
+        int minEdge = 2;
+        for (int pass = 0; pass < 2 && candidates.Count < desiredBlocked * 2; pass++, minEdge--)
+        {
+            candidates.Clear();
+            for (int i = 1; i < fullPath.Count - 1; i++)
+            {
+                Vector2Int c = fullPath[i];
+                int edgeDist = Mathf.Min(Mathf.Min(c.x, W - 1 - c.x), Mathf.Min(c.y, H - 1 - c.y));
+                if (edgeDist >= minEdge)
+                    candidates.Add(i);
+            }
+        }
+        if (candidates.Count < desiredBlocked)
+            return false;
+
+        // Sort candidates by X coordinate for quantile-based banding (ensures spatial spread)
+        candidates.Sort((a, b) => fullPath[a].x.CompareTo(fullPath[b].x));
+
+        // Split into desiredBlocked X-bands by quantile
+        var bands = new List<List<int>>(desiredBlocked);
+        for (int b = 0; b < desiredBlocked; b++)
+            bands.Add(new List<int>());
+        for (int i = 0; i < candidates.Count; i++)
+            bands[i * desiredBlocked / candidates.Count].Add(candidates[i]);
+
+        // Shuffle within each band
+        for (int b = 0; b < desiredBlocked; b++)
+        {
+            List<int> band = bands[b];
+            for (int i = band.Count - 1; i > 0; i--)
+            {
+                int j = rng.Next(i + 1);
+                int tmp = band[i]; band[i] = band[j]; band[j] = tmp;
+            }
+        }
+
+        // Rotate band assignment by levelIndex for cross-level variety
+        int bandOffset = levelIndex % desiredBlocked;
+
+        // Pick one cell per band with decreasing separation strictness
+        var chosen = new List<int>(desiredBlocked);
+        var chosenCells = new List<Vector2Int>(desiredBlocked);
+        for (int bi = 0; bi < desiredBlocked; bi++)
+        {
+            List<int> band = bands[(bi + bandOffset) % desiredBlocked];
+            bool found = false;
+            for (int minSep = 3; minSep >= 0 && !found; minSep--)
+            {
+                foreach (int idx in band)
+                {
+                    Vector2Int c = fullPath[idx];
+                    bool conflict = false;
+                    foreach (Vector2Int prev in chosenCells)
+                    {
+                        bool adj = AreTriangleCellsAdjacent(c, prev, W, H);
+                        int sep = Mathf.Abs(c.x - prev.x) + Mathf.Abs(c.y - prev.y);
+                        if (adj || sep <= minSep) { conflict = true; break; }
+                    }
+                    if (!conflict) { chosen.Add(idx); chosenCells.Add(c); found = true; break; }
+                }
+            }
+            if (!found)
+                return false;
+        }
+
+        var blockedSet = new HashSet<int>(chosen);
+        playablePath = new List<Vector2Int>(fullPath.Count - desiredBlocked);
+        blocked = new List<Vector2Int>(desiredBlocked);
+        for (int i = 0; i < fullPath.Count; i++)
+        {
+            if (blockedSet.Contains(i))
+                blocked.Add(fullPath[i]);
+            else
+                playablePath.Add(fullPath[i]);
+        }
+
+        return playablePath.Count >= config.minSegment;
+    }
+
     private static bool TryBuildInteriorTriangleFallback(
         List<Vector2Int> fullPath,
         int levelIndex,
@@ -1729,6 +1834,35 @@ public static class LevelGenerator
             }
 
             desiredBlocked = Mathf.Min(desiredBlocked, Mathf.Max(0, fullPath.Count - config.minSegment));
+
+            // Try direct interior scatter first — outperforms window approach for odd blocked counts
+            if (desiredBlocked > 0)
+            {
+                var scatterRng = new System.Random((levelIndex + 8500) * 6317 + variantOffset * 173);
+                if (TryDirectScatterBlocked(fullPath, config, desiredBlocked, scatterRng,
+                        levelIndex + variantOffset * 31, out List<Vector2Int> dPath, out List<Vector2Int> dBlocked))
+                {
+                    List<List<Vector2Int>> dSegs = SplitPath(dPath, config, scatterRng)
+                        ?? UniformSplit(dPath, config.minSegment);
+                    if (dSegs != null && dSegs.Count > 0)
+                    {
+                        float dScore = ComputeTriangleBlockedScatterScore(dBlocked, config) + CountTurns(dPath) * 0.12f;
+                        if (bestCandidate == null || dScore > bestCandidate.score)
+                        {
+                            bestCandidate = new LevelCandidate
+                            {
+                                path = dPath,
+                                segments = dSegs,
+                                signature = BuildSignature(config, dSegs),
+                                contentFingerprint = BuildContentFingerprint(config, dSegs, dBlocked),
+                                score = dScore,
+                                blocked = dBlocked
+                            };
+                        }
+                    }
+                }
+            }
+
             if (!TryBuildDistributedTriangleWindows(fullPath, config, desiredBlocked, out List<Vector2Int> playablePath, out List<Vector2Int> blocked, levelIndex))
                 continue;
 
@@ -2761,6 +2895,38 @@ public static class LevelGenerator
                             score = scatteredScore,
                             blocked = scatteredBlockedList
                         };
+                    }
+                }
+            }
+
+            if (bestScatteredCandidate != null)
+                return bestScatteredCandidate;
+
+            // Direct scatter on the existing path: works for triangle grids where Warnsdorf fails.
+            // Picks interior cells directly from the snake path without requiring Hamiltonian-path success.
+            for (int attempt = 0; attempt < 20; attempt++)
+            {
+                var dRng = new System.Random((levelIndex + 8500) * 6317 + attempt * 173);
+                if (TryDirectScatterBlocked(fullPath, config, desiredBlocked, dRng,
+                        levelIndex + attempt * 31, out List<Vector2Int> dPath, out List<Vector2Int> dBlocked))
+                {
+                    List<List<Vector2Int>> dSegs = SplitPath(dPath, config, dRng)
+                        ?? UniformSplit(dPath, config.minSegment);
+                    if (dSegs != null && dSegs.Count > 0)
+                    {
+                        float dScore = ComputeTriangleBlockedScatterScore(dBlocked, config)
+                            + ComputeTriangleBlockedAnchorScore(dBlocked, config, levelIndex)
+                            + desiredBlocked * 2.5f;
+                        if (bestScatteredCandidate == null || dScore > bestScatteredCandidate.score)
+                            bestScatteredCandidate = new LevelCandidate
+                            {
+                                path = dPath,
+                                segments = dSegs,
+                                signature = BuildSignature(config, dSegs),
+                                contentFingerprint = BuildContentFingerprint(config, dSegs, dBlocked),
+                                score = dScore,
+                                blocked = dBlocked
+                            };
                     }
                 }
             }
