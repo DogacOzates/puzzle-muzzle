@@ -316,9 +316,16 @@ public class Cell : MonoBehaviour
             case CellState.Completed:
                 bgRenderer.color = blockColor;
                 shadowRenderer.color = new Color(blockColor.r * 0.4f, blockColor.g * 0.4f, blockColor.b * 0.4f, 0.18f);
-                numberRenderer.sprite = SpriteGenerator.GetNumberSprite(SelectionOrder);
-                numberRenderer.color = new Color(1f, 1f, 1f, 0.85f);
-                numberRenderer.gameObject.SetActive(true);
+                if (SelectionOrder > 0)
+                {
+                    numberRenderer.sprite = SpriteGenerator.GetNumberSprite(SelectionOrder);
+                    numberRenderer.color = new Color(1f, 1f, 1f, 0.85f);
+                    numberRenderer.gameObject.SetActive(true);
+                }
+                else
+                {
+                    numberRenderer.gameObject.SetActive(false);
+                }
                 break;
 
             case CellState.Blocked:
