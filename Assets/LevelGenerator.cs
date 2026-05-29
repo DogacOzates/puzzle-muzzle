@@ -2428,7 +2428,7 @@ public static class LevelGenerator
             bool fastBundledSingleLevel = fastBundledMode && fastSingleLevelRequest;
             bool prioritizeBlockedReliability = fastSingleLevelRequest && config.maxBlocked > 0 && !fastBundledMode;
             bool hardBlockedTier = config.maxBlocked >= 4;
-            int pathAttemptLimit = prioritizeBlockedReliability ? 280 : (fastBundledMode ? (hardBlockedTier ? 240 : (config.maxBlocked > 0 ? 150 : 64)) : (fastSingleLevelRequest ? 48 : 280));
+            int pathAttemptLimit = prioritizeBlockedReliability ? 280 : (fastBundledMode ? (hardBlockedTier ? 80 : (config.maxBlocked > 0 ? 150 : 64)) : (fastSingleLevelRequest ? 48 : 280));
             int initialCandidateAttempts = prioritizeBlockedReliability ? config.candidateCount : (fastBundledMode ? (hardBlockedTier ? Mathf.Min(config.candidateCount, 28) : (config.maxBlocked > 0 ? Mathf.Min(config.candidateCount, 16) : Mathf.Min(config.candidateCount, 8))) : (fastSingleLevelRequest ? Mathf.Min(config.candidateCount, 10) : config.candidateCount));
             int blockedRecoveryAttempts = prioritizeBlockedReliability ? config.candidateCount * 24 : (fastBundledMode ? (hardBlockedTier ? Mathf.Max(config.candidateCount * 12, 96) : Mathf.Max(config.candidateCount * 6, 40)) : (fastSingleLevelRequest ? Mathf.Max(config.candidateCount * 4, 28) : config.candidateCount * 24));
             int easierBlockedAttempts = prioritizeBlockedReliability ? Mathf.Max(config.candidateCount * 18, 160) : (fastBundledMode ? (hardBlockedTier ? Mathf.Max(config.candidateCount * 10, 80) : Mathf.Max(config.candidateCount * 4, 32)) : (fastSingleLevelRequest ? Mathf.Max(config.candidateCount * 3, 24) : Mathf.Max(config.candidateCount * 18, 160)));
