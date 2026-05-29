@@ -58,22 +58,22 @@ public static class LevelGenerator
 
     private static readonly Vector2[] TriangleBlockedAnchorTemplates =
     {
+        new Vector2(0.25f, 0.25f),  // lower-left quadrant
+        new Vector2(0.75f, 0.75f),  // upper-right quadrant
+        new Vector2(0.75f, 0.25f),  // lower-right quadrant
+        new Vector2(0.25f, 0.75f),  // upper-left quadrant
         new Vector2(0.50f, 0.50f),  // center
         new Vector2(0.25f, 0.50f),  // left-center
         new Vector2(0.75f, 0.50f),  // right-center
         new Vector2(0.50f, 0.25f),  // bottom-center
         new Vector2(0.50f, 0.75f),  // top-center
-        new Vector2(0.30f, 0.30f),  // lower-left interior
-        new Vector2(0.70f, 0.70f),  // upper-right interior
-        new Vector2(0.30f, 0.70f),  // upper-left interior
-        new Vector2(0.70f, 0.30f),  // lower-right interior
-        new Vector2(0.50f, 0.40f),  // below center
-        new Vector2(0.40f, 0.60f),  // above-left center
-        new Vector2(0.60f, 0.40f),  // below-right center
-        new Vector2(0.35f, 0.45f),  // left-center area
-        new Vector2(0.65f, 0.55f),  // right-center area
-        new Vector2(0.45f, 0.35f),  // below-center-left
-        new Vector2(0.55f, 0.65f),  // above-center-right
+        new Vector2(0.33f, 0.33f),  // lower-left inner
+        new Vector2(0.67f, 0.67f),  // upper-right inner
+        new Vector2(0.67f, 0.33f),  // lower-right inner
+        new Vector2(0.33f, 0.67f),  // upper-left inner
+        new Vector2(0.50f, 0.38f),  // below center
+        new Vector2(0.38f, 0.62f),  // above-left center
+        new Vector2(0.62f, 0.38f),  // below-right center
     };
 
     public static LevelData[] GenerateCampaign(int generatedLevelCount)
@@ -1866,11 +1866,11 @@ public static class LevelGenerator
 
             int dx = Mathf.Abs(cell.x - existing.x);
             int dy = Mathf.Abs(cell.y - existing.y);
-            if (dx <= 1 && dy <= 1)
+            int manhattan = dx + dy;
+            if (manhattan < 4)
                 return float.NegativeInfinity;
 
-            int manhattan = dx + dy;
-            score += Mathf.Min(manhattan, 8) * 0.8f;
+            score += Mathf.Min(manhattan, 8) * 1.5f;
 
             if (cell.x == existing.x || cell.y == existing.y)
                 score -= 1.5f;
@@ -2881,9 +2881,9 @@ public static class LevelGenerator
             c.squarePenalty = 0.55f; c.lateRectangleBonus = 0.1f;
             c.minBlocked = 3; c.maxBlocked = 4;
         }
-        else if (idx < 250)    // Tier 8: 15×10 Advanced (1111-1150)
+        else if (idx < 250)    // Tier 8: 13×8 Advanced (1111-1150)
         {
-            c.width = 15; c.height = 10;
+            c.width = 13; c.height = 8;
             c.minSegment = 4; c.maxSegment = 11; c.candidateCount = 40;
             c.tierName = "3gen Advanced";
             c.rectanglePenalty = 1.3f; c.densePenalty = 1.0f;
@@ -2891,9 +2891,9 @@ public static class LevelGenerator
             c.squarePenalty = 0.45f; c.lateRectangleBonus = 0.15f;
             c.minBlocked = 3; c.maxBlocked = 4;
         }
-        else if (idx < 275)    // Tier 9: 15×10 Expert  (1151-1175)
+        else if (idx < 275)    // Tier 9: 13×8 Expert  (1151-1175)
         {
-            c.width = 15; c.height = 10;
+            c.width = 13; c.height = 8;
             c.minSegment = 5; c.maxSegment = 12; c.candidateCount = 42;
             c.tierName = "3gen Expert";
             c.rectanglePenalty = 1.0f; c.densePenalty = 0.8f;
@@ -2901,9 +2901,9 @@ public static class LevelGenerator
             c.squarePenalty = 0.35f; c.lateRectangleBonus = 0.2f;
             c.minBlocked = 3; c.maxBlocked = 4;
         }
-        else                   // Tier 10: 15×12 Master (1176-1200)
+        else                   // Tier 10: 13×10 Master (1176-1200)
         {
-            c.width = 15; c.height = 12;
+            c.width = 13; c.height = 10;
             c.minSegment = 5; c.maxSegment = 12; c.candidateCount = 44;
             c.tierName = "3gen Master";
             c.rectanglePenalty = 0.8f; c.densePenalty = 0.6f;
