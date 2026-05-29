@@ -159,9 +159,13 @@ public class GameManager : MonoBehaviour
         float topInsetFrac = (screenH - safe.yMax) / screenH;
         float botInsetFrac = safe.yMin / screenH;
 
-        float paddingH = 1.2f;
-        float paddingTop = 2.0f + topInsetFrac * 4f;
-        float paddingBottom = 4.5f + botInsetFrac * 2f;
+        // Triangle levels have many small cells — use tighter padding so the
+        // camera can zoom in more, making each cell ~15-25% larger on screen.
+        bool isTri = gridManager.IsTriangleMode;
+        float paddingH      = isTri ? 0.5f : 1.2f;
+        float paddingTop    = 2.0f + topInsetFrac * 4f;
+        float paddingBottom = isTri ? (3.0f + botInsetFrac * 2f)
+                                    : (4.5f + botInsetFrac * 2f);
 
         float neededWidth = gridW + paddingH * 2;
         float neededHeight = gridH + paddingTop + paddingBottom;
