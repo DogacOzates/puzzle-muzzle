@@ -510,12 +510,29 @@ public class GridManager : MonoBehaviour
             Color blockColor = BlockPalette[blockId % BlockPalette.Length];
             var block = new List<Cell>();
 
-            for (int i = 0; i < path.Length; i++)
+            // For triangle mode the stored path may have invalid adjacencies (generation artifact).
+            // Recompute a geometrically valid path through the same cell set before displaying.
+            // If recomputation fails, fall back to showing only the target cell (still useful hint).
+            List<Vector2Int> displayPath = null;
+            if (isThreeGenMode)
             {
-                Cell c = GetCell(path.GetX(i), path.GetY(i));
-                // Triangle segments use column-snake paths with non-adjacent steps, so step numbers
-                // would be misleading. Show no numbers on non-target cells; target shows its own number.
-                int selOrder = isThreeGenMode ? (i == path.Length - 1 ? path.Length : 0) : i + 1;
+                displayPath = RecomputeTriangleHint(path);
+                if (displayPath == null)
+                {
+                    int tx = path.GetX(path.Length - 1);
+                    int ty = path.GetY(path.Length - 1);
+                    displayPath = new List<Vector2Int> { new Vector2Int(tx, ty) };
+                }
+            }
+            int displayLen = displayPath != null ? displayPath.Count : path.Length;
+
+            for (int i = 0; i < displayLen; i++)
+            {
+                int px = displayPath != null ? displayPath[i].x : path.GetX(i);
+                int py = displayPath != null ? displayPath[i].y : path.GetY(i);
+                Cell c = GetCell(px, py);
+                if (c == null) continue;
+                int selOrder = i == displayLen - 1 ? displayLen : i + 1;
                 c.SetState(CellState.Completed, selOrder);
                 c.SetCompletedColor(blockColor);
                 c.BlockId = blockId;
@@ -528,7 +545,85 @@ public class GridManager : MonoBehaviour
         return false;
     }
 
-    // --- Grid Utilities ---
+    // Finds a valid triangle-adjacency path through the cells stored in the hint segment.
+    // Returns null if the segment is trivial (length 1) or no valid path is found (falls back to stored order).
+    private List<Vector2Int> RecomputeTriangleHint(SolutionPath storedPath)
+    {
+        int n = storedPath.Length;
+        if (n <= 1) return null;
+
+        var cellSet = new HashSet<Vector2Int>();
+        for (int i = 0; i < n; i++)
+            cellSet.Add(new Vector2Int(storedPath.GetX(i), storedPath.GetY(i)));
+
+        var target = new Vector2Int(storedPath.GetX(n - 1), storedPath.GetY(n - 1));
+
+        // Try each non-target cell as the starting point.
+        foreach (var start in cellSet)
+        {
+            if (start == target) continue;
+            var path = new List<Vector2Int>(n) { start };
+            var visited = new HashSet<Vector2Int> { start };
+            if (TriangleHintDFS(path, visited, cellSet, target, n))
+                return path;
+        }
+
+        // If no valid path found, try starting from target itself (degenerate single-cell segment).
+        return null;
+    }
+
+    private bool TriangleHintDFS(List<Vector2Int> path, HashSet<Vector2Int> visited,
+        HashSet<Vector2Int> cellSet, Vector2Int target, int total)
+    {
+        var cur = path[path.Count - 1];
+        if (path.Count == total)
+            return cur == target;
+
+        int x = cur.x, y = cur.y;
+        bool isUp = (x + y) % 2 == 0;
+
+        // Enumerate triangle neighbors in cellSet that are unvisited.
+        // Prioritise the target if only one cell remains to visit.
+        int remaining = total - path.Count;
+        var candidates = new List<Vector2Int>(3);
+
+        void TryAdd(int nx, int ny)
+        {
+            var v = new Vector2Int(nx, ny);
+            if (cellSet.Contains(v) && !visited.Contains(v))
+            {
+                // Reserve target for the final step only.
+                if (v == target && remaining > 1) return;
+                candidates.Add(v);
+            }
+        }
+
+        if (x > 0) TryAdd(x - 1, y);
+        if (x < GridWidth - 1) TryAdd(x + 1, y);
+        TryAdd(x, y + (isUp ? 1 : -1));
+
+        // Visit target last when only one step remains.
+        if (remaining == 1)
+        {
+            if (candidates.Count == 1 && candidates[0] == target)
+            {
+                path.Add(target);
+                return true;
+            }
+            return false;
+        }
+
+        foreach (var n in candidates)
+        {
+            visited.Add(n);
+            path.Add(n);
+            if (TriangleHintDFS(path, visited, cellSet, target, total))
+                return true;
+            path.RemoveAt(path.Count - 1);
+            visited.Remove(n);
+        }
+        return false;
+    }
 
     public Vector3 GridToWorld(int x, int y)
     {

@@ -1392,6 +1392,123 @@ public static class LevelGenerator
         return false;
     }
 
+    // Proper backtracking Hamiltonian path for triangle grids.
+    // Uses Warnsdorff ordering + connectivity pruning for speed.
+    // Greedy-only approaches fail on 13×8 odd-width grids; this is guaranteed correct.
+    private static List<Vector2Int> TriangleHamiltonianBacktrack(
+        int width, int height, HashSet<Vector2Int> blocked, System.Random rng)
+    {
+        int total = width * height - blocked.Count;
+        var visited = new bool[height, width];
+        foreach (var b in blocked) visited[b.y, b.x] = true;
+
+        // Collect border cells as candidate starts, shuffled
+        var starts = new List<Vector2Int>();
+        for (int x = 0; x < width; x++)
+        {
+            var t = new Vector2Int(x, 0);
+            var b2 = new Vector2Int(x, height - 1);
+            if (!blocked.Contains(t)) starts.Add(t);
+            if (!blocked.Contains(b2)) starts.Add(b2);
+        }
+        for (int y = 1; y < height - 1; y++)
+        {
+            var l = new Vector2Int(0, y);
+            var r = new Vector2Int(width - 1, y);
+            if (!blocked.Contains(l)) starts.Add(l);
+            if (!blocked.Contains(r)) starts.Add(r);
+        }
+        for (int i = starts.Count - 1; i > 0; i--)
+        {
+            int j = rng.Next(i + 1);
+            var tmp = starts[i]; starts[i] = starts[j]; starts[j] = tmp;
+        }
+
+        var path = new List<Vector2Int>(total);
+        var neighborBuf = new List<Vector2Int>(3);
+
+        foreach (var start in starts)
+        {
+            path.Clear();
+            for (int y = 0; y < height; y++) for (int x = 0; x < width; x++) visited[y, x] = false;
+            foreach (var b in blocked) visited[b.y, b.x] = true;
+            path.Add(start);
+            visited[start.y, start.x] = true;
+
+            if (TriangleDFSBacktrack(path, visited, width, height, total, neighborBuf))
+                return path;
+        }
+        return null;
+    }
+
+    private static bool TriangleDFSBacktrack(
+        List<Vector2Int> path, bool[,] visited, int width, int height, int total,
+        List<Vector2Int> neighborBuf)
+    {
+        if (path.Count == total) return true;
+
+        var current = path[path.Count - 1];
+        var neighbors = TriangleNeighbors(current.x, current.y, width, height, visited);
+
+        // Warnsdorff: try neighbor with fewest onward moves first
+        neighbors.Sort((a, b) =>
+            TriangleNeighbors(a.x, a.y, width, height, visited).Count
+            .CompareTo(TriangleNeighbors(b.x, b.y, width, height, visited).Count));
+
+        foreach (var next in neighbors)
+        {
+            visited[next.y, next.x] = true;
+            path.Add(next);
+
+            // Prune if remaining unvisited cells become disconnected
+            if (TriangleUnvisitedConnected(visited, width, height, total - path.Count))
+            {
+                if (TriangleDFSBacktrack(path, visited, width, height, total, neighborBuf))
+                    return true;
+            }
+
+            path.RemoveAt(path.Count - 1);
+            visited[next.y, next.x] = false;
+        }
+        return false;
+    }
+
+    private static bool TriangleUnvisitedConnected(bool[,] visited, int width, int height, int unvisitedCount)
+    {
+        if (unvisitedCount == 0) return true;
+
+        // Find first unvisited cell
+        int fx = -1, fy = -1;
+        for (int y = 0; y < height && fx < 0; y++)
+            for (int x = 0; x < width && fx < 0; x++)
+                if (!visited[y, x]) { fx = x; fy = y; }
+
+        if (fx < 0) return true;
+
+        // BFS count of connected unvisited cells
+        var queue = new Queue<Vector2Int>();
+        var seen = new bool[height, width];
+        var start = new Vector2Int(fx, fy);
+        queue.Enqueue(start);
+        seen[fy, fx] = true;
+        int count = 1;
+
+        while (queue.Count > 0)
+        {
+            var cur = queue.Dequeue();
+            if (cur.x > 0 && !visited[cur.y, cur.x - 1] && !seen[cur.y, cur.x - 1])
+            { seen[cur.y, cur.x - 1] = true; queue.Enqueue(new Vector2Int(cur.x - 1, cur.y)); count++; }
+            if (cur.x < width - 1 && !visited[cur.y, cur.x + 1] && !seen[cur.y, cur.x + 1])
+            { seen[cur.y, cur.x + 1] = true; queue.Enqueue(new Vector2Int(cur.x + 1, cur.y)); count++; }
+            bool isUp = (cur.x + cur.y) % 2 == 0;
+            int vy = cur.y + (isUp ? 1 : -1);
+            if (vy >= 0 && vy < height && !visited[vy, cur.x] && !seen[vy, cur.x])
+            { seen[vy, cur.x] = true; queue.Enqueue(new Vector2Int(cur.x, vy)); count++; }
+        }
+
+        return count == unvisitedCount;
+    }
+
     private static List<TriangleRemovableWindow> FindTriangleRemovableWindows(
         List<Vector2Int> path,
         int width,
@@ -1817,21 +1934,10 @@ public static class LevelGenerator
         {
             int variantIndex = (levelIndex * 5 + config.maxBlocked + variantOffset * 3) & 7;
             var rng = new System.Random((levelIndex + 9000) * 6151 + variantOffset * 197);
-            List<Vector2Int> fullPath = HamiltonianPath(
-                config.width,
-                config.height,
-                new HashSet<Vector2Int>(),
-                rng,
-                triMode: true,
-                maxAttempts: 160);
+            List<Vector2Int> fullPath = TriangleHamiltonianBacktrack(
+                config.width, config.height, new HashSet<Vector2Int>(), rng);
             if (fullPath == null)
-            {
-                fullPath = TransformTrianglePathVariant(
-                    TriangleSnakePath(config.width, config.height),
-                    config.width,
-                    config.height,
-                    variantIndex);
-            }
+                fullPath = TransformTrianglePathVariant(TriangleSnakePath(config.width, config.height), config.width, config.height, variantIndex);
 
             desiredBlocked = Mathf.Min(desiredBlocked, Mathf.Max(0, fullPath.Count - config.minSegment));
 
@@ -2680,7 +2786,7 @@ public static class LevelGenerator
                     if (xBlocked.Count != xBlockedCount)
                         xBlocked = GenerateBlockedCellsExact(config, xBlockedCount, xRng, triMode: true);
                     if (config.maxBlocked > 0 && xBlocked.Count == 0) continue;
-                    List<Vector2Int> xPath = HamiltonianPath(config.width, config.height, xBlocked, xRng, triMode: true, maxAttempts: pathAttemptLimit);
+                    List<Vector2Int> xPath = TriangleHamiltonianBacktrack(config.width, config.height, xBlocked, xRng);
                     if (xPath == null) continue;
                     List<List<Vector2Int>> xSegs = SplitPath(xPath, config, xRng);
                     if (xSegs == null || xSegs.Count == 0) continue;
@@ -2787,7 +2893,7 @@ public static class LevelGenerator
             if (config.maxBlocked > 0 && blocked.Count == 0)
                 continue;
 
-            List<Vector2Int> path = HamiltonianPath(config.width, config.height, blocked, candidateRng, triMode: true, maxAttempts: pathAttemptLimit);
+            List<Vector2Int> path = TriangleHamiltonianBacktrack(config.width, config.height, blocked, candidateRng);
             if (path == null) continue;
 
             List<List<Vector2Int>> segments = SplitPath(path, config, candidateRng);
@@ -2827,21 +2933,10 @@ public static class LevelGenerator
     private static LevelCandidate BuildTriangleFallbackCandidate(int levelIndex, CampaignConfig config, System.Random rng)
     {
         int variantIndex = (levelIndex * 5 + config.maxBlocked) & 7;
-        List<Vector2Int> fullPath = HamiltonianPath(
-            config.width,
-            config.height,
-            new HashSet<Vector2Int>(),
-            rng,
-            triMode: true,
-            maxAttempts: 240);
+        List<Vector2Int> fullPath = TriangleHamiltonianBacktrack(
+            config.width, config.height, new HashSet<Vector2Int>(), rng);
         if (fullPath == null)
-        {
-            fullPath = TransformTrianglePathVariant(
-                TriangleSnakePath(config.width, config.height),
-                config.width,
-                config.height,
-                variantIndex);
-        }
+            fullPath = TransformTrianglePathVariant(TriangleSnakePath(config.width, config.height), config.width, config.height, variantIndex);
         var blocked = new List<Vector2Int>();
         List<Vector2Int> playablePath = fullPath;
 
@@ -2866,13 +2961,8 @@ public static class LevelGenerator
                     if (scatteredBlocked.Count != blockedTarget)
                         continue;
 
-                    List<Vector2Int> scatteredPath = HamiltonianPath(
-                        config.width,
-                        config.height,
-                        scatteredBlocked,
-                        attemptRng,
-                        triMode: true,
-                        maxAttempts: blockedTarget >= 4 ? 420 : 320);
+                    List<Vector2Int> scatteredPath = TriangleHamiltonianBacktrack(
+                        config.width, config.height, scatteredBlocked, attemptRng);
                     if (scatteredPath == null)
                         continue;
 
