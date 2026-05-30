@@ -464,73 +464,52 @@ public class GridManager : MonoBehaviour
         return true;
     }
 
-    // Auto-solve one unsolved path. If the board is stuck (can't be completed),
-    // resets all player moves first, then hints from the first path.
-    // Returns true if a hint was applied.
+    // Auto-solve one unsolved path. Returns true if a hint was applied.
     public bool SolveHint(SolutionPath[] solutions)
     {
         if (solutions == null) return false;
 
         CancelSelection();
 
-        // If the board is no longer solvable (wrong moves blocked a path), reset and restart hint.
-        // In triangle mode the stored paths are geometrically invalid, so skip this check—
-        // solvability is always assumed (hints are recomputed dynamically from empty cells).
-        if (!isThreeGenMode && !IsSolvable(solutions))
+        if (isThreeGenMode)
+            return SolveTriangleHint(solutions);
+
+        if (!IsSolvable(solutions))
             ResetPlayerMoves();
 
         foreach (var path in solutions)
         {
-            // Last cell in path is the target
             int targetX = path.GetX(path.Length - 1);
             int targetY = path.GetY(path.Length - 1);
             Cell targetCell = GetCell(targetX, targetY);
 
             if (targetCell == null || targetCell.State != CellState.NumberTarget) continue;
 
-            // For triangle mode, stored segment cells may be geometrically disconnected (generation artifact).
-            // Skip the stored-path availability check; recompute a valid path at runtime instead.
-            if (!isThreeGenMode)
+            bool pathClear = true;
+            for (int i = 0; i < path.Length; i++)
             {
-                bool pathClear = true;
-                for (int i = 0; i < path.Length; i++)
+                Cell c = GetCell(path.GetX(i), path.GetY(i));
+                if (c == null) { pathClear = false; break; }
+                if (i < path.Length - 1)
                 {
-                    Cell c = GetCell(path.GetX(i), path.GetY(i));
-                    if (c == null) { pathClear = false; break; }
-                    if (i < path.Length - 1)
-                    {
-                        if (c.State != CellState.Empty) { pathClear = false; break; }
-                    }
-                    else
-                    {
-                        if (c.State != CellState.NumberTarget) { pathClear = false; break; }
-                    }
+                    if (c.State != CellState.Empty) { pathClear = false; break; }
                 }
-                if (!pathClear) continue;
+                else
+                {
+                    if (c.State != CellState.NumberTarget) { pathClear = false; break; }
+                }
             }
+            if (!pathClear) continue;
 
-            // Auto-complete this path
             int blockId = nextBlockId++;
             Color blockColor = BlockPalette[blockId % BlockPalette.Length];
             var block = new List<Cell>();
 
-            // For triangle mode: recompute a geometrically valid path through all empty cells,
-            // ending at the segment's target.
-            List<Vector2Int> displayPath = null;
-            if (isThreeGenMode)
+            for (int i = 0; i < path.Length; i++)
             {
-                displayPath = RecomputeTriangleHint(path);
-                if (displayPath == null) continue; // No valid path available yet; try next segment.
-            }
-            int displayLen = displayPath != null ? displayPath.Count : path.Length;
-
-            for (int i = 0; i < displayLen; i++)
-            {
-                int px = displayPath != null ? displayPath[i].x : path.GetX(i);
-                int py = displayPath != null ? displayPath[i].y : path.GetY(i);
-                Cell c = GetCell(px, py);
+                Cell c = GetCell(path.GetX(i), path.GetY(i));
                 if (c == null) continue;
-                int selOrder = i == displayLen - 1 ? displayLen : i + 1;
+                int selOrder = i == path.Length - 1 ? path.Length : i + 1;
                 c.SetState(CellState.Completed, selOrder);
                 c.SetCompletedColor(blockColor);
                 c.BlockId = blockId;
@@ -543,46 +522,137 @@ public class GridManager : MonoBehaviour
         return false;
     }
 
-    // Finds a valid triangle-adjacency path of stored length ending at the stored target cell.
-    // Searches through ALL currently empty cells (not the disconnected stored segment cells).
-    private List<Vector2Int> RecomputeTriangleHint(SolutionPath storedPath)
+    // Triangle hint: Voronoi-partition all empty cells among segments, apply the most-constrained
+    // segment's path. Recomputed fresh each press so partial boards are handled correctly.
+    private bool SolveTriangleHint(SolutionPath[] solutions)
     {
-        int n = storedPath.Length;
-        var target = new Vector2Int(storedPath.GetX(n - 1), storedPath.GetY(n - 1));
+        var voronoiPaths = ComputeTriangleVoronoi(solutions);
+        if (voronoiPaths == null || voronoiPaths.Count == 0) return false;
+        ApplyTriangleHintPath(voronoiPaths[0]);
+        return true;
+    }
 
-        // Build initial visited map: true = unavailable (blocked or completed).
-        // Other segments' targets are NOT excluded — blocking them fragments the grid.
-        // Any cell that gets consumed by this hint is OK; subsequent hints skip completed targets.
+    private void ApplyTriangleHintPath(List<Vector2Int> dp)
+    {
+        int blockId = nextBlockId++;
+        Color blockColor = BlockPalette[blockId % BlockPalette.Length];
+        var block = new List<Cell>();
+        for (int i = 0; i < dp.Count; i++)
+        {
+            Cell c = GetCell(dp[i].x, dp[i].y);
+            if (c == null) continue;
+            int selOrder = i == dp.Count - 1 ? dp.Count : i + 1;
+            c.SetState(CellState.Completed, selOrder);
+            c.SetCompletedColor(blockColor);
+            c.BlockId = blockId;
+            block.Add(c);
+        }
+        completedBlocks.Add(block);
+    }
+
+    // Multi-source Voronoi BFS: assign each empty cell to its nearest target's zone (owner-
+    // propagating BFS guarantees every zone is connected from its target). Then find a
+    // Hamiltonian path in each zone; return paths sorted most-constrained (smallest) first.
+    private List<List<Vector2Int>> ComputeTriangleVoronoi(SolutionPath[] solutions)
+    {
+        var targets = new List<Vector2Int>();
+        foreach (var sol in solutions)
+        {
+            int tX = sol.GetX(sol.Length - 1), tY = sol.GetY(sol.Length - 1);
+            var tc = GetCell(tX, tY);
+            if (tc != null && tc.State == CellState.NumberTarget)
+                targets.Add(new Vector2Int(tX, tY));
+        }
+        if (targets.Count == 0) return null;
+
         var initVisited = new bool[GridHeight, GridWidth];
-        bool targetAvailable = false;
         for (int y = 0; y < GridHeight; y++)
             for (int x = 0; x < GridWidth; x++)
             {
                 var c = GetCell(x, y);
                 if (c == null || c.State == CellState.Completed || c.State == CellState.Blocked)
                     initVisited[y, x] = true;
-                else if (x == target.x && y == target.y)
-                    targetAvailable = true;
             }
 
-        if (!targetAvailable) return null;
+        var zoneIdx = new int[GridHeight, GridWidth];
+        var zoneDist = new int[GridHeight, GridWidth];
+        for (int y = 0; y < GridHeight; y++)
+            for (int x = 0; x < GridWidth; x++) { zoneIdx[y, x] = -1; zoneDist[y, x] = int.MaxValue; }
 
-        // BFS from target through all available cells to compute hop-distances.
+        var queue = new Queue<Vector2Int>();
+        for (int ti = 0; ti < targets.Count; ti++)
+        {
+            var t = targets[ti];
+            if (initVisited[t.y, t.x]) continue;
+            zoneIdx[t.y, t.x] = ti;
+            zoneDist[t.y, t.x] = 0;
+            queue.Enqueue(t);
+        }
+        while (queue.Count > 0)
+        {
+            var cur = queue.Dequeue();
+            int cti = zoneIdx[cur.y, cur.x];
+            int cd = zoneDist[cur.y, cur.x];
+            void VisitNeighbor(int nx, int ny)
+            {
+                if (nx < 0 || nx >= GridWidth || ny < 0 || ny >= GridHeight) return;
+                if (initVisited[ny, nx] || zoneDist[ny, nx] != int.MaxValue) return;
+                zoneIdx[ny, nx] = cti;
+                zoneDist[ny, nx] = cd + 1;
+                queue.Enqueue(new Vector2Int(nx, ny));
+            }
+            VisitNeighbor(cur.x - 1, cur.y);
+            VisitNeighbor(cur.x + 1, cur.y);
+            bool isUp = (cur.x + cur.y) % 2 == 0;
+            VisitNeighbor(cur.x, cur.y + (isUp ? 1 : -1));
+        }
+
+        var zoneCells = new List<List<Vector2Int>>(targets.Count);
+        for (int ti = 0; ti < targets.Count; ti++) zoneCells.Add(new List<Vector2Int>());
+        for (int y = 0; y < GridHeight; y++)
+            for (int x = 0; x < GridWidth; x++)
+            {
+                int zi = zoneIdx[y, x];
+                if (zi >= 0) zoneCells[zi].Add(new Vector2Int(x, y));
+            }
+
+        var order = new List<int>();
+        for (int ti = 0; ti < targets.Count; ti++) order.Add(ti);
+        order.Sort((a, b) => zoneCells[a].Count - zoneCells[b].Count);
+
+        var result = new List<List<Vector2Int>>();
+        foreach (int ti in order)
+        {
+            var p = FindPathInZone(targets[ti], zoneCells[ti]);
+            result.Add(p != null ? p : new List<Vector2Int> { targets[ti] });
+        }
+        return result;
+    }
+
+    // Finds a Hamiltonian path through all cells in the zone, ending at target.
+    private List<Vector2Int> FindPathInZone(Vector2Int target, List<Vector2Int> zoneCells)
+    {
+        int n = zoneCells.Count;
+        if (n == 0) return null;
+        if (n == 1) return new List<Vector2Int> { target };
+
+        var inZone = new bool[GridHeight, GridWidth];
+        foreach (var c in zoneCells) inZone[c.y, c.x] = true;
+
+        // BFS from target within zone for hop-distances used in DFS pruning.
         var dist = new int[GridHeight, GridWidth];
         for (int y = 0; y < GridHeight; y++) for (int x = 0; x < GridWidth; x++) dist[y, x] = int.MaxValue;
         dist[target.y, target.x] = 0;
         var bfsQ = new Queue<Vector2Int>();
         bfsQ.Enqueue(target);
-        int reachableCount = 1; // includes target itself
         while (bfsQ.Count > 0)
         {
             var cur = bfsQ.Dequeue();
             void BFSTry(int nx, int ny)
             {
                 if (nx < 0 || nx >= GridWidth || ny < 0 || ny >= GridHeight) return;
-                if (initVisited[ny, nx] || dist[ny, nx] != int.MaxValue) return;
+                if (!inZone[ny, nx] || dist[ny, nx] != int.MaxValue) return;
                 dist[ny, nx] = dist[cur.y, cur.x] + 1;
-                reachableCount++;
                 bfsQ.Enqueue(new Vector2Int(nx, ny));
             }
             BFSTry(cur.x - 1, cur.y);
@@ -591,22 +661,13 @@ public class GridManager : MonoBehaviour
             BFSTry(cur.x, cur.y + (isUp ? 1 : -1));
         }
 
-        // Cap n to what's actually reachable from target.
-        n = Mathf.Min(n, reachableCount);
-        if (n <= 1) return new List<Vector2Int> { target };
-
-        // Collect ALL reachable non-target cells as candidate starts.
-        // Sort by distance closest to n-1 (ideal start distance for a bounded path of length n).
-        var starts = new List<Vector2Int>();
-        for (int y = 0; y < GridHeight; y++)
-            for (int x = 0; x < GridWidth; x++)
-            {
-                int d = dist[y, x];
-                if (d > 0 && d < n) // reachable, not target, within n-1 hops
-                    starts.Add(new Vector2Int(x, y));
-            }
-        // Sort: starts closest to ideal distance (n-1) first for fastest DFS convergence.
         int ideal = n - 1;
+        var starts = new List<Vector2Int>();
+        foreach (var c in zoneCells)
+        {
+            int d = dist[c.y, c.x];
+            if (d > 0 && d < n) starts.Add(c);
+        }
         starts.Sort((a, b) => System.Math.Abs(dist[a.y, a.x] - ideal)
                              - System.Math.Abs(dist[b.y, b.x] - ideal));
 
@@ -614,26 +675,20 @@ public class GridManager : MonoBehaviour
         var path = new List<Vector2Int>(n);
         foreach (var start in starts)
         {
-            // Copy initial visited state.
             for (int y = 0; y < GridHeight; y++)
                 for (int x = 0; x < GridWidth; x++)
-                    visited[y, x] = initVisited[y, x];
-
+                    visited[y, x] = !inZone[y, x];
             path.Clear();
             path.Add(start);
             visited[start.y, start.x] = true;
-
-            if (TriangleHintDFS(path, visited, dist, target, n))
+            if (TriangleZoneDFS(path, visited, dist, inZone, target, n))
                 return path;
         }
-
         return new List<Vector2Int> { target };
     }
 
-    // Bounded DFS: builds a path of exactly `total` cells ending at `target`.
-    // Candidates are sorted farthest-from-target first (using precomputed BFS distances),
-    // so the path winds away from the target and arrives there as the final step.
-    private bool TriangleHintDFS(List<Vector2Int> path, bool[,] visited, int[,] dist,
+    // DFS with BFS-distance pruning and connectivity check to find Hamiltonian path in zone.
+    private bool TriangleZoneDFS(List<Vector2Int> path, bool[,] visited, int[,] dist, bool[,] inZone,
         Vector2Int target, int total)
     {
         if (path.Count == total)
@@ -647,33 +702,67 @@ public class GridManager : MonoBehaviour
         {
             if (nx < 0 || nx >= GridWidth || ny < 0 || ny >= GridHeight) return;
             if (visited[ny, nx]) return;
+            int vDist = dist[ny, nx];
+            if (vDist == int.MaxValue || vDist > remaining - 1) return; // BFS-distance prune
             var v = new Vector2Int(nx, ny);
-            if (v == target && remaining > 1) return; // Reserve target for last step.
+            if (v == target && remaining > 1) return; // reserve target for last step
             candidates.Add(v);
         }
         TryAdd(cur.x - 1, cur.y);
         TryAdd(cur.x + 1, cur.y);
-        bool isUp = (cur.x + cur.y) % 2 == 0;
-        TryAdd(cur.x, cur.y + (isUp ? 1 : -1));
+        bool isUpCur = (cur.x + cur.y) % 2 == 0;
+        TryAdd(cur.x, cur.y + (isUpCur ? 1 : -1));
 
-        // Sort farthest from target first: the path winds away before returning to target.
-        candidates.Sort((a, b) =>
-        {
-            int da = dist[a.y, a.x] == int.MaxValue ? 0 : dist[a.y, a.x];
-            int db = dist[b.y, b.x] == int.MaxValue ? 0 : dist[b.y, b.x];
-            return db - da; // descending distance
-        });
+        // Farthest-from-target first: path winds away before returning to target last.
+        candidates.Sort((a, b) => dist[b.y, b.x] - dist[a.y, a.x]);
 
         foreach (var next in candidates)
         {
             visited[next.y, next.x] = true;
             path.Add(next);
-            if (TriangleHintDFS(path, visited, dist, target, total))
+            // Connectivity check: after placing next, ensure all remaining unvisited zone cells
+            // are still reachable from target. Prune early if any cell is isolated.
+            if (remaining > 2 && !AllRemainingReachable(visited, inZone, target, total - path.Count))
+            {
+                path.RemoveAt(path.Count - 1);
+                visited[next.y, next.x] = false;
+                continue;
+            }
+            if (TriangleZoneDFS(path, visited, dist, inZone, target, total))
                 return true;
             path.RemoveAt(path.Count - 1);
             visited[next.y, next.x] = false;
         }
         return false;
+    }
+
+    // BFS from target through unvisited zone cells; returns true iff exactly `expected` cells reachable.
+    private bool AllRemainingReachable(bool[,] visited, bool[,] inZone, Vector2Int target, int expected)
+    {
+        if (expected <= 0) return true;
+        int count = 0;
+        var seen = new bool[GridHeight, GridWidth];
+        var q = new Queue<Vector2Int>();
+        seen[target.y, target.x] = true;
+        q.Enqueue(target);
+        while (q.Count > 0)
+        {
+            var cur = q.Dequeue();
+            count++;
+            if (count > expected) return false;
+            void Try(int nx, int ny)
+            {
+                if (nx < 0 || nx >= GridWidth || ny < 0 || ny >= GridHeight) return;
+                if (seen[ny, nx] || visited[ny, nx] || !inZone[ny, nx]) return;
+                seen[ny, nx] = true;
+                q.Enqueue(new Vector2Int(nx, ny));
+            }
+            Try(cur.x - 1, cur.y);
+            Try(cur.x + 1, cur.y);
+            bool isUp = (cur.x + cur.y) % 2 == 0;
+            Try(cur.x, cur.y + (isUp ? 1 : -1));
+        }
+        return count == expected;
     }
 
     public Vector3 GridToWorld(int x, int y)
