@@ -515,12 +515,11 @@ public class GridManager : MonoBehaviour
             var block = new List<Cell>();
 
             // For triangle mode: recompute a geometrically valid path through all empty cells,
-            // ending at the segment's target. Pass all solutions so other segments' targets
-            // are reserved and won't be consumed as intermediate steps.
+            // ending at the segment's target.
             List<Vector2Int> displayPath = null;
             if (isThreeGenMode)
             {
-                displayPath = RecomputeTriangleHint(path, solutions);
+                displayPath = RecomputeTriangleHint(path);
                 if (displayPath == null) continue; // No valid path available yet; try next segment.
             }
             int displayLen = displayPath != null ? displayPath.Count : path.Length;
@@ -546,27 +545,14 @@ public class GridManager : MonoBehaviour
 
     // Finds a valid triangle-adjacency path of stored length ending at the stored target cell.
     // Searches through ALL currently empty cells (not the disconnected stored segment cells).
-    // Other segments' uncompleted targets are reserved so they can't be used as intermediate steps.
-    private List<Vector2Int> RecomputeTriangleHint(SolutionPath storedPath, SolutionPath[] allSolutions)
+    private List<Vector2Int> RecomputeTriangleHint(SolutionPath storedPath)
     {
         int n = storedPath.Length;
         var target = new Vector2Int(storedPath.GetX(n - 1), storedPath.GetY(n - 1));
 
-        // Build reserved set: other segments' targets that are still available (must not be stolen).
-        var reservedTargets = new HashSet<Vector2Int>();
-        if (allSolutions != null)
-        {
-            foreach (var p in allSolutions)
-            {
-                var t = new Vector2Int(p.GetX(p.Length - 1), p.GetY(p.Length - 1));
-                if (t == target) continue;
-                var tc = GetCell(t.x, t.y);
-                if (tc != null && tc.State == CellState.NumberTarget)
-                    reservedTargets.Add(t);
-            }
-        }
-
-        // Build initial visited map: true = unavailable (blocked, completed, or reserved target).
+        // Build initial visited map: true = unavailable (blocked or completed).
+        // Other segments' targets are NOT excluded — blocking them fragments the grid.
+        // Any cell that gets consumed by this hint is OK; subsequent hints skip completed targets.
         var initVisited = new bool[GridHeight, GridWidth];
         bool targetAvailable = false;
         for (int y = 0; y < GridHeight; y++)
@@ -574,35 +560,20 @@ public class GridManager : MonoBehaviour
             {
                 var c = GetCell(x, y);
                 if (c == null || c.State == CellState.Completed || c.State == CellState.Blocked)
-                {
                     initVisited[y, x] = true;
-                    continue;
-                }
-                var pos = new Vector2Int(x, y);
-                if (reservedTargets.Contains(pos))
-                    initVisited[y, x] = true;
-                else if (pos == target)
+                else if (x == target.x && y == target.y)
                     targetAvailable = true;
             }
 
         if (!targetAvailable) return null;
 
-        // Count available empty cells; cap n so we never ask for more than exist.
-        int emptyCells = 0;
-        for (int y = 0; y < GridHeight; y++)
-            for (int x = 0; x < GridWidth; x++)
-                if (!initVisited[y, x]) emptyCells++;
-        n = Mathf.Min(n, emptyCells);
-        if (n <= 1) return new List<Vector2Int> { target };
-
-        // BFS from target to precompute hop-distance for every reachable empty cell.
-        // Used to sort DFS candidates: visit cells FARTHER from target first,
-        // naturally winding away before returning to target as the last step.
+        // BFS from target through all available cells to compute hop-distances.
         var dist = new int[GridHeight, GridWidth];
         for (int y = 0; y < GridHeight; y++) for (int x = 0; x < GridWidth; x++) dist[y, x] = int.MaxValue;
         dist[target.y, target.x] = 0;
         var bfsQ = new Queue<Vector2Int>();
         bfsQ.Enqueue(target);
+        int reachableCount = 1; // includes target itself
         while (bfsQ.Count > 0)
         {
             var cur = bfsQ.Dequeue();
@@ -611,6 +582,7 @@ public class GridManager : MonoBehaviour
                 if (nx < 0 || nx >= GridWidth || ny < 0 || ny >= GridHeight) return;
                 if (initVisited[ny, nx] || dist[ny, nx] != int.MaxValue) return;
                 dist[ny, nx] = dist[cur.y, cur.x] + 1;
+                reachableCount++;
                 bfsQ.Enqueue(new Vector2Int(nx, ny));
             }
             BFSTry(cur.x - 1, cur.y);
@@ -619,34 +591,29 @@ public class GridManager : MonoBehaviour
             BFSTry(cur.x, cur.y + (isUp ? 1 : -1));
         }
 
-        // Collect border starts reachable from target within n-1 steps (shuffled).
+        // Cap n to what's actually reachable from target.
+        n = Mathf.Min(n, reachableCount);
+        if (n <= 1) return new List<Vector2Int> { target };
+
+        // Collect ALL reachable non-target cells as candidate starts.
+        // Sort by distance closest to n-1 (ideal start distance for a bounded path of length n).
         var starts = new List<Vector2Int>();
-        for (int x = 0; x < GridWidth; x++)
-        {
-            if (!initVisited[0, x] && dist[0, x] < n) starts.Add(new Vector2Int(x, 0));
-            if (!initVisited[GridHeight - 1, x] && dist[GridHeight - 1, x] < n)
-                starts.Add(new Vector2Int(x, GridHeight - 1));
-        }
-        for (int y = 1; y < GridHeight - 1; y++)
-        {
-            if (!initVisited[y, 0] && dist[y, 0] < n) starts.Add(new Vector2Int(0, y));
-            if (!initVisited[y, GridWidth - 1] && dist[y, GridWidth - 1] < n)
-                starts.Add(new Vector2Int(GridWidth - 1, y));
-        }
-        var rng = new System.Random(42);
-        for (int i = starts.Count - 1; i > 0; i--)
-        {
-            int j = rng.Next(i + 1);
-            var tmp = starts[i]; starts[i] = starts[j]; starts[j] = tmp;
-        }
+        for (int y = 0; y < GridHeight; y++)
+            for (int x = 0; x < GridWidth; x++)
+            {
+                int d = dist[y, x];
+                if (d > 0 && d < n) // reachable, not target, within n-1 hops
+                    starts.Add(new Vector2Int(x, y));
+            }
+        // Sort: starts closest to ideal distance (n-1) first for fastest DFS convergence.
+        int ideal = n - 1;
+        starts.Sort((a, b) => System.Math.Abs(dist[a.y, a.x] - ideal)
+                             - System.Math.Abs(dist[b.y, b.x] - ideal));
 
         var visited = new bool[GridHeight, GridWidth];
         var path = new List<Vector2Int>(n);
         foreach (var start in starts)
         {
-            if (start == target) continue;
-            if (dist[start.y, start.x] == int.MaxValue) continue; // unreachable from target
-
             // Copy initial visited state.
             for (int y = 0; y < GridHeight; y++)
                 for (int x = 0; x < GridWidth; x++)
