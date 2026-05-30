@@ -474,7 +474,9 @@ public class GridManager : MonoBehaviour
         CancelSelection();
 
         // If the board is no longer solvable (wrong moves blocked a path), reset and restart hint.
-        if (!IsSolvable(solutions))
+        // In triangle mode the stored paths are geometrically invalid, so skip this check—
+        // solvability is always assumed (hints are recomputed dynamically from empty cells).
+        if (!isThreeGenMode && !IsSolvable(solutions))
             ResetPlayerMoves();
 
         foreach (var path in solutions)
