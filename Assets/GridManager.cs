@@ -522,12 +522,21 @@ public class GridManager : MonoBehaviour
         return false;
     }
 
-    // Triangle hint: Voronoi-partition all empty cells among segments, apply the most-constrained
-    // segment's path. Recomputed fresh each press so partial boards are handled correctly.
+    // Triangle hint: Voronoi-partition all empty cells among segments, apply the largest
+    // segment's path first (best value per hint press). Recomputed fresh each press.
     private bool SolveTriangleHint(SolutionPath[] solutions)
     {
         var voronoiPaths = ComputeTriangleVoronoi(solutions);
         if (voronoiPaths == null || voronoiPaths.Count == 0) return false;
+        // Skip trivial 1-cell fallbacks when a multi-cell path is available.
+        foreach (var p in voronoiPaths)
+        {
+            if (p.Count > 1)
+            {
+                ApplyTriangleHintPath(p);
+                return true;
+            }
+        }
         ApplyTriangleHintPath(voronoiPaths[0]);
         return true;
     }
@@ -618,7 +627,7 @@ public class GridManager : MonoBehaviour
 
         var order = new List<int>();
         for (int ti = 0; ti < targets.Count; ti++) order.Add(ti);
-        order.Sort((a, b) => zoneCells[a].Count - zoneCells[b].Count);
+        order.Sort((a, b) => zoneCells[b].Count - zoneCells[a].Count); // largest zones first
 
         var result = new List<List<Vector2Int>>();
         foreach (int ti in order)
