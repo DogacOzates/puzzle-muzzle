@@ -471,9 +471,6 @@ public class GridManager : MonoBehaviour
 
         CancelSelection();
 
-        if (isThreeGenMode)
-            return SolveTriangleHint(solutions);
-
         if (!IsSolvable(solutions))
             ResetPlayerMoves();
 
