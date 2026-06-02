@@ -5,7 +5,7 @@ public class GameManager : MonoBehaviour
 {
     private const string SavedLevelIndexKey = "progress.savedLevelIndex";
 
-    private enum GameMode { Regular, Daily }
+    private enum GameMode { Regular, Daily, Online }
 
     public bool IsLevelComplete { get; private set; }
 
@@ -88,6 +88,9 @@ public class GameManager : MonoBehaviour
         themeObj.transform.SetParent(transform);
         themeObj.AddComponent<ThemeManager>();
         ThemeManager.OnThemeChanged += OnThemeChanged;
+
+        var onlineObj = new GameObject("OnlineManager");
+        onlineObj.AddComponent<OnlineManager>();   // DontDestroyOnLoad handled internally
 
         var uiObj = new GameObject("UIManager");
         uiObj.transform.SetParent(transform);
@@ -280,6 +283,16 @@ public class GameManager : MonoBehaviour
             return;
         }
 
+        if (currentGameMode == GameMode.Online)
+        {
+            // Don't save progress or advance campaign — notify online manager
+            currentGameMode = GameMode.Regular;
+            uiManager.HideLevelComplete();
+            TransitionToLevel(currentLevelIndex, false);  // stay on same level visually
+            OnlineManager.Instance?.NotifyLevelFinished();
+            return;
+        }
+
         // Regular campaign completion
         SaveProgressForNextLevel();
         gameCenterManager?.ReportCampaignLevelCompleted(GetHighestUnlockedLevelIndex());
@@ -294,6 +307,13 @@ public class GameManager : MonoBehaviour
         currentGameMode = GameMode.Daily;
         uiManager?.HideLevelSelect();
         TransitionToLevel(DailyChallengeManager.GetDailyLevelIndex(), false);
+    }
+
+    public void StartOnlineMatch(int levelIndex)
+    {
+        currentGameMode = GameMode.Online;
+        uiManager?.HideLevelSelect();
+        TransitionToLevel(levelIndex, false);
     }
 
     private void TryRequestReview()

@@ -32,6 +32,18 @@ public class UIManager : MonoBehaviour
     private GameObject promoTopBanner;
     private Coroutine bannerCoroutine;
     private string noAdsPriceLabel = "$4.99";
+
+    // ── Online Mode popup ────────────────────────────────────────────────────────
+    private GameObject onlineModePopup;
+    private Text onlineStatusText;
+    private Text onlineRoomCodeText;
+    private Button onlineCreateBtn;
+    private Button onlineJoinBtn;
+    private UnityEngine.UI.InputField onlineCodeInput;
+    private Button onlineCancelBtn;
+    private GameObject onlineMainSection;     // create + divider + join row
+    private GameObject onlineWaitingSection;  // room code display
+    // ─────────────────────────────────────────────────────────────────────────────
     private GameObject levelSelectPanel;
     private ScrollRect levelSelectScrollRect;
     private Button[] levelSelectButtons;
@@ -624,7 +636,10 @@ public class UIManager : MonoBehaviour
         gtTxt.alignment = TextAnchor.MiddleCenter;
         gtTxt.color = new Color(0.80f, 0.64f, 0.20f, 1f);
 
-        // ── Daily Challenge Card (fixed, below header) ─────────────────────────────
+        // ── Online Mode Card (fixed, below header) ─────────────────────────────────
+        LsBuildOnlineModeCard(panelObj.transform);
+
+        // ── Daily Challenge Card (fixed, below online card) ────────────────────────
         LsBuildDailyChallengeCard(panelObj.transform);
 
         // ── ScrollView (fills below header + daily card) ────────────────────────────
@@ -632,7 +647,7 @@ public class UIManager : MonoBehaviour
         scrollObj.transform.SetParent(panelObj.transform, false);
         var scrollRT = scrollObj.AddComponent<RectTransform>();
         scrollRT.anchorMin = Vector2.zero; scrollRT.anchorMax = Vector2.one;
-        scrollRT.offsetMin = Vector2.zero; scrollRT.offsetMax = new Vector2(0f, -341f);
+        scrollRT.offsetMin = Vector2.zero; scrollRT.offsetMax = new Vector2(0f, -445f);
         var scrollRect = scrollObj.AddComponent<ScrollRect>();
         scrollRect.horizontal = false;
         scrollRect.movementType = ScrollRect.MovementType.Clamped;
@@ -687,6 +702,70 @@ public class UIManager : MonoBehaviour
         levelSelectPanel.SetActive(false);
     }
 
+    private void LsBuildOnlineModeCard(Transform parent)
+    {
+        var card = new GameObject("OnlineCard");
+        card.transform.SetParent(parent, false);
+        var cardRT = card.AddComponent<RectTransform>();
+        cardRT.anchorMin = new Vector2(0f, 1f); cardRT.anchorMax = new Vector2(1f, 1f);
+        cardRT.pivot = new Vector2(0.5f, 1f);
+        cardRT.anchoredPosition = new Vector2(0f, -120f);
+        cardRT.sizeDelta = new Vector2(0f, 104f);
+
+        var outer = new GameObject("Outer");
+        outer.transform.SetParent(card.transform, false);
+        var outerRect = outer.AddComponent<RectTransform>();
+        outerRect.anchorMin = Vector2.zero; outerRect.anchorMax = Vector2.one;
+        outerRect.offsetMin = new Vector2(16f, 10f); outerRect.offsetMax = new Vector2(-16f, -10f);
+        var bg = outer.AddComponent<Image>();
+        bg.sprite = SpriteGenerator.RoundedRect;
+        bg.color = new Color(0.22f, 0.40f, 0.72f, 1f);  // blue
+
+        var btn = outer.AddComponent<Button>();
+        var bc = btn.colors;
+        bc.highlightedColor = new Color(0.26f, 0.46f, 0.80f, 1f);
+        bc.pressedColor = new Color(0.16f, 0.32f, 0.60f, 1f);
+        btn.colors = bc; btn.targetGraphic = bg;
+        btn.onClick.AddListener(ShowOnlineModePopup);
+
+        // Icon
+        var iconGo = new GameObject("Icon");
+        iconGo.transform.SetParent(outer.transform, false);
+        var iconRT = iconGo.AddComponent<RectTransform>();
+        iconRT.anchorMin = new Vector2(0f, 0.5f); iconRT.anchorMax = new Vector2(0f, 0.5f);
+        iconRT.pivot = new Vector2(0f, 0.5f);
+        iconRT.anchoredPosition = new Vector2(18f, 0f); iconRT.sizeDelta = new Vector2(62f, 62f);
+        var iconTxt = iconGo.AddComponent<Text>();
+        iconTxt.font = defaultFont; iconTxt.text = "🎮"; iconTxt.fontSize = 44;
+        iconTxt.alignment = TextAnchor.MiddleCenter;
+
+        // Arrow
+        var arrGo = new GameObject("Arrow");
+        arrGo.transform.SetParent(outer.transform, false);
+        var arrRT = arrGo.AddComponent<RectTransform>();
+        arrRT.anchorMin = new Vector2(1f, 0.5f); arrRT.anchorMax = new Vector2(1f, 0.5f);
+        arrRT.pivot = new Vector2(1f, 0.5f);
+        arrRT.anchoredPosition = new Vector2(-14f, 0f); arrRT.sizeDelta = new Vector2(44f, 60f);
+        var arrTxt = arrGo.AddComponent<Text>();
+        arrTxt.font = defaultFont; arrTxt.text = "›"; arrTxt.fontSize = 52;
+        arrTxt.fontStyle = FontStyle.Bold; arrTxt.alignment = TextAnchor.MiddleCenter;
+        arrTxt.color = new Color(1f, 1f, 1f, 0.70f);
+
+        // Title + subtitle column
+        var textGo = new GameObject("TextInner");
+        textGo.transform.SetParent(outer.transform, false);
+        var textRT = textGo.AddComponent<RectTransform>();
+        textRT.anchorMin = new Vector2(0f, 0f); textRT.anchorMax = new Vector2(1f, 1f);
+        textRT.offsetMin = new Vector2(98f, 0f); textRT.offsetMax = new Vector2(-58f, 0f);
+        var tcVlg = textGo.AddComponent<VerticalLayoutGroup>();
+        tcVlg.spacing = 2f; tcVlg.childForceExpandWidth = true; tcVlg.childForceExpandHeight = false;
+        tcVlg.childControlWidth = true; tcVlg.childControlHeight = true;
+        tcVlg.childAlignment = TextAnchor.MiddleLeft;
+
+        LsMakeVlgText("Title", textGo.transform, 33, FontStyle.Bold, Color.white, "1v1 Online Mode");
+        LsMakeVlgText("Sub", textGo.transform, 26, FontStyle.Normal, new Color(1f, 1f, 1f, 0.80f), "Race a friend on the same puzzle");
+    }
+
     private void LsBuildDailyChallengeCard(Transform parent)
     {
         var card = new GameObject("DailyCard");
@@ -694,7 +773,7 @@ public class UIManager : MonoBehaviour
         var cardRT = card.AddComponent<RectTransform>();
         cardRT.anchorMin = new Vector2(0f, 1f); cardRT.anchorMax = new Vector2(1f, 1f);
         cardRT.pivot = new Vector2(0.5f, 1f);
-        cardRT.anchoredPosition = new Vector2(0f, -120f);
+        cardRT.anchoredPosition = new Vector2(0f, -224f);
         cardRT.sizeDelta = new Vector2(0f, 220f);
 
         // Card background — fills the card slot with margins
@@ -1369,6 +1448,342 @@ public class UIManager : MonoBehaviour
             hintPromoPopup = null;
         }
     }
+
+    public void HideHintPromoPopup()
+    {
+        if (hintPromoPopup != null)
+        {
+            Destroy(hintPromoPopup);
+            hintPromoPopup = null;
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // --- Online Mode Popup ---
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    public void ShowOnlineModePopup()
+    {
+        if (onlineModePopup != null) return;
+
+        onlineModePopup = new GameObject("OnlineModePopup");
+        onlineModePopup.transform.SetParent(canvas.transform, false);
+        onlineModePopup.transform.SetAsLastSibling();
+
+        var popupRect = onlineModePopup.AddComponent<RectTransform>();
+        popupRect.anchorMin = Vector2.zero; popupRect.anchorMax = Vector2.one;
+        popupRect.offsetMin = Vector2.zero; popupRect.offsetMax = Vector2.zero;
+
+        var overlay = onlineModePopup.AddComponent<Image>();
+        overlay.color = new Color(0.08f, 0.10f, 0.18f, 0.68f);
+
+        // Shadow
+        var shadowObj = new GameObject("Shadow");
+        shadowObj.transform.SetParent(onlineModePopup.transform, false);
+        var shadowRect = shadowObj.AddComponent<RectTransform>();
+        shadowRect.anchorMin = new Vector2(0.5f, 0.5f); shadowRect.anchorMax = new Vector2(0.5f, 0.5f);
+        shadowRect.pivot = new Vector2(0.5f, 0.5f);
+        shadowRect.sizeDelta = new Vector2(726f, 586f);
+        shadowRect.anchoredPosition = new Vector2(4f, -8f);
+        var shadowImg = shadowObj.AddComponent<Image>();
+        shadowImg.sprite = SpriteGenerator.RoundedRect;
+        shadowImg.color = new Color(0f, 0f, 0f, 0.18f);
+
+        // Card
+        var card = new GameObject("Card");
+        card.transform.SetParent(onlineModePopup.transform, false);
+        var cardRect = card.AddComponent<RectTransform>();
+        cardRect.anchorMin = new Vector2(0.5f, 0.5f); cardRect.anchorMax = new Vector2(0.5f, 0.5f);
+        cardRect.pivot = new Vector2(0.5f, 0.5f);
+        cardRect.sizeDelta = new Vector2(700f, 560f);
+        var cardImg = card.AddComponent<Image>();
+        cardImg.sprite = SpriteGenerator.RoundedRect;
+        cardImg.color = new Color(1f, 1f, 1f, 0.98f);
+
+        // Title
+        var title = MakeCardText("Title", card.transform, new Vector2(0, 215), 44, FontStyle.Bold, TextDark);
+        title.text = "🎮  1v1 Online Mode";
+
+        // Subtitle
+        var sub = MakeCardText("Sub", card.transform, new Vector2(0, 158), 28, FontStyle.Normal, TextMuted);
+        sub.text = "Race a friend on the same puzzle!";
+        sub.GetComponent<RectTransform>().sizeDelta = new Vector2(600f, 50f);
+
+        // ── Main section (create + divider + join) ──────────────────────────────
+        onlineMainSection = new GameObject("MainSection");
+        onlineMainSection.transform.SetParent(card.transform, false);
+        var mainRect = onlineMainSection.AddComponent<RectTransform>();
+        mainRect.anchorMin = new Vector2(0.5f, 0.5f); mainRect.anchorMax = new Vector2(0.5f, 0.5f);
+        mainRect.pivot = new Vector2(0.5f, 0.5f);
+        mainRect.anchoredPosition = new Vector2(0f, 20f);
+        mainRect.sizeDelta = new Vector2(600f, 240f);
+
+        // Create Room button
+        onlineCreateBtn = CreateCardButton("🏠  Create Room", onlineMainSection.transform, new Vector2(0, 80), new Color(0.22f, 0.40f, 0.72f, 1f));
+        onlineCreateBtn.onClick.AddListener(() =>
+        {
+            OnlineManager.Instance?.CreateRoom();
+        });
+
+        // Divider label
+        var divider = MakeCardText("Divider", onlineMainSection.transform, new Vector2(0, 10), 26, FontStyle.Normal, TextMuted);
+        divider.text = "— or join with a code —";
+        divider.GetComponent<RectTransform>().sizeDelta = new Vector2(440f, 36f);
+
+        // InputField row (input + join button side by side)
+        var rowGo = new GameObject("JoinRow");
+        rowGo.transform.SetParent(onlineMainSection.transform, false);
+        var rowRect = rowGo.AddComponent<RectTransform>();
+        rowRect.anchorMin = new Vector2(0.5f, 0.5f); rowRect.anchorMax = new Vector2(0.5f, 0.5f);
+        rowRect.pivot = new Vector2(0.5f, 0.5f);
+        rowRect.anchoredPosition = new Vector2(0f, -68f);
+        rowRect.sizeDelta = new Vector2(590f, 78f);
+
+        // InputField
+        var inputGo = new GameObject("CodeInput");
+        inputGo.transform.SetParent(rowGo.transform, false);
+        var inputRT = inputGo.AddComponent<RectTransform>();
+        inputRT.anchorMin = new Vector2(0f, 0f); inputRT.anchorMax = new Vector2(1f, 1f);
+        inputRT.offsetMin = Vector2.zero; inputRT.offsetMax = new Vector2(-144f, 0f);
+        var inputBg = inputGo.AddComponent<Image>();
+        inputBg.sprite = SpriteGenerator.RoundedRect;
+        inputBg.color = new Color(0.94f, 0.93f, 0.91f, 1f);
+        onlineCodeInput = inputGo.AddComponent<UnityEngine.UI.InputField>();
+
+        var inputTextGo = new GameObject("Text");
+        inputTextGo.transform.SetParent(inputGo.transform, false);
+        var itRect = inputTextGo.AddComponent<RectTransform>();
+        itRect.anchorMin = Vector2.zero; itRect.anchorMax = Vector2.one;
+        itRect.offsetMin = new Vector2(16f, 0f); itRect.offsetMax = new Vector2(-16f, 0f);
+        var inputText = inputTextGo.AddComponent<Text>();
+        inputText.font = defaultFont; inputText.fontSize = 32; inputText.color = TextDark;
+        inputText.alignment = TextAnchor.MiddleLeft;
+
+        var placeholderGo = new GameObject("Placeholder");
+        placeholderGo.transform.SetParent(inputGo.transform, false);
+        var phRect = placeholderGo.AddComponent<RectTransform>();
+        phRect.anchorMin = Vector2.zero; phRect.anchorMax = Vector2.one;
+        phRect.offsetMin = new Vector2(16f, 0f); phRect.offsetMax = new Vector2(-16f, 0f);
+        var placeholderTxt = placeholderGo.AddComponent<Text>();
+        placeholderTxt.font = defaultFont; placeholderTxt.fontSize = 30;
+        placeholderTxt.fontStyle = FontStyle.Italic;
+        placeholderTxt.color = TextMuted; placeholderTxt.alignment = TextAnchor.MiddleLeft;
+        placeholderTxt.text = "Enter code…";
+
+        onlineCodeInput.textComponent = inputText;
+        onlineCodeInput.placeholder = placeholderTxt;
+        onlineCodeInput.characterLimit = 6;
+        onlineCodeInput.characterValidation = UnityEngine.UI.InputField.CharacterValidation.Alphanumeric;
+
+        // Join button
+        var joinBtnGo = new GameObject("JoinBtn");
+        joinBtnGo.transform.SetParent(rowGo.transform, false);
+        var joinBtnRT = joinBtnGo.AddComponent<RectTransform>();
+        joinBtnRT.anchorMin = new Vector2(1f, 0f); joinBtnRT.anchorMax = new Vector2(1f, 1f);
+        joinBtnRT.pivot = new Vector2(1f, 0.5f);
+        joinBtnRT.offsetMin = Vector2.zero; joinBtnRT.offsetMax = Vector2.zero;
+        joinBtnRT.sizeDelta = new Vector2(132f, 0f);
+        joinBtnRT.anchoredPosition = Vector2.zero;
+        var joinBg = joinBtnGo.AddComponent<Image>();
+        joinBg.sprite = SpriteGenerator.RoundedRect;
+        joinBg.color = new Color(0.25f, 0.78f, 0.72f);
+        onlineJoinBtn = joinBtnGo.AddComponent<Button>();
+        var jc = onlineJoinBtn.colors; jc.highlightedColor = new Color(0.30f, 0.85f, 0.79f); jc.pressedColor = new Color(0.18f, 0.65f, 0.60f); onlineJoinBtn.colors = jc;
+        onlineJoinBtn.targetGraphic = joinBg;
+        onlineJoinBtn.onClick.AddListener(() =>
+        {
+            OnlineManager.Instance?.JoinRoom(onlineCodeInput?.text ?? "");
+        });
+        var joinTxtGo = new GameObject("Text");
+        joinTxtGo.transform.SetParent(joinBtnGo.transform, false);
+        var jtRect = joinTxtGo.AddComponent<RectTransform>();
+        jtRect.anchorMin = Vector2.zero; jtRect.anchorMax = Vector2.one;
+        jtRect.offsetMin = Vector2.zero; jtRect.offsetMax = Vector2.zero;
+        var joinTxt = joinTxtGo.AddComponent<Text>();
+        joinTxt.font = defaultFont; joinTxt.text = "Join"; joinTxt.fontSize = 30;
+        joinTxt.fontStyle = FontStyle.Bold; joinTxt.alignment = TextAnchor.MiddleCenter;
+        joinTxt.color = Color.white;
+
+        // ── Waiting section (visible after room created/joined) ─────────────────
+        onlineWaitingSection = new GameObject("WaitingSection");
+        onlineWaitingSection.transform.SetParent(card.transform, false);
+        var waitRect = onlineWaitingSection.AddComponent<RectTransform>();
+        waitRect.anchorMin = new Vector2(0.5f, 0.5f); waitRect.anchorMax = new Vector2(0.5f, 0.5f);
+        waitRect.pivot = new Vector2(0.5f, 0.5f);
+        waitRect.anchoredPosition = new Vector2(0f, 30f);
+        waitRect.sizeDelta = new Vector2(600f, 140f);
+        onlineWaitingSection.SetActive(false);
+
+        onlineRoomCodeText = MakeCardText("CodeLabel", onlineWaitingSection.transform, new Vector2(0, 36), 50, FontStyle.Bold, new Color(0.22f, 0.40f, 0.72f, 1f));
+        onlineRoomCodeText.text = "";
+        onlineRoomCodeText.GetComponent<RectTransform>().sizeDelta = new Vector2(600f, 70f);
+
+        var codeHint = MakeCardText("CodeHint", onlineWaitingSection.transform, new Vector2(0, -24), 26, FontStyle.Normal, TextMuted);
+        codeHint.text = "Share this code with your friend";
+        codeHint.GetComponent<RectTransform>().sizeDelta = new Vector2(600f, 40f);
+
+        // ── Status text ─────────────────────────────────────────────────────────
+        onlineStatusText = MakeCardText("Status", card.transform, new Vector2(0, -90), 28, FontStyle.Normal, TextMuted);
+        onlineStatusText.text = "Create a room or join with a friend's code";
+        onlineStatusText.GetComponent<RectTransform>().sizeDelta = new Vector2(600f, 44f);
+
+        // ── Cancel / Close button ───────────────────────────────────────────────
+        onlineCancelBtn = CreateCardButton("Cancel", card.transform, new Vector2(0, -205), new Color(0.88f, 0.86f, 0.84f));
+        var cancelTxt = onlineCancelBtn.GetComponentInChildren<Text>();
+        if (cancelTxt != null) cancelTxt.color = TextDark;
+        onlineCancelBtn.onClick.AddListener(() =>
+        {
+            OnlineManager.Instance?.LeaveMatch();
+            HideOnlineModePopup();
+        });
+
+        // Subscribe to OnlineManager events
+        var om = OnlineManager.Instance;
+        if (om != null)
+        {
+            om.OnStatusMessage += OnOnlineStatusMessage;
+            om.OnRoomCodeReady += OnOnlineRoomCodeReady;
+            om.OnStateChanged += OnOnlineStateChanged;
+            om.OnMatchStarting += OnOnlineMatchStarting;
+            om.OnMatchResult += OnOnlineMatchResult;
+        }
+    }
+
+    public void HideOnlineModePopup()
+    {
+        if (onlineModePopup == null) return;
+
+        var om = OnlineManager.Instance;
+        if (om != null)
+        {
+            om.OnStatusMessage -= OnOnlineStatusMessage;
+            om.OnRoomCodeReady -= OnOnlineRoomCodeReady;
+            om.OnStateChanged -= OnOnlineStateChanged;
+            om.OnMatchStarting -= OnOnlineMatchStarting;
+            om.OnMatchResult -= OnOnlineMatchResult;
+        }
+
+        Destroy(onlineModePopup);
+        onlineModePopup = null;
+        onlineStatusText = null;
+        onlineRoomCodeText = null;
+        onlineCreateBtn = null;
+        onlineJoinBtn = null;
+        onlineCodeInput = null;
+        onlineCancelBtn = null;
+        onlineMainSection = null;
+        onlineWaitingSection = null;
+    }
+
+    private void OnOnlineStatusMessage(string msg)
+    {
+        if (onlineStatusText != null) onlineStatusText.text = msg;
+    }
+
+    private void OnOnlineRoomCodeReady(string code)
+    {
+        if (onlineWaitingSection != null) onlineWaitingSection.SetActive(true);
+        if (onlineMainSection != null) onlineMainSection.SetActive(false);
+        if (onlineRoomCodeText != null) onlineRoomCodeText.text = code;
+    }
+
+    private void OnOnlineStateChanged(OnlineManager.MatchState state)
+    {
+        bool idle = state == OnlineManager.MatchState.Idle;
+        bool busy = state == OnlineManager.MatchState.Connecting
+                 || state == OnlineManager.MatchState.CreatingRoom
+                 || state == OnlineManager.MatchState.JoiningRoom;
+
+        if (onlineCreateBtn != null) onlineCreateBtn.interactable = idle;
+        if (onlineJoinBtn != null) onlineJoinBtn.interactable = idle;
+        if (onlineCodeInput != null) onlineCodeInput.interactable = idle;
+
+        if (idle)
+        {
+            // Reset to initial state
+            if (onlineMainSection != null) onlineMainSection.SetActive(true);
+            if (onlineWaitingSection != null) onlineWaitingSection.SetActive(false);
+        }
+    }
+
+    private void OnOnlineMatchStarting(int levelIndex)
+    {
+        if (onlineStatusText != null) onlineStatusText.text = "Match starting! Get ready…";
+        // Give the user a moment to read, then close popup and start game
+        StartCoroutine(DelayedStartMatch(levelIndex));
+    }
+
+    private System.Collections.IEnumerator DelayedStartMatch(int levelIndex)
+    {
+        yield return new WaitForSeconds(1.2f);
+        HideOnlineModePopup();
+        FindAnyObjectByType<GameManager>()?.StartOnlineMatch(levelIndex);
+    }
+
+    private void OnOnlineMatchResult(bool iWon)
+    {
+        ShowOnlineResultPopup(iWon);
+    }
+
+    public void ShowOnlineResultPopup(bool iWon)
+    {
+        var existing = canvas.transform.Find("OnlineResultPopup");
+        if (existing != null) Destroy(existing.gameObject);
+
+        var popupGo = new GameObject("OnlineResultPopup");
+        popupGo.transform.SetParent(canvas.transform, false);
+        popupGo.transform.SetAsLastSibling();
+
+        var popupRect = popupGo.AddComponent<RectTransform>();
+        popupRect.anchorMin = Vector2.zero; popupRect.anchorMax = Vector2.one;
+        popupRect.offsetMin = Vector2.zero; popupRect.offsetMax = Vector2.zero;
+        var ovr = popupGo.AddComponent<Image>(); ovr.color = new Color(0f, 0f, 0f, 0.50f);
+
+        var shadowObj = new GameObject("Shadow");
+        shadowObj.transform.SetParent(popupGo.transform, false);
+        var shRect = shadowObj.AddComponent<RectTransform>();
+        shRect.anchorMin = new Vector2(0.5f, 0.5f); shRect.anchorMax = new Vector2(0.5f, 0.5f);
+        shRect.pivot = new Vector2(0.5f, 0.5f);
+        shRect.sizeDelta = new Vector2(636f, 426f); shRect.anchoredPosition = new Vector2(4f, -8f);
+        var shImg = shadowObj.AddComponent<Image>(); shImg.sprite = SpriteGenerator.RoundedRect;
+        shImg.color = new Color(0f, 0f, 0f, 0.18f);
+
+        var card = new GameObject("Card");
+        card.transform.SetParent(popupGo.transform, false);
+        var cRect = card.AddComponent<RectTransform>();
+        cRect.anchorMin = new Vector2(0.5f, 0.5f); cRect.anchorMax = new Vector2(0.5f, 0.5f);
+        cRect.pivot = new Vector2(0.5f, 0.5f); cRect.sizeDelta = new Vector2(610f, 400f);
+        var cImg = card.AddComponent<Image>(); cImg.sprite = SpriteGenerator.RoundedRect;
+        cImg.color = Color.white;
+
+        var emoji = MakeCardText("Emoji", card.transform, new Vector2(0, 130), 72, FontStyle.Normal, TextDark);
+        emoji.text = iWon ? "🏆" : "😔";
+
+        var title = MakeCardText("Title", card.transform, new Vector2(0, 55), 48, FontStyle.Bold, iWon ? new Color(0.22f, 0.40f, 0.72f) : TextMuted);
+        title.text = iWon ? "You Win!" : "Nice Try!";
+
+        var sub = MakeCardText("Sub", card.transform, new Vector2(0, -10), 28, FontStyle.Normal, TextMuted);
+        sub.text = iWon ? "You solved the puzzle first!" : "Your opponent was faster this time.";
+        sub.GetComponent<RectTransform>().sizeDelta = new Vector2(560f, 44f);
+
+        var rematchBtn = CreateCardButton("Play Again", card.transform, new Vector2(0, -105), new Color(0.22f, 0.40f, 0.72f));
+        rematchBtn.onClick.AddListener(() =>
+        {
+            Destroy(popupGo);
+            OnlineManager.Instance?.LeaveMatch();
+            ShowOnlineModePopup();
+        });
+
+        var closeBtn = CreateCardButton("Back to Menu", card.transform, new Vector2(0, -188), new Color(0.88f, 0.86f, 0.84f));
+        var closeTxt = closeBtn.GetComponentInChildren<Text>(); if (closeTxt != null) closeTxt.color = TextDark;
+        closeBtn.onClick.AddListener(() =>
+        {
+            Destroy(popupGo);
+            OnlineManager.Instance?.LeaveMatch();
+        });
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
 
     // --- Free Hint Badge ---
 
