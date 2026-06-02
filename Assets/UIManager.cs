@@ -45,6 +45,8 @@ public class UIManager : MonoBehaviour
     private GameObject onlineWaitingSection;  // room code display
     private Text onlinePlayerCountText;   // shows "X players in room"
     private Button onlineStartBtn;        // host-only Start Game button
+    private Button onlineFindBtn;         // quick matchmaking button
+    private Text onlineCodeHintText;      // "Share this code" hint (hidden during matchmaking)
     // ─────────────────────────────────────────────────────────────────────────────
     private GameObject levelSelectPanel;
     private ScrollRect levelSelectScrollRect;
@@ -1488,7 +1490,7 @@ public class UIManager : MonoBehaviour
         var cardRect = card.AddComponent<RectTransform>();
         cardRect.anchorMin = new Vector2(0.5f, 0.5f); cardRect.anchorMax = new Vector2(0.5f, 0.5f);
         cardRect.pivot = new Vector2(0.5f, 0.5f);
-        cardRect.sizeDelta = new Vector2(700f, 560f);
+        cardRect.sizeDelta = new Vector2(700f, 640f);
         var cardImg = card.AddComponent<Image>();
         cardImg.sprite = SpriteGenerator.RoundedRect;
         cardImg.color = new Color(1f, 1f, 1f, 0.98f);
@@ -1509,17 +1511,26 @@ public class UIManager : MonoBehaviour
         mainRect.anchorMin = new Vector2(0.5f, 0.5f); mainRect.anchorMax = new Vector2(0.5f, 0.5f);
         mainRect.pivot = new Vector2(0.5f, 0.5f);
         mainRect.anchoredPosition = new Vector2(0f, 20f);
-        mainRect.sizeDelta = new Vector2(600f, 240f);
+        mainRect.sizeDelta = new Vector2(600f, 420f);
+
+        // Find Opponent button (quick matchmaking — top primary action)
+        onlineFindBtn = CreateCardButton("🔍  Find Opponent", onlineMainSection.transform, new Vector2(0, 180), new Color(0.88f, 0.38f, 0.18f));
+        onlineFindBtn.onClick.AddListener(() => OnlineManager.Instance?.FindMatch());
+
+        // Divider
+        var dividerFind = MakeCardText("DividerFind", onlineMainSection.transform, new Vector2(0, 110), 26, FontStyle.Normal, TextMuted);
+        dividerFind.text = "— or create a room for friends —";
+        dividerFind.GetComponent<RectTransform>().sizeDelta = new Vector2(500f, 36f);
 
         // Create Room button
-        onlineCreateBtn = CreateCardButton("🏠  Create Room", onlineMainSection.transform, new Vector2(0, 80), new Color(0.22f, 0.40f, 0.72f, 1f));
+        onlineCreateBtn = CreateCardButton("🏠  Create Room", onlineMainSection.transform, new Vector2(0, 50), new Color(0.22f, 0.40f, 0.72f, 1f));
         onlineCreateBtn.onClick.AddListener(() =>
         {
             OnlineManager.Instance?.CreateRoom();
         });
 
         // Divider label
-        var divider = MakeCardText("Divider", onlineMainSection.transform, new Vector2(0, 10), 26, FontStyle.Normal, TextMuted);
+        var divider = MakeCardText("Divider", onlineMainSection.transform, new Vector2(0, -20), 26, FontStyle.Normal, TextMuted);
         divider.text = "— or join with a code —";
         divider.GetComponent<RectTransform>().sizeDelta = new Vector2(440f, 36f);
 
@@ -1529,7 +1540,7 @@ public class UIManager : MonoBehaviour
         var rowRect = rowGo.AddComponent<RectTransform>();
         rowRect.anchorMin = new Vector2(0.5f, 0.5f); rowRect.anchorMax = new Vector2(0.5f, 0.5f);
         rowRect.pivot = new Vector2(0.5f, 0.5f);
-        rowRect.anchoredPosition = new Vector2(0f, -68f);
+        rowRect.anchoredPosition = new Vector2(0f, -105f);
         rowRect.sizeDelta = new Vector2(590f, 78f);
 
         // InputField
@@ -1612,7 +1623,8 @@ public class UIManager : MonoBehaviour
         onlineRoomCodeText.GetComponent<RectTransform>().sizeDelta = new Vector2(600f, 70f);
 
         var codeHint = MakeCardText("CodeHint", onlineWaitingSection.transform, new Vector2(0, -24), 26, FontStyle.Normal, TextMuted);
-        codeHint.text = "Share this code with your friend";
+        onlineCodeHintText = codeHint;
+        codeHint.text = "Share this code with your friends";
         codeHint.GetComponent<RectTransform>().sizeDelta = new Vector2(600f, 40f);
 
         // Player count label
@@ -1626,12 +1638,12 @@ public class UIManager : MonoBehaviour
         onlineStartBtn.onClick.AddListener(() => OnlineManager.Instance?.StartGame());
 
         // ── Status text ─────────────────────────────────────────────────────────
-        onlineStatusText = MakeCardText("Status", card.transform, new Vector2(0, -90), 28, FontStyle.Normal, TextMuted);
-        onlineStatusText.text = "Create a room or join with a friend's code";
+        onlineStatusText = MakeCardText("Status", card.transform, new Vector2(0, -195), 28, FontStyle.Normal, TextMuted);
+        onlineStatusText.text = "Find an opponent or create a room for friends";
         onlineStatusText.GetComponent<RectTransform>().sizeDelta = new Vector2(600f, 44f);
 
         // ── Cancel / Close button ───────────────────────────────────────────────
-        onlineCancelBtn = CreateCardButton("Cancel", card.transform, new Vector2(0, -205), new Color(0.88f, 0.86f, 0.84f));
+        onlineCancelBtn = CreateCardButton("Cancel", card.transform, new Vector2(0, -260), new Color(0.88f, 0.86f, 0.84f));
         var cancelTxt = onlineCancelBtn.GetComponentInChildren<Text>();
         if (cancelTxt != null) cancelTxt.color = TextDark;
         onlineCancelBtn.onClick.AddListener(() =>
@@ -1680,6 +1692,8 @@ public class UIManager : MonoBehaviour
         onlineWaitingSection = null;
         onlinePlayerCountText = null;
         onlineStartBtn = null;
+        onlineFindBtn = null;
+        onlineCodeHintText = null;
     }
 
     private void OnOnlineStatusMessage(string msg)
@@ -1691,7 +1705,11 @@ public class UIManager : MonoBehaviour
     {
         if (onlineWaitingSection != null) onlineWaitingSection.SetActive(true);
         if (onlineMainSection != null) onlineMainSection.SetActive(false);
-        if (onlineRoomCodeText != null) onlineRoomCodeText.text = code;
+        bool mm = OnlineManager.Instance?.IsMatchmaking ?? false;
+        if (onlineRoomCodeText != null)
+            onlineRoomCodeText.text = mm ? "🔍 Searching…" : code;
+        if (onlineCodeHintText != null)
+            onlineCodeHintText.gameObject.SetActive(!mm);
     }
 
     private void OnOnlineStateChanged(OnlineManager.MatchState state)
@@ -1704,6 +1722,7 @@ public class UIManager : MonoBehaviour
         if (onlineCreateBtn != null) onlineCreateBtn.interactable = idle;
         if (onlineJoinBtn != null) onlineJoinBtn.interactable = idle;
         if (onlineCodeInput != null) onlineCodeInput.interactable = idle;
+        if (onlineFindBtn != null) onlineFindBtn.interactable = idle;
 
         if (idle)
         {
@@ -1720,13 +1739,19 @@ public class UIManager : MonoBehaviour
 
     private void OnOnlinePlayerCountChanged(int count)
     {
+        bool mm = OnlineManager.Instance?.IsMatchmaking ?? false;
         if (onlinePlayerCountText != null)
-            onlinePlayerCountText.text = count == 1 ? "1 player in room" : $"{count} players in room";
-        // Show Start Game button only for master client (host)
+        {
+            if (mm && count >= 2)
+                onlinePlayerCountText.text = "Opponent found! Match starting…";
+            else
+                onlinePlayerCountText.text = count == 1 ? "1 player in room" : $"{count} players in room";
+        }
+        // Show Start Game button only for non-matchmaking host
         if (onlineStartBtn != null)
         {
 #if PHOTON_UNITY_NETWORKING
-            bool isHost = Photon.Pun.PhotonNetwork.IsMasterClient;
+            bool isHost = !mm && Photon.Pun.PhotonNetwork.IsMasterClient;
 #else
             bool isHost = false;
 #endif

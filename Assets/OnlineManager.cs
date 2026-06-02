@@ -53,6 +53,7 @@ public class OnlineManager : MonoBehaviour
     private bool _matchActive;
     private bool _pendingCreate;
     private bool _pendingJoin;
+    private bool _isMatchmaking;
 
     // Room custom property keys (kept short for bandwidth)
     private const string PROP_LEVEL = "lv";
@@ -122,6 +123,27 @@ public class OnlineManager : MonoBehaviour
 #endif
     }
 
+    /// <summary>Find a random opponent via Photon matchmaking (no room code needed).</summary>
+    public void FindMatch()
+    {
+#if PHOTON_UNITY_NETWORKING
+        if (State != MatchState.Idle) return;
+        _isMatchmaking = true;
+        _isHost = false;
+        _pendingCreate = false;
+        _pendingJoin = false;
+        _roomCode = GenerateCode();
+
+        SetState(MatchState.Connecting);
+        OnStatusMessage?.Invoke("Searching for opponent…");
+
+        if (PhotonNetwork.IsConnectedAndReady) DoFindMatch();
+        else PhotonNetwork.ConnectUsingSettings();
+#else
+        OnStatusMessage?.Invoke("Install Photon PUN 2 from the Asset Store to use online mode.");
+#endif
+    }
+
     /// <summary>Call this when the local player completes the puzzle during an online match.</summary>
     public void NotifyLevelFinished()
     {
@@ -145,6 +167,7 @@ public class OnlineManager : MonoBehaviour
 #if PHOTON_UNITY_NETWORKING
         _matchActive = false;
         _pendingCreate = _pendingJoin = false;
+        _isMatchmaking = false;
         if (PhotonNetwork.InRoom) PhotonNetwork.LeaveRoom();
         else if (PhotonNetwork.IsConnected) PhotonNetwork.Disconnect();
 #endif
@@ -157,6 +180,7 @@ public class OnlineManager : MonoBehaviour
 #if PHOTON_UNITY_NETWORKING
         if (!PhotonNetwork.InRoom) { LeaveMatch(); return; }
         _matchActive = false;
+        _isMatchmaking = false;
         if (PhotonNetwork.IsMasterClient)
         {
             PhotonNetwork.CurrentRoom.IsOpen = true;
@@ -186,6 +210,7 @@ public class OnlineManager : MonoBehaviour
     }
 
     public int GetLevelIndex() => _levelIndex;
+    public bool IsMatchmaking => _isMatchmaking;
 
     // ──────────────────────────────────────────────────────
     //  Private helpers
@@ -224,6 +249,29 @@ public class OnlineManager : MonoBehaviour
         PhotonNetwork.JoinRoom(_roomCode);
     }
 
+    private void DoFindMatch()
+    {
+        SetState(MatchState.JoiningRoom);
+        OnStatusMessage?.Invoke("Searching for opponent…");
+        var expectedProps = new Hashtable { { PROP_STATE, "waiting" } };
+        PhotonNetwork.JoinRandomRoom(expectedProps, 0);
+    }
+
+    private void DoCreateMatchmakingRoom()
+    {
+        SetState(MatchState.CreatingRoom);
+        OnStatusMessage?.Invoke("Waiting for opponent…");
+        var opts = new RoomOptions
+        {
+            MaxPlayers = 8,
+            IsVisible = true,
+            IsOpen = true,
+            CustomRoomProperties = new Hashtable { { PROP_LEVEL, -1 }, { PROP_STATE, "waiting" } },
+            CustomRoomPropertiesForLobby = new[] { PROP_STATE }
+        };
+        PhotonNetwork.CreateRoom("MM_" + _roomCode, opts);
+    }
+
     // ── IConnectionCallbacks ──────────────────────────────
 
     void IConnectionCallbacks.OnConnected() { }
@@ -232,6 +280,7 @@ public class OnlineManager : MonoBehaviour
     {
         if (_pendingCreate) DoCreateRoom();
         else if (_pendingJoin) DoJoinRoom();
+        else if (_isMatchmaking) DoFindMatch();
     }
 
     void IConnectionCallbacks.OnDisconnected(DisconnectCause cause)
@@ -251,9 +300,9 @@ public class OnlineManager : MonoBehaviour
 
     void IMatchmakingCallbacks.OnCreateRoomFailed(short returnCode, string message)
     {
-        // Code collision — try a fresh one
         _roomCode = GenerateCode();
-        DoCreateRoom();
+        if (_isMatchmaking) DoCreateMatchmakingRoom();
+        else DoCreateRoom();
     }
 
     void IMatchmakingCallbacks.OnJoinedRoom()
@@ -272,7 +321,14 @@ public class OnlineManager : MonoBehaviour
     }
 
     void IMatchmakingCallbacks.OnLeftRoom() { SetState(MatchState.Idle); }
-    void IMatchmakingCallbacks.OnJoinRandomFailed(short returnCode, string message) { }
+    void IMatchmakingCallbacks.OnJoinRandomFailed(short returnCode, string message)
+    {
+        if (_isMatchmaking)
+        {
+            _isHost = true;
+            DoCreateMatchmakingRoom();
+        }
+    }
     void IMatchmakingCallbacks.OnFriendListUpdate(List<FriendInfo> friendList) { }
 
     // ── IInRoomCallbacks ──────────────────────────────────
@@ -280,6 +336,9 @@ public class OnlineManager : MonoBehaviour
     void IInRoomCallbacks.OnPlayerEnteredRoom(Player newPlayer)
     {
         OnPlayerCountChanged?.Invoke(PhotonNetwork.CurrentRoom.PlayerCount);
+        // Auto-start immediately for matchmaking when 2+ players join
+        if (_isMatchmaking && PhotonNetwork.IsMasterClient && PhotonNetwork.CurrentRoom.PlayerCount >= 2)
+            StartGame();
     }
 
     void IInRoomCallbacks.OnRoomPropertiesUpdate(Hashtable propertiesThatChanged)
