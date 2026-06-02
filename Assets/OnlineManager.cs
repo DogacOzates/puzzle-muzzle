@@ -10,7 +10,7 @@ using Hashtable = ExitGames.Client.Photon.Hashtable;
 #endif
 
 /// <summary>
-/// 1v1 online match manager backed by Photon PUN 2.
+/// multi-player online match manager backed by Photon PUN 2.
 /// Install Photon PUN 2 from the Unity Asset Store to activate.
 /// After installing, open Tools → Photon Unity Networking → PUN Wizard and enter your App ID.
 /// </summary>
@@ -41,7 +41,9 @@ public class OnlineManager : MonoBehaviour
     /// <summary>Fired when the room is ready and the code is known (host and guest).</summary>
     public event Action<string> OnRoomCodeReady;
     /// <summary>Fired when the match result is determined. True = local player won.</summary>
-    public event Action<bool> OnMatchResult;
+    public event Action<bool, string> OnMatchResult;
+    /// <summary>Fired when player count changes. Argument is new player count.</summary>
+    public event Action<int> OnPlayerCountChanged;
     /// <summary>Fired when both players are ready. Argument is the level index to load.</summary>
     public event Action<int> OnMatchStarting;
 
@@ -155,18 +157,31 @@ public class OnlineManager : MonoBehaviour
 #if PHOTON_UNITY_NETWORKING
         if (!PhotonNetwork.InRoom) { LeaveMatch(); return; }
         _matchActive = false;
-        SetState(MatchState.WaitingForOpponent);
-        // Only master client picks the new level (must differ from the last one)
         if (PhotonNetwork.IsMasterClient)
         {
+            PhotonNetwork.CurrentRoom.IsOpen = true;
             int newLvl;
             do { newLvl = UnityEngine.Random.Range(0, 300); } while (newLvl == _levelIndex);
-            var props = new ExitGames.Client.Photon.Hashtable { { PROP_LEVEL, newLvl }, { PROP_STATE, "starting" } };
-            PhotonNetwork.CurrentRoom.IsOpen = false;
+            var props = new Hashtable { { PROP_LEVEL, newLvl }, { PROP_STATE, "waiting" } };
             PhotonNetwork.CurrentRoom.SetCustomProperties(props);
         }
+        SetState(MatchState.WaitingForOpponent);
+        OnPlayerCountChanged?.Invoke(PhotonNetwork.CurrentRoom.PlayerCount);
 #else
         LeaveMatch();
+#endif
+    }
+
+    /// <summary>Host starts the match for everyone in the room.</summary>
+    public void StartGame()
+    {
+#if PHOTON_UNITY_NETWORKING
+        if (!PhotonNetwork.InRoom || !PhotonNetwork.IsMasterClient) return;
+        if (PhotonNetwork.CurrentRoom.PlayerCount < 1) return;
+        int lvl = UnityEngine.Random.Range(0, 300);
+        var props = new Hashtable { { PROP_LEVEL, lvl }, { PROP_STATE, "starting" } };
+        PhotonNetwork.CurrentRoom.IsOpen = false;
+        PhotonNetwork.CurrentRoom.SetCustomProperties(props);
 #endif
     }
 
@@ -193,7 +208,7 @@ public class OnlineManager : MonoBehaviour
         OnStatusMessage?.Invoke("Creating room…");
         var opts = new RoomOptions
         {
-            MaxPlayers = 2,
+            MaxPlayers = 8,
             IsVisible = false,
             IsOpen = true,
             CustomRoomProperties = new Hashtable { { PROP_LEVEL, -1 }, { PROP_STATE, "waiting" } },
@@ -207,18 +222,6 @@ public class OnlineManager : MonoBehaviour
         SetState(MatchState.JoiningRoom);
         OnStatusMessage?.Invoke("Joining room…");
         PhotonNetwork.JoinRoom(_roomCode);
-    }
-
-    private void TryStartMatch()
-    {
-        if (!PhotonNetwork.IsMasterClient) return;
-        if (PhotonNetwork.CurrentRoom.PlayerCount < 2) return;
-
-        // Levels 0–299: square & hex shapes — good for quick 1v1
-        int lvl = UnityEngine.Random.Range(0, 300);
-        var props = new Hashtable { { PROP_LEVEL, lvl }, { PROP_STATE, "starting" } };
-        PhotonNetwork.CurrentRoom.SetCustomProperties(props);
-        PhotonNetwork.CurrentRoom.IsOpen = false;
     }
 
     // ── IConnectionCallbacks ──────────────────────────────
@@ -255,14 +258,11 @@ public class OnlineManager : MonoBehaviour
 
     void IMatchmakingCallbacks.OnJoinedRoom()
     {
+        _roomCode = PhotonNetwork.CurrentRoom.Name;
         OnRoomCodeReady?.Invoke(_roomCode);
-        if (PhotonNetwork.CurrentRoom.PlayerCount >= 2)
-            TryStartMatch();
-        else
-        {
-            SetState(MatchState.WaitingForOpponent);
-            OnStatusMessage?.Invoke("Waiting for opponent…");
-        }
+        SetState(MatchState.WaitingForOpponent);
+        OnStatusMessage?.Invoke("Waiting for host to start…");
+        OnPlayerCountChanged?.Invoke(PhotonNetwork.CurrentRoom.PlayerCount);
     }
 
     void IMatchmakingCallbacks.OnJoinRoomFailed(short returnCode, string message)
@@ -277,23 +277,35 @@ public class OnlineManager : MonoBehaviour
 
     // ── IInRoomCallbacks ──────────────────────────────────
 
-    void IInRoomCallbacks.OnPlayerEnteredRoom(Player newPlayer) { TryStartMatch(); }
+    void IInRoomCallbacks.OnPlayerEnteredRoom(Player newPlayer)
+    {
+        OnPlayerCountChanged?.Invoke(PhotonNetwork.CurrentRoom.PlayerCount);
+    }
 
     void IInRoomCallbacks.OnRoomPropertiesUpdate(Hashtable propertiesThatChanged)
     {
         if (!propertiesThatChanged.ContainsKey(PROP_STATE)) return;
         var props = PhotonNetwork.CurrentRoom.CustomProperties;
-        if ((string)props[PROP_STATE] != "starting") return;
-
-        _levelIndex = (int)props[PROP_LEVEL];
-        _matchActive = true;
-        SetState(MatchState.InMatch);
-        OnMatchStarting?.Invoke(_levelIndex);
+        var st = (string)props[PROP_STATE];
+        if (st == "starting")
+        {
+            _levelIndex = (int)props[PROP_LEVEL];
+            _matchActive = true;
+            SetState(MatchState.InMatch);
+            OnMatchStarting?.Invoke(_levelIndex);
+        }
+        else if (st == "waiting")
+        {
+            SetState(MatchState.WaitingForOpponent);
+            OnStatusMessage?.Invoke("Waiting for host to start…");
+            OnPlayerCountChanged?.Invoke(PhotonNetwork.CurrentRoom.PlayerCount);
+        }
     }
 
     void IInRoomCallbacks.OnPlayerLeftRoom(Player otherPlayer)
     {
-        if (_matchActive) OnStatusMessage?.Invoke("Opponent disconnected.");
+        if (_matchActive) OnStatusMessage?.Invoke("A player disconnected.");
+        OnPlayerCountChanged?.Invoke(PhotonNetwork.CurrentRoom.PlayerCount);
     }
 
     void IInRoomCallbacks.OnPlayerPropertiesUpdate(Player targetPlayer, Hashtable changedProps) { }
@@ -304,13 +316,17 @@ public class OnlineManager : MonoBehaviour
     void IOnEventCallback.OnEvent(EventData photonEvent)
     {
         if (photonEvent.Code != EVT_DONE) return;
-
         var data = (object[])photonEvent.CustomData;
         int winnerActor = (int)data[0];
         bool iWon = winnerActor == PhotonNetwork.LocalPlayer.ActorNumber;
         _matchActive = false;
         SetState(MatchState.Finished);
-        OnMatchResult?.Invoke(iWon);
+        // Get winner display name
+        var winner = PhotonNetwork.CurrentRoom.GetPlayer(winnerActor);
+        string winnerName = (winner != null && !string.IsNullOrEmpty(winner.NickName))
+            ? winner.NickName
+            : $"Player {winnerActor}";
+        OnMatchResult?.Invoke(iWon, winnerName);
     }
 
     void OnEnable()  { PhotonNetwork.AddCallbackTarget(this); }

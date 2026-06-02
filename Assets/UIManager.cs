@@ -43,6 +43,8 @@ public class UIManager : MonoBehaviour
     private Button onlineCancelBtn;
     private GameObject onlineMainSection;     // create + divider + join row
     private GameObject onlineWaitingSection;  // room code display
+    private Text onlinePlayerCountText;   // shows "X players in room"
+    private Button onlineStartBtn;        // host-only Start Game button
     // ─────────────────────────────────────────────────────────────────────────────
     private GameObject levelSelectPanel;
     private ScrollRect levelSelectScrollRect;
@@ -1493,11 +1495,11 @@ public class UIManager : MonoBehaviour
 
         // Title
         var title = MakeCardText("Title", card.transform, new Vector2(0, 215), 44, FontStyle.Bold, TextDark);
-        title.text = "🎮  1v1 Online Mode";
+        title.text = "🎮  Online Mode";
 
         // Subtitle
         var sub = MakeCardText("Sub", card.transform, new Vector2(0, 158), 28, FontStyle.Normal, TextMuted);
-        sub.text = "Race a friend on the same puzzle!";
+        sub.text = "Race friends on the same puzzle — anyone with the code can join!";
         sub.GetComponent<RectTransform>().sizeDelta = new Vector2(600f, 50f);
 
         // ── Main section (create + divider + join) ──────────────────────────────
@@ -1601,8 +1603,8 @@ public class UIManager : MonoBehaviour
         var waitRect = onlineWaitingSection.AddComponent<RectTransform>();
         waitRect.anchorMin = new Vector2(0.5f, 0.5f); waitRect.anchorMax = new Vector2(0.5f, 0.5f);
         waitRect.pivot = new Vector2(0.5f, 0.5f);
-        waitRect.anchoredPosition = new Vector2(0f, 30f);
-        waitRect.sizeDelta = new Vector2(600f, 140f);
+        waitRect.anchoredPosition = new Vector2(0f, 10f);
+        waitRect.sizeDelta = new Vector2(600f, 260f);
         onlineWaitingSection.SetActive(false);
 
         onlineRoomCodeText = MakeCardText("CodeLabel", onlineWaitingSection.transform, new Vector2(0, 36), 50, FontStyle.Bold, new Color(0.22f, 0.40f, 0.72f, 1f));
@@ -1612,6 +1614,16 @@ public class UIManager : MonoBehaviour
         var codeHint = MakeCardText("CodeHint", onlineWaitingSection.transform, new Vector2(0, -24), 26, FontStyle.Normal, TextMuted);
         codeHint.text = "Share this code with your friend";
         codeHint.GetComponent<RectTransform>().sizeDelta = new Vector2(600f, 40f);
+
+        // Player count label
+        onlinePlayerCountText = MakeCardText("PlayerCount", onlineWaitingSection.transform, new Vector2(0, -70), 28, FontStyle.Normal, TextMuted);
+        onlinePlayerCountText.text = "1 player in room";
+        onlinePlayerCountText.GetComponent<RectTransform>().sizeDelta = new Vector2(600f, 40f);
+
+        // Start Game button (host only, initially hidden)
+        onlineStartBtn = CreateCardButton("▶  Start Game", onlineWaitingSection.transform, new Vector2(0, -120), new Color(0.18f, 0.72f, 0.40f));
+        onlineStartBtn.gameObject.SetActive(false);
+        onlineStartBtn.onClick.AddListener(() => OnlineManager.Instance?.StartGame());
 
         // ── Status text ─────────────────────────────────────────────────────────
         onlineStatusText = MakeCardText("Status", card.transform, new Vector2(0, -90), 28, FontStyle.Normal, TextMuted);
@@ -1637,6 +1649,7 @@ public class UIManager : MonoBehaviour
             om.OnStateChanged += OnOnlineStateChanged;
             om.OnMatchStarting += OnOnlineMatchStarting;
             om.OnMatchResult += OnOnlineMatchResult;
+            om.OnPlayerCountChanged += OnOnlinePlayerCountChanged;
         }
     }
 
@@ -1652,6 +1665,7 @@ public class UIManager : MonoBehaviour
             om.OnStateChanged -= OnOnlineStateChanged;
             om.OnMatchStarting -= OnOnlineMatchStarting;
             om.OnMatchResult -= OnOnlineMatchResult;
+            om.OnPlayerCountChanged -= OnOnlinePlayerCountChanged;
         }
 
         Destroy(onlineModePopup);
@@ -1664,6 +1678,8 @@ public class UIManager : MonoBehaviour
         onlineCancelBtn = null;
         onlineMainSection = null;
         onlineWaitingSection = null;
+        onlinePlayerCountText = null;
+        onlineStartBtn = null;
     }
 
     private void OnOnlineStatusMessage(string msg)
@@ -1695,6 +1711,27 @@ public class UIManager : MonoBehaviour
             if (onlineMainSection != null) onlineMainSection.SetActive(true);
             if (onlineWaitingSection != null) onlineWaitingSection.SetActive(false);
         }
+        if (state == OnlineManager.MatchState.WaitingForOpponent)
+        {
+            if (onlineMainSection != null) onlineMainSection.SetActive(false);
+            if (onlineWaitingSection != null) onlineWaitingSection.SetActive(true);
+        }
+    }
+
+    private void OnOnlinePlayerCountChanged(int count)
+    {
+        if (onlinePlayerCountText != null)
+            onlinePlayerCountText.text = count == 1 ? "1 player in room" : $"{count} players in room";
+        // Show Start Game button only for master client (host)
+        if (onlineStartBtn != null)
+        {
+#if PHOTON_UNITY_NETWORKING
+            bool isHost = Photon.Pun.PhotonNetwork.IsMasterClient;
+#else
+            bool isHost = false;
+#endif
+            onlineStartBtn.gameObject.SetActive(isHost);
+        }
     }
 
     private void OnOnlineMatchStarting(int levelIndex)
@@ -1711,12 +1748,12 @@ public class UIManager : MonoBehaviour
         FindAnyObjectByType<GameManager>()?.StartOnlineMatch(levelIndex);
     }
 
-    private void OnOnlineMatchResult(bool iWon)
+    private void OnOnlineMatchResult(bool iWon, string winnerName)
     {
-        ShowOnlineResultPopup(iWon);
+        ShowOnlineResultPopup(iWon, winnerName);
     }
 
-    public void ShowOnlineResultPopup(bool iWon)
+    public void ShowOnlineResultPopup(bool iWon, string winnerName = "")
     {
         var existing = canvas.transform.Find("OnlineResultPopup");
         if (existing != null) Destroy(existing.gameObject);
@@ -1754,7 +1791,7 @@ public class UIManager : MonoBehaviour
         title.text = iWon ? "You Win!" : "You Lose!";
 
         var sub = MakeCardText("Sub", card.transform, new Vector2(0, -10), 28, FontStyle.Normal, TextMuted);
-        sub.text = iWon ? "You solved the puzzle first!" : "Your opponent was faster this time.";
+        sub.text = iWon ? "You solved the puzzle first!" : $"{winnerName} finished first!";
         sub.GetComponent<RectTransform>().sizeDelta = new Vector2(560f, 44f);
 
         var rematchBtn = CreateCardButton("Play Again", card.transform, new Vector2(0, -105), new Color(0.22f, 0.40f, 0.72f));
@@ -1762,6 +1799,7 @@ public class UIManager : MonoBehaviour
         {
             Destroy(popupGo);
             OnlineManager.Instance?.StartRematch();
+            ShowOnlineModePopup();
         });
 
         var closeBtn = CreateCardButton("Back to Menu", card.transform, new Vector2(0, -188), new Color(0.88f, 0.86f, 0.84f));
