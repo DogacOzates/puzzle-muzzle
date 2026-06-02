@@ -766,7 +766,7 @@ public class UIManager : MonoBehaviour
         tcVlg.childControlWidth = true; tcVlg.childControlHeight = true;
         tcVlg.childAlignment = TextAnchor.MiddleLeft;
 
-        LsMakeVlgText("Title", textGo.transform, 33, FontStyle.Bold, Color.white, "1v1 Online Mode");
+        LsMakeVlgText("Title", textGo.transform, 33, FontStyle.Bold, Color.white, "Online Mode");
         LsMakeVlgText("Sub", textGo.transform, 26, FontStyle.Normal, new Color(1f, 1f, 1f, 0.80f), "Race a friend on the same puzzle");
     }
 
