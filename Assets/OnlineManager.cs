@@ -253,9 +253,6 @@ public class OnlineManager : MonoBehaviour
     void IMatchmakingCallbacks.OnLeftRoom() { SetState(MatchState.Idle); }
     void IMatchmakingCallbacks.OnJoinRandomFailed(short returnCode, string message) { }
     void IMatchmakingCallbacks.OnFriendListUpdate(List<FriendInfo> friendList) { }
-    void IMatchmakingCallbacks.OnJoinedLobby() { }
-    void IMatchmakingCallbacks.OnLeftLobby() { }
-    void IMatchmakingCallbacks.OnRoomListUpdate(List<RoomInfo> roomList) { }
 
     // ── IInRoomCallbacks ──────────────────────────────────
 
