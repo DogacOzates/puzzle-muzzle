@@ -144,6 +144,8 @@ public class UIManager : MonoBehaviour
     private void OnDestroy()
     {
         ThemeManager.OnThemeChanged -= OnThemeChanged;
+        var om = OnlineManager.Instance;
+        if (om != null) om.OnMatchResult -= OnOnlineMatchResult;
     }
 
     private void OnThemeChanged()
@@ -1668,16 +1670,16 @@ public class UIManager : MonoBehaviour
             HideOnlineModePopup();
         });
 
-        // Subscribe to OnlineManager events
+        // Subscribe to OnlineManager events (unsubscribe first to prevent duplicates)
         var om = OnlineManager.Instance;
         if (om != null)
         {
-            om.OnStatusMessage += OnOnlineStatusMessage;
-            om.OnRoomCodeReady += OnOnlineRoomCodeReady;
-            om.OnStateChanged += OnOnlineStateChanged;
-            om.OnMatchStarting += OnOnlineMatchStarting;
-            om.OnMatchResult += OnOnlineMatchResult;
-            om.OnPlayerCountChanged += OnOnlinePlayerCountChanged;
+            om.OnStatusMessage -= OnOnlineStatusMessage;   om.OnStatusMessage += OnOnlineStatusMessage;
+            om.OnRoomCodeReady -= OnOnlineRoomCodeReady;   om.OnRoomCodeReady += OnOnlineRoomCodeReady;
+            om.OnStateChanged -= OnOnlineStateChanged;     om.OnStateChanged += OnOnlineStateChanged;
+            om.OnMatchStarting -= OnOnlineMatchStarting;   om.OnMatchStarting += OnOnlineMatchStarting;
+            om.OnMatchResult -= OnOnlineMatchResult;       om.OnMatchResult += OnOnlineMatchResult;
+            om.OnPlayerCountChanged -= OnOnlinePlayerCountChanged; om.OnPlayerCountChanged += OnOnlinePlayerCountChanged;
         }
     }
 
@@ -1785,7 +1787,10 @@ public class UIManager : MonoBehaviour
     private System.Collections.IEnumerator DelayedStartMatch(int levelIndex)
     {
         yield return new WaitForSeconds(1.2f);
-        HideOnlineModePopup();
+        HideOnlineModePopup();   // unsubscribes all popup events
+        // Keep listening for match result while in-game (popup is gone)
+        var om = OnlineManager.Instance;
+        if (om != null) { om.OnMatchResult -= OnOnlineMatchResult; om.OnMatchResult += OnOnlineMatchResult; }
         FindAnyObjectByType<GameManager>()?.StartOnlineMatch(levelIndex);
     }
 
