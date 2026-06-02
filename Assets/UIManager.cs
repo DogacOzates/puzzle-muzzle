@@ -1449,15 +1449,6 @@ public class UIManager : MonoBehaviour
         }
     }
 
-    public void HideHintPromoPopup()
-    {
-        if (hintPromoPopup != null)
-        {
-            Destroy(hintPromoPopup);
-            hintPromoPopup = null;
-        }
-    }
-
     // ─────────────────────────────────────────────────────────────────────────────
     // --- Online Mode Popup ---
     // ─────────────────────────────────────────────────────────────────────────────
