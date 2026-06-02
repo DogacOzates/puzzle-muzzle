@@ -256,7 +256,6 @@ public class OnlineManager : MonoBehaviour
     void IMatchmakingCallbacks.OnJoinedLobby() { }
     void IMatchmakingCallbacks.OnLeftLobby() { }
     void IMatchmakingCallbacks.OnRoomListUpdate(List<RoomInfo> roomList) { }
-    void IMatchmakingCallbacks.OnLobbyStatisticsUpdate(List<TypedLobbyInfo> lobbyStatistics) { }
 
     // ── IInRoomCallbacks ──────────────────────────────────
 
