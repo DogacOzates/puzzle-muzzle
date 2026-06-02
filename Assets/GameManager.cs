@@ -24,6 +24,7 @@ public class GameManager : MonoBehaviour
     private int preDailyLevelIndex;
 
     public bool IsTutorialRunning => tutorialController != null && tutorialController.IsRunning;
+    public bool IsOnlineMode => currentGameMode == GameMode.Online;
 
     private static readonly Color BgColor = new Color(0.97f, 0.95f, 0.92f);
     private const float CompletedLevelPreviewDuration   = 0.6f;

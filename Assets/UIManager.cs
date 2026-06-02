@@ -2758,9 +2758,15 @@ public class UIManager : MonoBehaviour
         if (hintButton == null)
             return;
 
-        hintButton.interactable = isAvailable;
+#if UNITY_EDITOR
+        bool online = false;
+#else
+        bool online = FindAnyObjectByType<GameManager>()?.IsOnlineMode ?? false;
+#endif
+        bool enabled = isAvailable && !online;
+        hintButton.interactable = enabled;
         if (hintButtonIcon != null)
-            hintButtonIcon.color = isAvailable ? Color.white : new Color(0.72f, 0.72f, 0.72f, 0.7f);
+            hintButtonIcon.color = enabled ? Color.white : new Color(0.72f, 0.72f, 0.72f, 0.7f);
     }
 
     /// <summary>
