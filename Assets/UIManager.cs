@@ -71,6 +71,7 @@ public class UIManager : MonoBehaviour
     private Image[] _lsGroupTabIcons = new Image[3];
     private Image[] _lsGroupTabIconChips = new Image[3];
     private static Sprite _giftSprite;
+    private static Sprite _networkingSprite;
     private Text[] _lsGroupTabTitles = new Text[3];
     private Text[] _lsGroupTabRanges = new Text[3];
     private Text _lsHeaderTitle;
@@ -651,7 +652,7 @@ public class UIManager : MonoBehaviour
         scrollObj.transform.SetParent(panelObj.transform, false);
         var scrollRT = scrollObj.AddComponent<RectTransform>();
         scrollRT.anchorMin = Vector2.zero; scrollRT.anchorMax = Vector2.one;
-        scrollRT.offsetMin = Vector2.zero; scrollRT.offsetMax = new Vector2(0f, -445f);
+        scrollRT.offsetMin = Vector2.zero; scrollRT.offsetMax = new Vector2(0f, -521f);
         var scrollRect = scrollObj.AddComponent<ScrollRect>();
         scrollRect.horizontal = false;
         scrollRect.movementType = ScrollRect.MovementType.Clamped;
@@ -714,36 +715,37 @@ public class UIManager : MonoBehaviour
         cardRT.anchorMin = new Vector2(0f, 1f); cardRT.anchorMax = new Vector2(1f, 1f);
         cardRT.pivot = new Vector2(0.5f, 1f);
         cardRT.anchoredPosition = new Vector2(0f, -120f);
-        cardRT.sizeDelta = new Vector2(0f, 104f);
+        cardRT.sizeDelta = new Vector2(0f, 180f);
 
         var outer = new GameObject("Outer");
         outer.transform.SetParent(card.transform, false);
         var outerRect = outer.AddComponent<RectTransform>();
         outerRect.anchorMin = Vector2.zero; outerRect.anchorMax = Vector2.one;
-        outerRect.offsetMin = new Vector2(16f, 10f); outerRect.offsetMax = new Vector2(-16f, -10f);
+        outerRect.offsetMin = new Vector2(16f, 12f); outerRect.offsetMax = new Vector2(-16f, -12f);
         var bg = outer.AddComponent<Image>();
         bg.sprite = SpriteGenerator.RoundedRect;
-        bg.color = new Color(0.22f, 0.40f, 0.72f, 1f);  // blue
+        bg.color = new Color(0.91f, 0.93f, 0.97f, 1f);  // light blue-gray
 
         var btn = outer.AddComponent<Button>();
         var bc = btn.colors;
-        bc.highlightedColor = new Color(0.26f, 0.46f, 0.80f, 1f);
-        bc.pressedColor = new Color(0.16f, 0.32f, 0.60f, 1f);
+        bc.highlightedColor = new Color(0.86f, 0.89f, 0.95f, 1f);
+        bc.pressedColor = new Color(0.78f, 0.83f, 0.92f, 1f);
         btn.colors = bc; btn.targetGraphic = bg;
         btn.onClick.AddListener(ShowOnlineModePopup);
 
-        // Icon
-        var iconGo = new GameObject("Icon");
+        // Networking icon — pinned to left-center (same layout as DC gift icon)
+        var iconGo = new GameObject("NetworkIcon");
         iconGo.transform.SetParent(outer.transform, false);
         var iconRT = iconGo.AddComponent<RectTransform>();
         iconRT.anchorMin = new Vector2(0f, 0.5f); iconRT.anchorMax = new Vector2(0f, 0.5f);
         iconRT.pivot = new Vector2(0f, 0.5f);
-        iconRT.anchoredPosition = new Vector2(18f, 0f); iconRT.sizeDelta = new Vector2(62f, 62f);
-        var iconTxt = iconGo.AddComponent<Text>();
-        iconTxt.font = defaultFont; iconTxt.text = "🎮"; iconTxt.fontSize = 44;
-        iconTxt.alignment = TextAnchor.MiddleCenter;
+        iconRT.anchoredPosition = new Vector2(20f, 0f);
+        iconRT.sizeDelta = new Vector2(90f, 90f);
+        var iconImg = iconGo.AddComponent<Image>();
+        iconImg.sprite = LoadNetworkingSprite();
+        iconImg.preserveAspect = true;
 
-        // Arrow
+        // Arrow — pinned to right-center
         var arrGo = new GameObject("Arrow");
         arrGo.transform.SetParent(outer.transform, false);
         var arrRT = arrGo.AddComponent<RectTransform>();
@@ -753,21 +755,32 @@ public class UIManager : MonoBehaviour
         var arrTxt = arrGo.AddComponent<Text>();
         arrTxt.font = defaultFont; arrTxt.text = "›"; arrTxt.fontSize = 52;
         arrTxt.fontStyle = FontStyle.Bold; arrTxt.alignment = TextAnchor.MiddleCenter;
-        arrTxt.color = new Color(1f, 1f, 1f, 0.70f);
+        arrTxt.color = new Color(0.45f, 0.45f, 0.45f, 1f);
 
-        // Title + subtitle column
-        var textGo = new GameObject("TextInner");
-        textGo.transform.SetParent(outer.transform, false);
-        var textRT = textGo.AddComponent<RectTransform>();
+        // Text column — stretches between icon and arrow
+        var textCol = new GameObject("TextCol");
+        textCol.transform.SetParent(outer.transform, false);
+        var textRT = textCol.AddComponent<RectTransform>();
         textRT.anchorMin = new Vector2(0f, 0f); textRT.anchorMax = new Vector2(1f, 1f);
-        textRT.offsetMin = new Vector2(98f, 0f); textRT.offsetMax = new Vector2(-58f, 0f);
-        var tcVlg = textGo.AddComponent<VerticalLayoutGroup>();
-        tcVlg.spacing = 2f; tcVlg.childForceExpandWidth = true; tcVlg.childForceExpandHeight = false;
+        textRT.offsetMin = new Vector2(150f, 8f);
+        textRT.offsetMax = new Vector2(-72f, -8f);
+
+        var textInner = new GameObject("TextInner");
+        textInner.transform.SetParent(textCol.transform, false);
+        var textInnerRT = textInner.AddComponent<RectTransform>();
+        textInnerRT.anchorMin = new Vector2(0.5f, 0.5f);
+        textInnerRT.anchorMax = new Vector2(0.5f, 0.5f);
+        textInnerRT.pivot = new Vector2(0.5f, 0.5f);
+        textInnerRT.anchoredPosition = new Vector2(-56f, 0f);
+        textInnerRT.sizeDelta = new Vector2(500f, 100f);
+        var tcVlg = textInner.AddComponent<VerticalLayoutGroup>();
+        tcVlg.spacing = 4f; tcVlg.childForceExpandWidth = true; tcVlg.childForceExpandHeight = false;
         tcVlg.childControlWidth = true; tcVlg.childControlHeight = true;
         tcVlg.childAlignment = TextAnchor.MiddleLeft;
 
-        LsMakeVlgText("Title", textGo.transform, 33, FontStyle.Bold, Color.white, "Online Mode");
-        LsMakeVlgText("Sub", textGo.transform, 26, FontStyle.Normal, new Color(1f, 1f, 1f, 0.80f), "Race a friend on the same puzzle");
+        LsMakeVlgText("Title", textInner.transform, 34, FontStyle.Bold, new Color(0.22f, 0.40f, 0.72f, 1f), "Online Mode");
+        LsMakeVlgText("Sub", textInner.transform, 27, FontStyle.Normal, TextMuted, "Race friends on the same puzzle");
+        LsMakeVlgText("Sub2", textInner.transform, 27, FontStyle.Normal, TextMuted, "Anyone with the code can join!");
     }
 
     private void LsBuildDailyChallengeCard(Transform parent)
@@ -777,7 +790,7 @@ public class UIManager : MonoBehaviour
         var cardRT = card.AddComponent<RectTransform>();
         cardRT.anchorMin = new Vector2(0f, 1f); cardRT.anchorMax = new Vector2(1f, 1f);
         cardRT.pivot = new Vector2(0.5f, 1f);
-        cardRT.anchoredPosition = new Vector2(0f, -224f);
+        cardRT.anchoredPosition = new Vector2(0f, -300f);
         cardRT.sizeDelta = new Vector2(0f, 220f);
 
         // Card background — fills the card slot with margins
@@ -940,6 +953,15 @@ public class UIManager : MonoBehaviour
         if (tex == null) return null;
         _giftSprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), Vector2.one * 0.5f);
         return _giftSprite;
+    }
+
+    private static Sprite LoadNetworkingSprite()
+    {
+        if (_networkingSprite != null) return _networkingSprite;
+        var tex = Resources.Load<Texture2D>("icons/networking");
+        if (tex == null) return null;
+        _networkingSprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), Vector2.one * 0.5f);
+        return _networkingSprite;
     }
 
     private void LsBuildGroupGrid(Transform parent, int groupIndex, Sprite btnSprite, int startIdx, int endIdx)
