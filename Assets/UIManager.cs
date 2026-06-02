@@ -1813,55 +1813,48 @@ public class UIManager : MonoBehaviour
         popupRect.offsetMin = Vector2.zero; popupRect.offsetMax = Vector2.zero;
         var ovr = popupGo.AddComponent<Image>(); ovr.color = new Color(0f, 0f, 0f, 0.50f);
 
+        var accentColor = iWon ? new Color(0.22f, 0.40f, 0.72f) : new Color(0.85f, 0.25f, 0.25f);
+
         // Shadow
         var shadowObj = new GameObject("Shadow");
         shadowObj.transform.SetParent(popupGo.transform, false);
         var shRect = shadowObj.AddComponent<RectTransform>();
         shRect.anchorMin = new Vector2(0.5f, 0.5f); shRect.anchorMax = new Vector2(0.5f, 0.5f);
         shRect.pivot = new Vector2(0.5f, 0.5f);
-        shRect.sizeDelta = new Vector2(626f, 516f); shRect.anchoredPosition = new Vector2(4f, -8f);
+        shRect.sizeDelta = new Vector2(626f, 456f); shRect.anchoredPosition = new Vector2(4f, -8f);
         var shImg = shadowObj.AddComponent<Image>(); shImg.sprite = SpriteGenerator.RoundedRect;
         shImg.color = new Color(0f, 0f, 0f, 0.18f);
 
-        // Card — 500px tall (±250) so all elements fit
+        // Card — 440px tall, content vertically centered
         var card = new GameObject("Card");
         card.transform.SetParent(popupGo.transform, false);
         var cRect = card.AddComponent<RectTransform>();
         cRect.anchorMin = new Vector2(0.5f, 0.5f); cRect.anchorMax = new Vector2(0.5f, 0.5f);
-        cRect.pivot = new Vector2(0.5f, 0.5f); cRect.sizeDelta = new Vector2(610f, 500f);
+        cRect.pivot = new Vector2(0.5f, 0.5f); cRect.sizeDelta = new Vector2(610f, 440f);
         var cImg = card.AddComponent<Image>(); cImg.sprite = SpriteGenerator.RoundedRect;
         cImg.color = Color.white;
 
-        // Colored top accent bar
-        var accentColor = iWon ? new Color(0.22f, 0.40f, 0.72f) : new Color(0.85f, 0.25f, 0.25f);
-
+        // Colored accent bar at top
         var accentGo = new GameObject("Accent");
         accentGo.transform.SetParent(card.transform, false);
         var accentRT = accentGo.AddComponent<RectTransform>();
         accentRT.anchorMin = new Vector2(0f, 1f); accentRT.anchorMax = new Vector2(1f, 1f);
         accentRT.pivot = new Vector2(0.5f, 1f);
-        accentRT.sizeDelta = new Vector2(0f, 8f);
         accentRT.offsetMin = new Vector2(0f, -8f); accentRT.offsetMax = Vector2.zero;
-        var accentImg = accentGo.AddComponent<Image>();
-        accentImg.color = accentColor;
+        accentGo.AddComponent<Image>().color = accentColor;
 
-        // Emoji
-        var emoji = MakeCardText("Emoji", card.transform, new Vector2(0, 155), 80, FontStyle.Normal, TextDark);
-        emoji.text = iWon ? "🏆" : "😔";
-        emoji.GetComponent<RectTransform>().sizeDelta = new Vector2(120f, 100f);
-
-        // Title
-        var title = MakeCardText("Title", card.transform, new Vector2(0, 65), 50, FontStyle.Bold, accentColor);
+        // Title — upper area
+        var title = MakeCardText("Title", card.transform, new Vector2(0, 120), 50, FontStyle.Bold, accentColor);
         title.text = iWon ? "You Win!" : "You Lose!";
         title.GetComponent<RectTransform>().sizeDelta = new Vector2(560f, 64f);
 
         // Subtitle
-        var sub = MakeCardText("Sub", card.transform, new Vector2(0, -10), 28, FontStyle.Normal, TextMuted);
+        var sub = MakeCardText("Sub", card.transform, new Vector2(0, 48), 28, FontStyle.Normal, TextMuted);
         sub.text = iWon ? "You solved the puzzle first!" : $"{winnerName} finished first!";
         sub.GetComponent<RectTransform>().sizeDelta = new Vector2(560f, 44f);
 
         // Play Again button
-        var rematchBtn = CreateCardButton("Play Again", card.transform, new Vector2(0, -100), accentColor);
+        var rematchBtn = CreateCardButton("Play Again", card.transform, new Vector2(0, -55), accentColor);
         rematchBtn.onClick.AddListener(() =>
         {
             Destroy(popupGo);
@@ -1870,7 +1863,7 @@ public class UIManager : MonoBehaviour
         });
 
         // Back to Menu button
-        var closeBtn = CreateCardButton("Back to Menu", card.transform, new Vector2(0, -188), new Color(0.88f, 0.86f, 0.84f));
+        var closeBtn = CreateCardButton("Back to Menu", card.transform, new Vector2(0, -145), new Color(0.88f, 0.86f, 0.84f));
         var closeTxt = closeBtn.GetComponentInChildren<Text>(); if (closeTxt != null) closeTxt.color = TextDark;
         closeBtn.onClick.AddListener(() =>
         {
