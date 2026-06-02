@@ -1478,70 +1478,65 @@ public class UIManager : MonoBehaviour
         var shadowRect = shadowObj.AddComponent<RectTransform>();
         shadowRect.anchorMin = new Vector2(0.5f, 0.5f); shadowRect.anchorMax = new Vector2(0.5f, 0.5f);
         shadowRect.pivot = new Vector2(0.5f, 0.5f);
-        shadowRect.sizeDelta = new Vector2(726f, 586f);
+        shadowRect.sizeDelta = new Vector2(716f, 696f);
         shadowRect.anchoredPosition = new Vector2(4f, -8f);
         var shadowImg = shadowObj.AddComponent<Image>();
         shadowImg.sprite = SpriteGenerator.RoundedRect;
         shadowImg.color = new Color(0f, 0f, 0f, 0.18f);
 
-        // Card
+        // Card — 680px tall so title/subtitle/buttons don't overlap
         var card = new GameObject("Card");
         card.transform.SetParent(onlineModePopup.transform, false);
         var cardRect = card.AddComponent<RectTransform>();
         cardRect.anchorMin = new Vector2(0.5f, 0.5f); cardRect.anchorMax = new Vector2(0.5f, 0.5f);
         cardRect.pivot = new Vector2(0.5f, 0.5f);
-        cardRect.sizeDelta = new Vector2(700f, 640f);
+        cardRect.sizeDelta = new Vector2(700f, 680f);
         var cardImg = card.AddComponent<Image>();
         cardImg.sprite = SpriteGenerator.RoundedRect;
         cardImg.color = new Color(1f, 1f, 1f, 0.98f);
 
-        // Title
-        var title = MakeCardText("Title", card.transform, new Vector2(0, 215), 44, FontStyle.Bold, TextDark);
+        // ── Header ──────────────────────────────────────────────────────────────
+        var title = MakeCardText("Title", card.transform, new Vector2(0, 285), 44, FontStyle.Bold, TextDark);
         title.text = "🎮  Online Mode";
 
-        // Subtitle
-        var sub = MakeCardText("Sub", card.transform, new Vector2(0, 158), 28, FontStyle.Normal, TextMuted);
-        sub.text = "Race friends on the same puzzle — anyone with the code can join!";
-        sub.GetComponent<RectTransform>().sizeDelta = new Vector2(600f, 50f);
+        var sub = MakeCardText("Sub", card.transform, new Vector2(0, 228), 26, FontStyle.Normal, TextMuted);
+        sub.text = "Anyone with the code can join!";
+        sub.GetComponent<RectTransform>().sizeDelta = new Vector2(600f, 44f);
 
-        // ── Main section (create + divider + join) ──────────────────────────────
+        // ── Main section (anchored BELOW subtitle — top at card y=165) ──────────
+        // Main: anchor (0,-15), height=360 → spans card y=165 down to y=-195
         onlineMainSection = new GameObject("MainSection");
         onlineMainSection.transform.SetParent(card.transform, false);
         var mainRect = onlineMainSection.AddComponent<RectTransform>();
         mainRect.anchorMin = new Vector2(0.5f, 0.5f); mainRect.anchorMax = new Vector2(0.5f, 0.5f);
         mainRect.pivot = new Vector2(0.5f, 0.5f);
-        mainRect.anchoredPosition = new Vector2(0f, 20f);
-        mainRect.sizeDelta = new Vector2(600f, 420f);
+        mainRect.anchoredPosition = new Vector2(0f, -15f);
+        mainRect.sizeDelta = new Vector2(620f, 360f);
 
-        // Find Opponent button (quick matchmaking — top primary action)
-        onlineFindBtn = CreateCardButton("🔍  Find Opponent", onlineMainSection.transform, new Vector2(0, 180), new Color(0.88f, 0.38f, 0.18f));
+        // Find Opponent button (top action — orange)
+        onlineFindBtn = CreateCardButton("🔍  Find Opponent", onlineMainSection.transform, new Vector2(0, 155), new Color(0.88f, 0.38f, 0.18f));
         onlineFindBtn.onClick.AddListener(() => OnlineManager.Instance?.FindMatch());
 
-        // Divider
-        var dividerFind = MakeCardText("DividerFind", onlineMainSection.transform, new Vector2(0, 110), 26, FontStyle.Normal, TextMuted);
-        dividerFind.text = "— or create a room for friends —";
-        dividerFind.GetComponent<RectTransform>().sizeDelta = new Vector2(500f, 36f);
+        var dividerFind = MakeCardText("DividerFind", onlineMainSection.transform, new Vector2(0, 90), 24, FontStyle.Normal, TextMuted);
+        dividerFind.text = "— or create a room —";
+        dividerFind.GetComponent<RectTransform>().sizeDelta = new Vector2(440f, 34f);
 
-        // Create Room button
-        onlineCreateBtn = CreateCardButton("🏠  Create Room", onlineMainSection.transform, new Vector2(0, 50), new Color(0.22f, 0.40f, 0.72f, 1f));
-        onlineCreateBtn.onClick.AddListener(() =>
-        {
-            OnlineManager.Instance?.CreateRoom();
-        });
+        // Create Room button (blue)
+        onlineCreateBtn = CreateCardButton("🏠  Create Room", onlineMainSection.transform, new Vector2(0, 30), new Color(0.22f, 0.40f, 0.72f, 1f));
+        onlineCreateBtn.onClick.AddListener(() => OnlineManager.Instance?.CreateRoom());
 
-        // Divider label
-        var divider = MakeCardText("Divider", onlineMainSection.transform, new Vector2(0, -20), 26, FontStyle.Normal, TextMuted);
+        var divider = MakeCardText("Divider", onlineMainSection.transform, new Vector2(0, -40), 24, FontStyle.Normal, TextMuted);
         divider.text = "— or join with a code —";
-        divider.GetComponent<RectTransform>().sizeDelta = new Vector2(440f, 36f);
+        divider.GetComponent<RectTransform>().sizeDelta = new Vector2(440f, 34f);
 
-        // InputField row (input + join button side by side)
+        // InputField row (input + join button side by side) — local y=-110
         var rowGo = new GameObject("JoinRow");
         rowGo.transform.SetParent(onlineMainSection.transform, false);
         var rowRect = rowGo.AddComponent<RectTransform>();
         rowRect.anchorMin = new Vector2(0.5f, 0.5f); rowRect.anchorMax = new Vector2(0.5f, 0.5f);
         rowRect.pivot = new Vector2(0.5f, 0.5f);
-        rowRect.anchoredPosition = new Vector2(0f, -105f);
-        rowRect.sizeDelta = new Vector2(590f, 78f);
+        rowRect.anchoredPosition = new Vector2(0f, -110f);
+        rowRect.sizeDelta = new Vector2(600f, 76f);
 
         // InputField
         var inputGo = new GameObject("CodeInput");
@@ -1560,7 +1555,7 @@ public class UIManager : MonoBehaviour
         itRect.anchorMin = Vector2.zero; itRect.anchorMax = Vector2.one;
         itRect.offsetMin = new Vector2(16f, 0f); itRect.offsetMax = new Vector2(-16f, 0f);
         var inputText = inputTextGo.AddComponent<Text>();
-        inputText.font = defaultFont; inputText.fontSize = 32; inputText.color = TextDark;
+        inputText.font = defaultFont; inputText.fontSize = 30; inputText.color = TextDark;
         inputText.alignment = TextAnchor.MiddleLeft;
 
         var placeholderGo = new GameObject("Placeholder");
@@ -1569,7 +1564,7 @@ public class UIManager : MonoBehaviour
         phRect.anchorMin = Vector2.zero; phRect.anchorMax = Vector2.one;
         phRect.offsetMin = new Vector2(16f, 0f); phRect.offsetMax = new Vector2(-16f, 0f);
         var placeholderTxt = placeholderGo.AddComponent<Text>();
-        placeholderTxt.font = defaultFont; placeholderTxt.fontSize = 30;
+        placeholderTxt.font = defaultFont; placeholderTxt.fontSize = 28;
         placeholderTxt.fontStyle = FontStyle.Italic;
         placeholderTxt.color = TextMuted; placeholderTxt.alignment = TextAnchor.MiddleLeft;
         placeholderTxt.text = "Enter code…";
@@ -1592,12 +1587,12 @@ public class UIManager : MonoBehaviour
         joinBg.sprite = SpriteGenerator.RoundedRect;
         joinBg.color = new Color(0.25f, 0.78f, 0.72f);
         onlineJoinBtn = joinBtnGo.AddComponent<Button>();
-        var jc = onlineJoinBtn.colors; jc.highlightedColor = new Color(0.30f, 0.85f, 0.79f); jc.pressedColor = new Color(0.18f, 0.65f, 0.60f); onlineJoinBtn.colors = jc;
+        var jc = onlineJoinBtn.colors;
+        jc.highlightedColor = new Color(0.30f, 0.85f, 0.79f);
+        jc.pressedColor = new Color(0.18f, 0.65f, 0.60f);
+        onlineJoinBtn.colors = jc;
         onlineJoinBtn.targetGraphic = joinBg;
-        onlineJoinBtn.onClick.AddListener(() =>
-        {
-            OnlineManager.Instance?.JoinRoom(onlineCodeInput?.text ?? "");
-        });
+        onlineJoinBtn.onClick.AddListener(() => OnlineManager.Instance?.JoinRoom(onlineCodeInput?.text ?? ""));
         var joinTxtGo = new GameObject("Text");
         joinTxtGo.transform.SetParent(joinBtnGo.transform, false);
         var jtRect = joinTxtGo.AddComponent<RectTransform>();
@@ -1608,42 +1603,41 @@ public class UIManager : MonoBehaviour
         joinTxt.fontStyle = FontStyle.Bold; joinTxt.alignment = TextAnchor.MiddleCenter;
         joinTxt.color = Color.white;
 
-        // ── Waiting section (visible after room created/joined) ─────────────────
+        // ── Waiting section (shown after room created/joined) ────────────────────
+        // Centered in card, height=260 → spans y=130 to y=-130
         onlineWaitingSection = new GameObject("WaitingSection");
         onlineWaitingSection.transform.SetParent(card.transform, false);
         var waitRect = onlineWaitingSection.AddComponent<RectTransform>();
         waitRect.anchorMin = new Vector2(0.5f, 0.5f); waitRect.anchorMax = new Vector2(0.5f, 0.5f);
         waitRect.pivot = new Vector2(0.5f, 0.5f);
-        waitRect.anchoredPosition = new Vector2(0f, 10f);
-        waitRect.sizeDelta = new Vector2(600f, 260f);
+        waitRect.anchoredPosition = new Vector2(0f, 0f);
+        waitRect.sizeDelta = new Vector2(620f, 260f);
         onlineWaitingSection.SetActive(false);
 
-        onlineRoomCodeText = MakeCardText("CodeLabel", onlineWaitingSection.transform, new Vector2(0, 36), 50, FontStyle.Bold, new Color(0.22f, 0.40f, 0.72f, 1f));
+        onlineRoomCodeText = MakeCardText("CodeLabel", onlineWaitingSection.transform, new Vector2(0, 90), 50, FontStyle.Bold, new Color(0.22f, 0.40f, 0.72f, 1f));
         onlineRoomCodeText.text = "";
-        onlineRoomCodeText.GetComponent<RectTransform>().sizeDelta = new Vector2(600f, 70f);
+        onlineRoomCodeText.GetComponent<RectTransform>().sizeDelta = new Vector2(620f, 70f);
 
-        var codeHint = MakeCardText("CodeHint", onlineWaitingSection.transform, new Vector2(0, -24), 26, FontStyle.Normal, TextMuted);
+        var codeHint = MakeCardText("CodeHint", onlineWaitingSection.transform, new Vector2(0, 30), 26, FontStyle.Normal, TextMuted);
         onlineCodeHintText = codeHint;
         codeHint.text = "Share this code with your friends";
         codeHint.GetComponent<RectTransform>().sizeDelta = new Vector2(600f, 40f);
 
-        // Player count label
-        onlinePlayerCountText = MakeCardText("PlayerCount", onlineWaitingSection.transform, new Vector2(0, -70), 28, FontStyle.Normal, TextMuted);
+        onlinePlayerCountText = MakeCardText("PlayerCount", onlineWaitingSection.transform, new Vector2(0, -20), 28, FontStyle.Normal, TextMuted);
         onlinePlayerCountText.text = "1 player in room";
         onlinePlayerCountText.GetComponent<RectTransform>().sizeDelta = new Vector2(600f, 40f);
 
-        // Start Game button (host only, initially hidden)
-        onlineStartBtn = CreateCardButton("▶  Start Game", onlineWaitingSection.transform, new Vector2(0, -120), new Color(0.18f, 0.72f, 0.40f));
+        onlineStartBtn = CreateCardButton("▶  Start Game", onlineWaitingSection.transform, new Vector2(0, -90), new Color(0.18f, 0.72f, 0.40f));
         onlineStartBtn.gameObject.SetActive(false);
         onlineStartBtn.onClick.AddListener(() => OnlineManager.Instance?.StartGame());
 
-        // ── Status text ─────────────────────────────────────────────────────────
-        onlineStatusText = MakeCardText("Status", card.transform, new Vector2(0, -195), 28, FontStyle.Normal, TextMuted);
+        // ── Status text ──────────────────────────────────────────────────────────
+        onlineStatusText = MakeCardText("Status", card.transform, new Vector2(0, -220), 26, FontStyle.Normal, TextMuted);
         onlineStatusText.text = "Find an opponent or create a room for friends";
-        onlineStatusText.GetComponent<RectTransform>().sizeDelta = new Vector2(600f, 44f);
+        onlineStatusText.GetComponent<RectTransform>().sizeDelta = new Vector2(620f, 44f);
 
-        // ── Cancel / Close button ───────────────────────────────────────────────
-        onlineCancelBtn = CreateCardButton("Cancel", card.transform, new Vector2(0, -260), new Color(0.88f, 0.86f, 0.84f));
+        // ── Cancel button ────────────────────────────────────────────────────────
+        onlineCancelBtn = CreateCardButton("Cancel", card.transform, new Vector2(0, -285), new Color(0.88f, 0.86f, 0.84f));
         var cancelTxt = onlineCancelBtn.GetComponentInChildren<Text>();
         if (cancelTxt != null) cancelTxt.color = TextDark;
         onlineCancelBtn.onClick.AddListener(() =>
