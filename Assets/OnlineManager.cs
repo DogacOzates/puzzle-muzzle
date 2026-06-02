@@ -149,6 +149,27 @@ public class OnlineManager : MonoBehaviour
         SetState(MatchState.Idle);
     }
 
+    /// <summary>Stay in the same room and start a new round with a different level.</summary>
+    public void StartRematch()
+    {
+#if PHOTON_UNITY_NETWORKING
+        if (!PhotonNetwork.InRoom) { LeaveMatch(); return; }
+        _matchActive = false;
+        SetState(MatchState.WaitingForOpponent);
+        // Only master client picks the new level (must differ from the last one)
+        if (PhotonNetwork.IsMasterClient)
+        {
+            int newLvl;
+            do { newLvl = UnityEngine.Random.Range(0, 300); } while (newLvl == _levelIndex);
+            var props = new ExitGames.Client.Photon.Hashtable { { PROP_LEVEL, newLvl }, { PROP_STATE, "starting" } };
+            PhotonNetwork.CurrentRoom.IsOpen = false;
+            PhotonNetwork.CurrentRoom.SetCustomProperties(props);
+        }
+#else
+        LeaveMatch();
+#endif
+    }
+
     public int GetLevelIndex() => _levelIndex;
 
     // ──────────────────────────────────────────────────────

@@ -1750,22 +1750,21 @@ public class UIManager : MonoBehaviour
         var emoji = MakeCardText("Emoji", card.transform, new Vector2(0, 130), 72, FontStyle.Normal, TextDark);
         emoji.text = iWon ? "🏆" : "😔";
 
-        var title = MakeCardText("Title", card.transform, new Vector2(0, 55), 48, FontStyle.Bold, iWon ? new Color(0.22f, 0.40f, 0.72f) : TextMuted);
-        title.text = iWon ? "You Win!" : "Nice Try!";
+        var title = MakeCardText("Title", card.transform, new Vector2(0, 55), 48, FontStyle.Bold, iWon ? new Color(0.22f, 0.40f, 0.72f) : new Color(0.85f, 0.25f, 0.25f));
+        title.text = iWon ? "Kazandın!" : "Kaybettin!";
 
         var sub = MakeCardText("Sub", card.transform, new Vector2(0, -10), 28, FontStyle.Normal, TextMuted);
-        sub.text = iWon ? "You solved the puzzle first!" : "Your opponent was faster this time.";
+        sub.text = iWon ? "Bulmacayı ilk sen çözdün!" : "Rakibin bu sefer daha hızlıydı.";
         sub.GetComponent<RectTransform>().sizeDelta = new Vector2(560f, 44f);
 
-        var rematchBtn = CreateCardButton("Play Again", card.transform, new Vector2(0, -105), new Color(0.22f, 0.40f, 0.72f));
+        var rematchBtn = CreateCardButton("Tekrar Oyna", card.transform, new Vector2(0, -105), new Color(0.22f, 0.40f, 0.72f));
         rematchBtn.onClick.AddListener(() =>
         {
             Destroy(popupGo);
-            OnlineManager.Instance?.LeaveMatch();
-            ShowOnlineModePopup();
+            OnlineManager.Instance?.StartRematch();
         });
 
-        var closeBtn = CreateCardButton("Back to Menu", card.transform, new Vector2(0, -188), new Color(0.88f, 0.86f, 0.84f));
+        var closeBtn = CreateCardButton("Ana Menü", card.transform, new Vector2(0, -188), new Color(0.88f, 0.86f, 0.84f));
         var closeTxt = closeBtn.GetComponentInChildren<Text>(); if (closeTxt != null) closeTxt.color = TextDark;
         closeBtn.onClick.AddListener(() =>
         {
