@@ -130,6 +130,9 @@ public class UIManager : MonoBehaviour
         CreateTransitionOverlay();
 
         ThemeManager.OnThemeChanged += OnThemeChanged;
+
+        // Apply theme immediately so startup state matches saved preference
+        OnThemeChanged();
     }
 
     private void OnDestroy()
@@ -169,6 +172,15 @@ public class UIManager : MonoBehaviour
         // Cart icon: teal in light mode, white in dark mode
         if (cartIconImage != null)
             cartIconImage.color = dark ? Color.white : new Color(0.18f, 0.55f, 0.62f, 1f);
+
+        // Hint badge text color
+        if (hintFreeBadgeText != null)
+            hintFreeBadgeText.color = dark ? Color.white : Color.black;
+
+        // Camera background
+        var cam = Camera.main;
+        if (cam != null)
+            cam.backgroundColor = tm.BgColor;
 
         // Transition overlay
         if (transitionOverlayImage != null)
@@ -332,7 +344,11 @@ public class UIManager : MonoBehaviour
         cartRect.anchorMax = new Vector2(0, 0);
         cartBtn.onClick.AddListener(() => FindAnyObjectByType<GameManager>()?.OpenHintStore(grantOnWatch: false));
         var cartIconImg = cartBtn.transform.Find("Icon")?.GetComponent<Image>();
-        if (cartIconImg != null) cartIconImg.color = new Color(0.18f, 0.55f, 0.62f, 1f);
+        if (cartIconImg != null)
+        {
+            bool darkNow = ThemeManager.Instance?.IsDarkMode ?? false;
+            cartIconImg.color = darkNow ? Color.white : new Color(0.18f, 0.55f, 0.62f, 1f);
+        }
         cartIconImage = cartIconImg;
         StartCoroutine(CartGlowCoroutine());
 
@@ -370,7 +386,7 @@ public class UIManager : MonoBehaviour
         hintFreeBadgeText.alignment = TextAnchor.MiddleCenter;
         hintFreeBadgeText.horizontalOverflow = HorizontalWrapMode.Overflow;
         hintFreeBadgeText.verticalOverflow = VerticalWrapMode.Overflow;
-        hintFreeBadgeText.color = Color.black;
+        hintFreeBadgeText.color = (ThemeManager.Instance?.IsDarkMode ?? false) ? Color.white : Color.black;
         hintFreeBadgeText.text = "0";
         hintFreeBadgeObj.SetActive(true);
 
