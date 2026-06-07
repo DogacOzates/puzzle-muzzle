@@ -25,7 +25,7 @@ public class MonetizationManager : MonoBehaviour
     public string NoAdsButtonLabel => "No Ads\n" + NoAdsPrice;
 
     // Hint pack prices (updated when IAP store is ready)
-    public string HintStarterPrice { get; private set; } = "$0.49";
+    public string HintStarterPrice { get; private set; } = "$0.99";
     public string HintPack5Price   { get; private set; } = "$0.99";
     public string HintPack20Price  { get; private set; } = "$2.99";
     public string HintPack60Price  { get; private set; } = "$5.99";
@@ -44,7 +44,7 @@ public class MonetizationManager : MonoBehaviour
         if (NoAdsPurchasesEnabled)
         {
             iapBridge = new NoAdsIapBridge(NoAdsProductId, OnNoAdsPurchased, OnNoAdsPriceUpdated);
-            iapBridge.AddHintPack(HintStarterPackId, 10, OnStarterPackGranted, p => OnHintPackPrice(HintStarterPackId, p));
+            iapBridge.AddHintPack(HintStarterPackId, 15, OnStarterPackGranted, p => OnHintPackPrice(HintStarterPackId, p));
             iapBridge.AddHintPack(HintPack5Id,  5,  OnHintPackGranted, p => OnHintPackPrice(HintPack5Id,  p));
             iapBridge.AddHintPack(HintPack20Id, 20, OnHintPackGranted, p => OnHintPackPrice(HintPack20Id, p));
             iapBridge.AddHintPack(HintPack60Id, 60, OnHintPackGranted, p => OnHintPackPrice(HintPack60Id, p));
