@@ -1548,7 +1548,7 @@ public class UIManager : MonoBehaviour
         }
         else
         {
-            BuildRow("Remove All Ads", "No more ads. Forever.",
+            BuildRow("Remove All Ads", "No more ads. Unlimited hints. Forever.",
                      noAdsPrice, new Color(0.92f, 0.68f, 0.08f, 1f), onBuyNoAds, card.transform, y);
         }
 
