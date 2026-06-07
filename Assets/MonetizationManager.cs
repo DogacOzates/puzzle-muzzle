@@ -3,14 +3,16 @@ using UnityEngine;
 
 public class MonetizationManager : MonoBehaviour
 {
-    public const string NoAdsProductId    = "com.dogac.puzzlemuzzle.removeads";
-    public const string HintPack5Id       = "com.dogac.puzzlemuzzle.hints.5";
-    public const string HintPack20Id      = "com.dogac.puzzlemuzzle.hints.20";
-    public const string HintPack60Id      = "com.dogac.puzzlemuzzle.hints.60";
+    public const string NoAdsProductId      = "com.dogac.puzzlemuzzle.removeads";
+    public const string HintStarterPackId   = "com.dogac.puzzlemuzzle.hints.starter";
+    public const string HintPack5Id         = "com.dogac.puzzlemuzzle.hints.5";
+    public const string HintPack20Id        = "com.dogac.puzzlemuzzle.hints.20";
+    public const string HintPack60Id        = "com.dogac.puzzlemuzzle.hints.60";
 
-    private const bool NoAdsPurchasesEnabled = true;
-    private const string NoAdsPurchasedKey   = "monetization.noads.purchased";
-    private const string DefaultNoAdsPrice   = "$9.99";
+    private const bool NoAdsPurchasesEnabled    = true;
+    private const string NoAdsPurchasedKey      = "monetization.noads.purchased";
+    private const string StarterPackUsedKey     = "hints.starter.used";
+    private const string DefaultNoAdsPrice      = "$9.99";
 
     private LevelGateAdsBridge adsBridge;
     private NoAdsIapBridge iapBridge;
@@ -23,9 +25,11 @@ public class MonetizationManager : MonoBehaviour
     public string NoAdsButtonLabel => "No Ads\n" + NoAdsPrice;
 
     // Hint pack prices (updated when IAP store is ready)
-    public string HintPack5Price  { get; private set; } = "$0.99";
-    public string HintPack20Price { get; private set; } = "$2.99";
-    public string HintPack60Price { get; private set; } = "$5.99";
+    public string HintStarterPrice { get; private set; } = "$0.49";
+    public string HintPack5Price   { get; private set; } = "$0.99";
+    public string HintPack20Price  { get; private set; } = "$2.99";
+    public string HintPack60Price  { get; private set; } = "$5.99";
+    public bool   IsStarterPackAvailable => PlayerPrefs.GetInt(StarterPackUsedKey, 0) == 0;
 
     public event Action NoAdsStateChanged;
     public event Action NoAdsPriceChanged;
@@ -40,6 +44,7 @@ public class MonetizationManager : MonoBehaviour
         if (NoAdsPurchasesEnabled)
         {
             iapBridge = new NoAdsIapBridge(NoAdsProductId, OnNoAdsPurchased, OnNoAdsPriceUpdated);
+            iapBridge.AddHintPack(HintStarterPackId, 10, OnStarterPackGranted, p => OnHintPackPrice(HintStarterPackId, p));
             iapBridge.AddHintPack(HintPack5Id,  5,  OnHintPackGranted, p => OnHintPackPrice(HintPack5Id,  p));
             iapBridge.AddHintPack(HintPack20Id, 20, OnHintPackGranted, p => OnHintPackPrice(HintPack20Id, p));
             iapBridge.AddHintPack(HintPack60Id, 60, OnHintPackGranted, p => OnHintPackPrice(HintPack60Id, p));
@@ -112,6 +117,13 @@ public class MonetizationManager : MonoBehaviour
 
     private void OnHintPackGranted(int amount) => HintPackGranted?.Invoke(amount);
 
+    private void OnStarterPackGranted(int amount)
+    {
+        PlayerPrefs.SetInt(StarterPackUsedKey, 1);
+        PlayerPrefs.Save();
+        HintPackGranted?.Invoke(amount);
+    }
+
     private void OnNoAdsPurchased()
     {
         if (IsNoAdsPurchased) return;
@@ -133,9 +145,10 @@ public class MonetizationManager : MonoBehaviour
     private void OnHintPackPrice(string productId, string price)
     {
         if (string.IsNullOrEmpty(price) || price == "$0.01" || price == "0.01") return;
-        if (productId == HintPack5Id)       HintPack5Price  = price;
-        else if (productId == HintPack20Id) HintPack20Price = price;
-        else if (productId == HintPack60Id) HintPack60Price = price;
+        if (productId == HintStarterPackId) HintStarterPrice = price;
+        else if (productId == HintPack5Id)  HintPack5Price   = price;
+        else if (productId == HintPack20Id) HintPack20Price  = price;
+        else if (productId == HintPack60Id) HintPack60Price  = price;
         HintPackPricesChanged?.Invoke();
     }
 }

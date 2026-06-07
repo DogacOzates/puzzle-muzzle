@@ -1277,8 +1277,9 @@ public class UIManager : MonoBehaviour
     // ─────────────────────────────────────────────────────────────────────────────
 
     public void ShowHintStore(
-        Action onWatchAd, Action onBuyPack5, Action onBuyPack20, Action onBuyPack60,
+        Action onWatchAd, Action onBuyStarter, Action onBuyPack5, Action onBuyPack20, Action onBuyPack60,
         Action onBuyNoAds, bool isNoAdsPurchased, string noAdsPrice,
+        bool isStarterAvailable, string starterPrice,
         string price5, string price20, string price60, int currentHints)
     {
         if (hintPromoPopup != null) Destroy(hintPromoPopup);
@@ -1408,7 +1409,7 @@ public class UIManager : MonoBehaviour
 
         // Helper to build a store row
         void BuildRow(string label, string sub, string priceStr, Color accentColor,
-                      Action onTap, Transform parent, float yPos, bool hasBestValue = false)
+                      Action onTap, Transform parent, float yPos)
         {
             var row = new GameObject("Row_" + label.Replace(" ", ""));
             row.transform.SetParent(parent, false);
@@ -1485,30 +1486,6 @@ public class UIManager : MonoBehaviour
             pt.font = defaultFont; pt.text = priceStr;
             pt.fontSize = 28; pt.fontStyle = FontStyle.Bold;
             pt.color = Color.white; pt.alignment = TextAnchor.MiddleCenter;
-
-            // Best Value badge
-            if (hasBestValue)
-            {
-                var bvObj = new GameObject("BestValue");
-                bvObj.transform.SetParent(row.transform, false);
-                var bvRT = bvObj.AddComponent<RectTransform>();
-                bvRT.anchorMin = new Vector2(1f, 1f); bvRT.anchorMax = new Vector2(1f, 1f);
-                bvRT.pivot = new Vector2(1f, 0f);
-                bvRT.anchoredPosition = new Vector2(-14f, 0f);
-                bvRT.sizeDelta = new Vector2(140f, 28f);
-                var bvImg = bvObj.AddComponent<Image>();
-                bvImg.sprite = SpriteGenerator.RoundedRect;
-                bvImg.color = new Color(0.98f, 0.72f, 0.08f, 1f);
-                var bvTxt = new GameObject("BVTxt");
-                bvTxt.transform.SetParent(bvObj.transform, false);
-                var bvtRT = bvTxt.AddComponent<RectTransform>();
-                bvtRT.anchorMin = Vector2.zero; bvtRT.anchorMax = Vector2.one;
-                bvtRT.offsetMin = Vector2.zero; bvtRT.offsetMax = Vector2.zero;
-                var bvt = bvTxt.AddComponent<Text>();
-                bvt.font = defaultFont; bvt.text = "BEST VALUE";
-                bvt.fontSize = 18; bvt.fontStyle = FontStyle.Bold;
-                bvt.color = Color.white; bvt.alignment = TextAnchor.MiddleCenter;
-            }
         }
 
         float y = rowTop;
@@ -1539,19 +1516,26 @@ public class UIManager : MonoBehaviour
             y -= rowH + rowGap;
         }
 
+        // ── First-Time Offer ─────────────────────────────────────────────────────
+        if (isStarterAvailable)
+        {
+            BuildStarterRow(starterPrice, onBuyStarter, card.transform, y);
+            y -= (rowH + 20f) + rowGap; // starter row is taller
+        }
+
         // ── Buy Hint Packs ────────────────────────────────────────────────────────
         SectionLabel("BUY HINTS", y);
         y -= 36f + 4f;
 
-        BuildRow("5 Hints",  "",          price5,  new Color(0.26f, 0.52f, 0.96f, 1f), onBuyPack5,  card.transform, y);
+        BuildRow("5 Hints",  "", price5,  new Color(0.26f, 0.52f, 0.96f, 1f), onBuyPack5,  card.transform, y);
         y -= rowH + rowGap;
-        BuildRow("20 Hints", "",          price20, new Color(0.26f, 0.52f, 0.96f, 1f), onBuyPack20, card.transform, y);
+        BuildRow("20 Hints", "", price20, new Color(0.26f, 0.52f, 0.96f, 1f), onBuyPack20, card.transform, y);
         y -= rowH + rowGap;
-        BuildRow("60 Hints", "",          price60, new Color(0.26f, 0.52f, 0.96f, 1f), onBuyPack60, card.transform, y, hasBestValue: true);
+        BuildRow("60 Hints", "", price60, new Color(0.26f, 0.52f, 0.96f, 1f), onBuyPack60, card.transform, y);
         y -= rowH + rowGap;
 
         // ── Remove Ads ────────────────────────────────────────────────────────────
-        y -= 4f; // extra gap before section label
+        y -= 4f;
         SectionLabel("REMOVE ADS", y);
         y -= 36f + 4f;
 
@@ -1570,6 +1554,106 @@ public class UIManager : MonoBehaviour
         float contentHeight = Mathf.Abs(y) + rowH + 24f;
         cardRect.sizeDelta = new Vector2(700f, contentHeight + 128f + 8f);
         shadowRect.sizeDelta = new Vector2(726f, cardRect.sizeDelta.y + 24f);
+    }
+
+    private void BuildStarterRow(string price, Action onTap, Transform parent, float yPos)
+    {
+        const float rowH = 108f;
+        var row = new GameObject("Row_StarterPack");
+        row.transform.SetParent(parent, false);
+        var rRT = row.AddComponent<RectTransform>();
+        rRT.anchorMin = new Vector2(0f, 1f); rRT.anchorMax = new Vector2(1f, 1f);
+        rRT.pivot = new Vector2(0.5f, 1f);
+        rRT.anchoredPosition = new Vector2(0f, yPos);
+        rRT.sizeDelta = new Vector2(-32f, rowH);
+
+        // Warm gradient-like background
+        var rImg = row.AddComponent<Image>();
+        rImg.sprite = SpriteGenerator.RoundedRect;
+        rImg.color = new Color(1.0f, 0.94f, 0.82f); // warm cream
+        var rBtn = row.AddComponent<Button>();
+        rBtn.targetGraphic = rImg;
+        var rc = rBtn.colors;
+        rc.highlightedColor = new Color(1.0f, 0.90f, 0.74f, 1f);
+        rc.pressedColor     = new Color(0.97f, 0.84f, 0.62f, 1f);
+        rBtn.colors = rc;
+        rBtn.onClick.AddListener(() => { HideHintPromoPopup(); onTap?.Invoke(); });
+
+        // Orange left stripe
+        var stripe = new GameObject("Stripe");
+        stripe.transform.SetParent(row.transform, false);
+        var stRT = stripe.AddComponent<RectTransform>();
+        stRT.anchorMin = new Vector2(0f, 0f); stRT.anchorMax = new Vector2(0f, 1f);
+        stRT.pivot = new Vector2(0f, 0.5f);
+        stRT.offsetMin = Vector2.zero; stRT.offsetMax = new Vector2(6f, 0f);
+        stripe.AddComponent<Image>().color = new Color(1.0f, 0.60f, 0.10f, 1f);
+
+        // "FIRST OFFER" badge top-left
+        var badge = new GameObject("Badge");
+        badge.transform.SetParent(row.transform, false);
+        var bdRT = badge.AddComponent<RectTransform>();
+        bdRT.anchorMin = new Vector2(0f, 1f); bdRT.anchorMax = new Vector2(0f, 1f);
+        bdRT.pivot = new Vector2(0f, 1f);
+        bdRT.anchoredPosition = new Vector2(14f, 0f);
+        bdRT.sizeDelta = new Vector2(160f, 30f);
+        var bdImg = badge.AddComponent<Image>();
+        bdImg.sprite = SpriteGenerator.RoundedRect;
+        bdImg.color = new Color(1.0f, 0.45f, 0.10f, 1f); // orange
+        var bdTxtObj = new GameObject("BadgeTxt");
+        bdTxtObj.transform.SetParent(badge.transform, false);
+        var bdtRT = bdTxtObj.AddComponent<RectTransform>();
+        bdtRT.anchorMin = Vector2.zero; bdtRT.anchorMax = Vector2.one;
+        bdtRT.offsetMin = Vector2.zero; bdtRT.offsetMax = Vector2.zero;
+        var bdt = bdTxtObj.AddComponent<Text>();
+        bdt.font = defaultFont; bdt.text = "FIRST TIME OFFER";
+        bdt.fontSize = 19; bdt.fontStyle = FontStyle.Bold;
+        bdt.color = Color.white; bdt.alignment = TextAnchor.MiddleCenter;
+
+        // Main label
+        var lbl = new GameObject("Label");
+        lbl.transform.SetParent(row.transform, false);
+        var lblRT = lbl.AddComponent<RectTransform>();
+        lblRT.anchorMin = new Vector2(0f, 0.5f); lblRT.anchorMax = new Vector2(1f, 0.5f);
+        lblRT.pivot = new Vector2(0f, 0.5f);
+        lblRT.anchoredPosition = new Vector2(18f, 12f);
+        lblRT.sizeDelta = new Vector2(-180f, 36f);
+        var lt = lbl.AddComponent<Text>();
+        lt.font = defaultFont; lt.text = "Starter Pack  —  10 Hints";
+        lt.fontSize = 30; lt.fontStyle = FontStyle.Bold;
+        lt.color = new Color(0.55f, 0.28f, 0.05f); lt.alignment = TextAnchor.MiddleLeft;
+
+        // Sub label
+        var sub = new GameObject("Sub");
+        sub.transform.SetParent(row.transform, false);
+        var sRT = sub.AddComponent<RectTransform>();
+        sRT.anchorMin = new Vector2(0f, 0.5f); sRT.anchorMax = new Vector2(1f, 0.5f);
+        sRT.pivot = new Vector2(0f, 0.5f);
+        sRT.anchoredPosition = new Vector2(18f, -14f);
+        sRT.sizeDelta = new Vector2(-180f, 28f);
+        var st = sub.AddComponent<Text>();
+        st.font = defaultFont; st.text = "One-time deal — never shown again";
+        st.fontSize = 24; st.color = new Color(0.65f, 0.38f, 0.10f); st.alignment = TextAnchor.MiddleLeft;
+
+        // Price pill (orange)
+        var pill = new GameObject("PricePill");
+        pill.transform.SetParent(row.transform, false);
+        var pRT = pill.AddComponent<RectTransform>();
+        pRT.anchorMin = new Vector2(1f, 0.5f); pRT.anchorMax = new Vector2(1f, 0.5f);
+        pRT.pivot = new Vector2(1f, 0.5f);
+        pRT.anchoredPosition = new Vector2(-14f, 0f);
+        pRT.sizeDelta = new Vector2(140f, 52f);
+        var pImg = pill.AddComponent<Image>();
+        pImg.sprite = SpriteGenerator.RoundedRect;
+        pImg.color = new Color(1.0f, 0.48f, 0.10f, 1f);
+        var pTxtObj = new GameObject("PriceTxt");
+        pTxtObj.transform.SetParent(pill.transform, false);
+        var ptRT = pTxtObj.AddComponent<RectTransform>();
+        ptRT.anchorMin = Vector2.zero; ptRT.anchorMax = Vector2.one;
+        ptRT.offsetMin = Vector2.zero; ptRT.offsetMax = Vector2.zero;
+        var pt = pTxtObj.AddComponent<Text>();
+        pt.font = defaultFont; pt.text = price;
+        pt.fontSize = 28; pt.fontStyle = FontStyle.Bold;
+        pt.color = Color.white; pt.alignment = TextAnchor.MiddleCenter;
     }
 
     public void HideHintPromoPopup()

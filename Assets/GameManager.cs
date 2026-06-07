@@ -402,17 +402,20 @@ public class GameManager : MonoBehaviour
             : (Action)(() => monetizationManager.ShowRewardedHintAdIfNeeded(() => AddFreeHints(1)));
 
         uiManager?.ShowHintStore(
-            onWatchAd:     onWatchAd,
-            onBuyPack5:    () => PurchaseHintPack(MonetizationManager.HintPack5Id),
-            onBuyPack20:   () => PurchaseHintPack(MonetizationManager.HintPack20Id),
-            onBuyPack60:   () => PurchaseHintPack(MonetizationManager.HintPack60Id),
-            onBuyNoAds:    () => PurchaseNoAds(),
-            isNoAdsPurchased: monetizationManager.IsNoAdsPurchased,
-            noAdsPrice:    monetizationManager.NoAdsPrice,
-            price5:        monetizationManager.HintPack5Price,
-            price20:       monetizationManager.HintPack20Price,
-            price60:       monetizationManager.HintPack60Price,
-            currentHints:  GetFreeHints()
+            onWatchAd:          onWatchAd,
+            onBuyStarter:       () => PurchaseHintPack(MonetizationManager.HintStarterPackId),
+            onBuyPack5:         () => PurchaseHintPack(MonetizationManager.HintPack5Id),
+            onBuyPack20:        () => PurchaseHintPack(MonetizationManager.HintPack20Id),
+            onBuyPack60:        () => PurchaseHintPack(MonetizationManager.HintPack60Id),
+            onBuyNoAds:         () => PurchaseNoAds(),
+            isNoAdsPurchased:   monetizationManager.IsNoAdsPurchased,
+            noAdsPrice:         monetizationManager.NoAdsPrice,
+            isStarterAvailable: monetizationManager.IsStarterPackAvailable,
+            starterPrice:       monetizationManager.HintStarterPrice,
+            price5:             monetizationManager.HintPack5Price,
+            price20:            monetizationManager.HintPack20Price,
+            price60:            monetizationManager.HintPack60Price,
+            currentHints:       GetFreeHints()
         );
     }
 
