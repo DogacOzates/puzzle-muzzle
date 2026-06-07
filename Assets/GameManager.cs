@@ -386,6 +386,61 @@ public class GameManager : MonoBehaviour
     }
 
     // --- Free Hint Helpers ---
+    // ── Referral System ──────────────────────────────────────────────────────────
+
+    public string GetReferralCode()
+    {
+        string code = PlayerPrefs.GetString("referral.myCode", "");
+        if (string.IsNullOrEmpty(code))
+        {
+            string raw = SystemInfo.deviceUniqueIdentifier.Replace("-", "").ToUpper();
+            // Ensure only alphanumeric, 6 chars
+            var sb = new System.Text.StringBuilder();
+            foreach (char c in raw)
+                if (char.IsLetterOrDigit(c)) sb.Append(c);
+            string cleaned = sb.ToString();
+            code = cleaned.Length >= 6 ? cleaned.Substring(0, 6) : cleaned.PadRight(6, '0');
+            PlayerPrefs.SetString("referral.myCode", code);
+            PlayerPrefs.Save();
+        }
+        return code;
+    }
+
+    public void ShareReferralCode()
+    {
+        string code = GetReferralCode();
+        if (PlayerPrefs.GetInt("referral.shared", 0) == 0)
+        {
+            PlayerPrefs.SetInt("referral.shared", 1);
+            PlayerPrefs.Save();
+            AddFreeHints(5);
+            uiManager?.ShowToast("Shared! +5 Hints added 🎉");
+        }
+        string msg = $"Play Puzzle Muzzle with me! Enter code {code} to get 10 free hints! 🧩";
+        NativeShare.Share(msg);
+    }
+
+    public void ClaimReferralCode(string code, System.Action<bool, string> onResult)
+    {
+        code = code.Trim().ToUpper();
+        if (string.IsNullOrEmpty(code) || code.Length < 4)
+        {
+            onResult(false, "Enter a valid code."); return;
+        }
+        if (code == GetReferralCode())
+        {
+            onResult(false, "You can't use your own code!"); return;
+        }
+        if (PlayerPrefs.GetInt("referral.claimed", 0) == 1)
+        {
+            onResult(false, "You already claimed a referral code."); return;
+        }
+        PlayerPrefs.SetInt("referral.claimed", 1);
+        PlayerPrefs.Save();
+        AddFreeHints(10);
+        onResult(true, "+10 Hints added! Thanks for connecting.");
+    }
+
     private int GetFreeHints() => PlayerPrefs.GetInt("hints.free", 0);
 
     private void AddFreeHints(int amount)

@@ -2588,7 +2588,7 @@ public class UIManager : MonoBehaviour
         shadowRect.anchorMin = new Vector2(0.5f, 0.5f);
         shadowRect.anchorMax = new Vector2(0.5f, 0.5f);
         shadowRect.pivot = new Vector2(0.5f, 0.5f);
-        shadowRect.sizeDelta = new Vector2(666f, 460f);
+        shadowRect.sizeDelta = new Vector2(666f, 570f);
         shadowRect.anchoredPosition = new Vector2(4f, -8f);
         var shadowImg = shadowObj.AddComponent<Image>();
         shadowImg.sprite = SpriteGenerator.RoundedRect;
@@ -2601,7 +2601,7 @@ public class UIManager : MonoBehaviour
         cardRect.anchorMin = new Vector2(0.5f, 0.5f);
         cardRect.anchorMax = new Vector2(0.5f, 0.5f);
         cardRect.pivot = new Vector2(0.5f, 0.5f);
-        cardRect.sizeDelta = new Vector2(640f, 430f);
+        cardRect.sizeDelta = new Vector2(640f, 540f);
         var cardImg = card.AddComponent<Image>();
         cardImg.sprite = SpriteGenerator.RoundedRect;
         cardImg.color = cardColor;
@@ -2629,8 +2629,22 @@ public class UIManager : MonoBehaviour
         CreateToggleRow(card.transform, "🌙  Dark Mode", darkOn, new Vector2(0, -140), (val) =>
         {
             if (ThemeManager.Instance != null) ThemeManager.Instance.IsDarkMode = val;
-            // Update card color live
             cardImg.color = ThemeManager.Instance != null ? ThemeManager.Instance.CardBg : cardColor;
+        });
+
+        // ─── Invite Friends button ───────────────────────────────────────────
+        var inviteBtn = CreateCardButton("🤝  Invite Friends — Get Free Hints", card.transform, new Vector2(0, -248), new Color(0.18f, 0.55f, 0.62f));
+        inviteBtn.GetComponent<RectTransform>().sizeDelta = new Vector2(560f, 68f);
+        inviteBtn.onClick.AddListener(() =>
+        {
+            Destroy(popup);
+            var gm = FindAnyObjectByType<GameManager>();
+            if (gm == null) return;
+            ShowInvitePopup(
+                gm.GetReferralCode(),
+                () => gm.ShareReferralCode(),
+                (code) => gm.ClaimReferralCode(code, (ok, msg) => ShowToast(msg))
+            );
         });
     }
 
@@ -2735,6 +2749,159 @@ public class UIManager : MonoBehaviour
         RefreshLevelSelectButtons(currentLevelIndex, highestUnlockedLevelIndex, totalLevels);
         levelSelectPanel.SetActive(true);
         StartCoroutine(ScrollToCurrentLevelButton(currentLevelIndex));
+    }
+
+    }
+
+    // ── Toast notification ────────────────────────────────────────────────────
+    public void ShowToast(string message)
+    {
+        StartCoroutine(ToastCoroutine(message));
+    }
+
+    private IEnumerator ToastCoroutine(string message)
+    {
+        var go = new GameObject("Toast");
+        go.transform.SetParent(canvas.transform, false);
+        go.transform.SetAsLastSibling();
+        var rect = go.AddComponent<RectTransform>();
+        rect.anchorMin = new Vector2(0.5f, 0f);
+        rect.anchorMax = new Vector2(0.5f, 0f);
+        rect.pivot = new Vector2(0.5f, 0f);
+        rect.anchoredPosition = new Vector2(0f, 220f);
+        rect.sizeDelta = new Vector2(500f, 68f);
+        var bg = go.AddComponent<Image>();
+        bg.sprite = SpriteGenerator.RoundedRect;
+        bg.color = new Color(0.10f, 0.10f, 0.12f, 0.92f);
+        var txt = new GameObject("Txt"); txt.transform.SetParent(go.transform, false);
+        var tr = txt.AddComponent<RectTransform>();
+        tr.anchorMin = Vector2.zero; tr.anchorMax = Vector2.one;
+        tr.offsetMin = Vector2.zero; tr.offsetMax = Vector2.zero;
+        var t = txt.AddComponent<Text>();
+        t.font = defaultFont; t.text = message;
+        t.fontSize = 28; t.color = Color.white; t.alignment = TextAnchor.MiddleCenter;
+        t.horizontalOverflow = HorizontalWrapMode.Overflow;
+        yield return new WaitForSeconds(2.2f);
+        if (go != null) Destroy(go);
+    }
+
+    // ── Invite Friends Popup ──────────────────────────────────────────────────
+    public void ShowInvitePopup(string myCode, System.Action onShare, System.Action<string> onClaim)
+    {
+        var overlay = new GameObject("InviteOverlay");
+        overlay.transform.SetParent(canvas.transform, false);
+        overlay.transform.SetAsLastSibling();
+        var oRect = overlay.AddComponent<RectTransform>();
+        oRect.anchorMin = Vector2.zero; oRect.anchorMax = Vector2.one;
+        oRect.offsetMin = Vector2.zero; oRect.offsetMax = Vector2.zero;
+        var oImg = overlay.AddComponent<Image>();
+        oImg.color = new Color(0f, 0f, 0f, 0.6f);
+        var oBtn = overlay.AddComponent<Button>();
+        oBtn.onClick.AddListener(() => Destroy(overlay));
+
+        var card = new GameObject("Card");
+        card.transform.SetParent(overlay.transform, false);
+        var cRect = card.AddComponent<RectTransform>();
+        cRect.anchorMin = new Vector2(0.5f, 0.5f); cRect.anchorMax = new Vector2(0.5f, 0.5f);
+        cRect.pivot = new Vector2(0.5f, 0.5f);
+        cRect.anchoredPosition = Vector2.zero;
+        cRect.sizeDelta = new Vector2(560f, 560f);
+        var cImg = card.AddComponent<Image>();
+        cImg.sprite = SpriteGenerator.RoundedRect;
+        cImg.color = new Color(0.12f, 0.10f, 0.18f, 1f);
+        // Prevent overlay tap from propagating through card
+        var cBtn = card.AddComponent<Button>(); cBtn.onClick.AddListener(() => {});
+        cBtn.targetGraphic = cImg;
+
+        // Header
+        var hdr = new GameObject("Header"); hdr.transform.SetParent(card.transform, false);
+        var hRect = hdr.AddComponent<RectTransform>();
+        hRect.anchorMin = new Vector2(0f,1f); hRect.anchorMax = new Vector2(1f,1f);
+        hRect.pivot = new Vector2(0.5f,1f); hRect.anchoredPosition = Vector2.zero;
+        hRect.sizeDelta = new Vector2(0f, 90f);
+        hdr.AddComponent<Image>().color = new Color(0.18f, 0.55f, 0.62f);
+        var hTxt = new GameObject("HTxt"); hTxt.transform.SetParent(hdr.transform, false);
+        var htRect = hTxt.AddComponent<RectTransform>();
+        htRect.anchorMin = Vector2.zero; htRect.anchorMax = Vector2.one;
+        htRect.offsetMin = Vector2.zero; htRect.offsetMax = Vector2.zero;
+        var ht = hTxt.AddComponent<Text>();
+        ht.font = defaultFont; ht.text = "🤝  Invite Friends";
+        ht.fontSize = 34; ht.fontStyle = FontStyle.Bold;
+        ht.color = Color.white; ht.alignment = TextAnchor.MiddleCenter;
+
+        // YOUR CODE section
+        var codeLabel = MakeCardText("CodeLbl", card.transform, new Vector2(0, -110), 24, FontStyle.Normal, new Color(0.72f,0.68f,0.82f));
+        codeLabel.text = "YOUR INVITE CODE";
+
+        // Code box
+        var codeBox = new GameObject("CodeBox"); codeBox.transform.SetParent(card.transform, false);
+        var cbRect2 = codeBox.AddComponent<RectTransform>();
+        cbRect2.anchorMin = new Vector2(0.5f,1f); cbRect2.anchorMax = new Vector2(0.5f,1f);
+        cbRect2.pivot = new Vector2(0.5f,1f);
+        cbRect2.anchoredPosition = new Vector2(0f, -138f);
+        cbRect2.sizeDelta = new Vector2(400f, 76f);
+        codeBox.AddComponent<Image>().color = new Color(0.22f,0.18f,0.32f);
+        var codeTxt = new GameObject("CodeTxt"); codeTxt.transform.SetParent(codeBox.transform, false);
+        var ctRect2 = codeTxt.AddComponent<RectTransform>();
+        ctRect2.anchorMin = Vector2.zero; ctRect2.anchorMax = Vector2.one;
+        ctRect2.offsetMin = Vector2.zero; ctRect2.offsetMax = Vector2.zero;
+        var ct2 = codeTxt.AddComponent<Text>();
+        ct2.font = defaultFont; ct2.text = myCode;
+        ct2.fontSize = 48; ct2.fontStyle = FontStyle.Bold;
+        ct2.color = new Color(0.35f, 0.92f, 0.78f); ct2.alignment = TextAnchor.MiddleCenter;
+        ct2.horizontalOverflow = HorizontalWrapMode.Overflow;
+
+        // Share button
+        var shareBtn = CreateCardButton("📤  Share & Get +5 Hints", card.transform, new Vector2(0, -250), new Color(0.18f, 0.62f, 0.55f));
+        shareBtn.GetComponent<RectTransform>().sizeDelta = new Vector2(460f, 64f);
+        shareBtn.onClick.AddListener(() => { onShare?.Invoke(); Destroy(overlay); });
+
+        // Divider label
+        var divLbl = MakeCardText("Div", card.transform, new Vector2(0, -328), 22, FontStyle.Normal, new Color(0.55f,0.50f,0.65f));
+        divLbl.text = "— OR ENTER A FRIEND'S CODE —";
+
+        // Input field
+        var inputGo = new GameObject("CodeInput"); inputGo.transform.SetParent(card.transform, false);
+        var inRect = inputGo.AddComponent<RectTransform>();
+        inRect.anchorMin = new Vector2(0.5f,1f); inRect.anchorMax = new Vector2(0.5f,1f);
+        inRect.pivot = new Vector2(0.5f,1f);
+        inRect.anchoredPosition = new Vector2(0f, -360f);
+        inRect.sizeDelta = new Vector2(460f, 64f);
+        var inBg = inputGo.AddComponent<Image>();
+        inBg.sprite = SpriteGenerator.RoundedRect;
+        inBg.color = new Color(0.22f, 0.18f, 0.32f);
+        var inputField = inputGo.AddComponent<InputField>();
+        inputField.targetGraphic = inBg;
+        var placeholder = new GameObject("Placeholder"); placeholder.transform.SetParent(inputGo.transform, false);
+        var phRect = placeholder.AddComponent<RectTransform>();
+        phRect.anchorMin = Vector2.zero; phRect.anchorMax = Vector2.one;
+        phRect.offsetMin = new Vector2(16,0); phRect.offsetMax = new Vector2(-16,0);
+        var phTxt = placeholder.AddComponent<Text>();
+        phTxt.font = defaultFont; phTxt.text = "Enter code here";
+        phTxt.fontSize = 28; phTxt.color = new Color(0.55f,0.50f,0.65f);
+        phTxt.alignment = TextAnchor.MiddleCenter;
+        phTxt.horizontalOverflow = HorizontalWrapMode.Overflow;
+        var inputText = new GameObject("Text"); inputText.transform.SetParent(inputGo.transform, false);
+        var itRect = inputText.AddComponent<RectTransform>();
+        itRect.anchorMin = Vector2.zero; itRect.anchorMax = Vector2.one;
+        itRect.offsetMin = new Vector2(16,0); itRect.offsetMax = new Vector2(-16,0);
+        var it = inputText.AddComponent<Text>();
+        it.font = defaultFont; it.fontSize = 30; it.fontStyle = FontStyle.Bold;
+        it.color = new Color(0.35f, 0.92f, 0.78f); it.alignment = TextAnchor.MiddleCenter;
+        it.horizontalOverflow = HorizontalWrapMode.Overflow;
+        inputField.textComponent = it;
+        inputField.placeholder = phTxt;
+        inputField.characterLimit = 8;
+        inputField.characterValidation = InputField.CharacterValidation.Alphanumeric;
+
+        // Claim button
+        var claimBtn = CreateCardButton("Get +10 Hints", card.transform, new Vector2(0, -450), new Color(0.85f, 0.62f, 0.08f));
+        claimBtn.GetComponent<RectTransform>().sizeDelta = new Vector2(460f, 64f);
+        claimBtn.onClick.AddListener(() =>
+        {
+            onClaim?.Invoke(inputField.text);
+            Destroy(overlay);
+        });
     }
 
     private IEnumerator ScrollToCurrentLevelButton(int idx)
