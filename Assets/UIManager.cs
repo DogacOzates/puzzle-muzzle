@@ -89,6 +89,13 @@ public class UIManager : MonoBehaviour
     private Image settingsIconImg;
     private Image leaderboardButtonBg;
     private Text levelProgressTextRef;  // alias — same as levelProgressText
+    // Level select panel theme refs
+    private Image _lsPanelBg;
+    private Text  _lsBackArrowText;
+    private Image _lsOnlineCardBg;
+    private Text  _lsOnlineCardArrow;
+    private Text  _lsOnlineSub1;
+    private Text  _lsOnlineSub2;
 
     // Colors
     private static readonly Color BtnTeal = new Color(0.25f, 0.78f, 0.72f);
@@ -169,6 +176,21 @@ public class UIManager : MonoBehaviour
         // Level select buttons — re-apply section-specific colors using stored state
         if (levelSelectButtonImages != null && _lsTotalLevels > 0)
             RefreshLevelSelectButtons(_lsCurrentIdx, _lsHighestUnlocked, _lsTotalLevels);
+
+        // Level select panel background + texts
+        Color lsBg   = dark ? new Color(0.09f, 0.09f, 0.12f, 1f) : new Color(0.931f, 0.914f, 0.894f, 1f);
+        Color lsTxt  = dark ? new Color(0.92f, 0.90f, 0.88f) : TextDark;
+        Color lsMuted = dark ? new Color(0.60f, 0.58f, 0.56f) : TextMuted;
+        if (_lsPanelBg      != null) _lsPanelBg.color      = lsBg;
+        if (_lsBackArrowText != null) _lsBackArrowText.color = lsTxt;
+        if (_lsHeaderTitle  != null) _lsHeaderTitle.color   = lsTxt;
+        // Online card
+        if (_lsOnlineCardBg != null)
+            _lsOnlineCardBg.color = dark ? new Color(0.18f, 0.20f, 0.30f, 1f) : new Color(0.91f, 0.93f, 0.97f, 1f);
+        if (_lsOnlineCardArrow != null)
+            _lsOnlineCardArrow.color = dark ? new Color(0.70f, 0.70f, 0.70f) : new Color(0.45f, 0.45f, 0.45f);
+        if (_lsOnlineSub1 != null) _lsOnlineSub1.color = lsMuted;
+        if (_lsOnlineSub2 != null) _lsOnlineSub2.color = lsMuted;
 
         // Cart icon: teal in light mode, white in dark mode
         if (cartIconImage != null)
@@ -577,7 +599,9 @@ public class UIManager : MonoBehaviour
         panelRect.offsetMax = Vector2.zero;
 
         var panelBg = panelObj.AddComponent<Image>();
-        panelBg.color = new Color(0.931f, 0.914f, 0.894f, 1f); // warm cream — NOT via levelSelectCardBg
+        bool lsDark = ThemeManager.Instance?.IsDarkMode ?? false;
+        panelBg.color = lsDark ? new Color(0.09f, 0.09f, 0.12f, 1f) : new Color(0.931f, 0.914f, 0.894f, 1f);
+        _lsPanelBg = panelBg;
 
         // ── Header (fixed, 120px tall) ──────────────────────────────────────────────
         var header = new GameObject("Header");
@@ -611,7 +635,8 @@ public class UIManager : MonoBehaviour
         var baTxt = backArrow.AddComponent<Text>();
         baTxt.font = defaultFont; baTxt.text = "‹"; baTxt.fontSize = 60;
         baTxt.fontStyle = FontStyle.Bold; baTxt.alignment = TextAnchor.MiddleCenter;
-        baTxt.color = TextDark;
+        baTxt.color = lsDark ? new Color(0.92f, 0.90f, 0.88f) : TextDark;
+        _lsBackArrowText = baTxt;
 
         // Title "Level X / Y"
         var georgiaFont = Font.CreateDynamicFontFromOSFont("Georgia", 72);
@@ -623,7 +648,8 @@ public class UIManager : MonoBehaviour
         _lsHeaderTitle = titleObj.AddComponent<Text>();
         _lsHeaderTitle.font = georgiaFont ?? defaultFont;
         _lsHeaderTitle.fontSize = 40; _lsHeaderTitle.fontStyle = FontStyle.Italic;
-        _lsHeaderTitle.alignment = TextAnchor.MiddleCenter; _lsHeaderTitle.color = TextDark;
+        _lsHeaderTitle.alignment = TextAnchor.MiddleCenter;
+        _lsHeaderTitle.color = lsDark ? new Color(0.92f, 0.90f, 0.88f) : TextDark;
         _lsHeaderTitle.text = "Level 1 / 900";
 
         // Settings gear (right)
@@ -726,7 +752,9 @@ public class UIManager : MonoBehaviour
         outerRect.offsetMin = new Vector2(16f, 12f); outerRect.offsetMax = new Vector2(-16f, -12f);
         var bg = outer.AddComponent<Image>();
         bg.sprite = SpriteGenerator.RoundedRect;
-        bg.color = new Color(0.91f, 0.93f, 0.97f, 1f);  // light blue-gray
+        bool ocDark = ThemeManager.Instance?.IsDarkMode ?? false;
+        bg.color = ocDark ? new Color(0.18f, 0.20f, 0.30f, 1f) : new Color(0.91f, 0.93f, 0.97f, 1f);
+        _lsOnlineCardBg = bg;
 
         var btn = outer.AddComponent<Button>();
         var bc = btn.colors;
@@ -757,7 +785,8 @@ public class UIManager : MonoBehaviour
         var arrTxt = arrGo.AddComponent<Text>();
         arrTxt.font = defaultFont; arrTxt.text = "›"; arrTxt.fontSize = 52;
         arrTxt.fontStyle = FontStyle.Bold; arrTxt.alignment = TextAnchor.MiddleCenter;
-        arrTxt.color = new Color(0.45f, 0.45f, 0.45f, 1f);
+        arrTxt.color = ocDark ? new Color(0.70f, 0.70f, 0.70f) : new Color(0.45f, 0.45f, 0.45f, 1f);
+        _lsOnlineCardArrow = arrTxt;
 
         // Text column — stretches between icon and arrow
         var textCol = new GameObject("TextCol");
@@ -781,8 +810,10 @@ public class UIManager : MonoBehaviour
         tcVlg.childAlignment = TextAnchor.MiddleLeft;
 
         LsMakeVlgText("Title", textInner.transform, 34, FontStyle.Bold, new Color(0.22f, 0.40f, 0.72f, 1f), "Online Mode");
-        LsMakeVlgText("Sub", textInner.transform, 27, FontStyle.Normal, TextMuted, "Race friends on the same puzzle");
-        LsMakeVlgText("Sub2", textInner.transform, 27, FontStyle.Normal, TextMuted, "Anyone with the code can join!");
+        _lsOnlineSub1 = LsMakeVlgText("Sub", textInner.transform, 27, FontStyle.Normal,
+            ocDark ? new Color(0.60f, 0.58f, 0.56f) : TextMuted, "Race friends on the same puzzle");
+        _lsOnlineSub2 = LsMakeVlgText("Sub2", textInner.transform, 27, FontStyle.Normal,
+            ocDark ? new Color(0.60f, 0.58f, 0.56f) : TextMuted, "Anyone with the code can join!");
     }
 
     private Text LsMakeVlgText(string name, Transform parent, int size, FontStyle style, Color color, string text)
@@ -1075,20 +1106,31 @@ public class UIManager : MonoBehaviour
 
     private void RefreshLevelSelectButtons(int currentLevelIndex, int highestUnlockedLevelIndex, int totalLevels)
     {
+        var tm = ThemeManager.Instance;
+        bool dark = tm?.IsDarkMode ?? false;
+
         // Per-group palette: unlocked, current, locked
-        Color[] colU = {
-            new Color(1.00f, 0.93f, 0.76f, 1f),  // square  unlocked
-            new Color(0.80f, 0.96f, 0.93f, 1f),  // hexagon
-            new Color(0.98f, 0.82f, 0.90f, 1f),  // triangle
+        Color[] colU = dark ? new Color[] {
+            new Color(0.22f, 0.21f, 0.27f, 1f),  // square
+            new Color(0.22f, 0.21f, 0.27f, 1f),  // hexagon
+            new Color(0.22f, 0.21f, 0.27f, 1f),  // triangle
+        } : new Color[] {
+            new Color(1.00f, 0.93f, 0.76f, 1f),
+            new Color(0.80f, 0.96f, 0.93f, 1f),
+            new Color(0.98f, 0.82f, 0.90f, 1f),
         };
-        Color[] colC = {
-            BtnTeal, BtnTeal, BtnTeal,  // current always teal
-        };
-        Color[] colL = {
-            new Color(0.90f, 0.88f, 0.85f, 1f),  // locked (same for all groups)
+        Color[] colC = { BtnTeal, BtnTeal, BtnTeal };
+        Color[] colL = dark ? new Color[] {
+            new Color(0.15f, 0.14f, 0.19f, 1f),
+            new Color(0.15f, 0.14f, 0.19f, 1f),
+            new Color(0.15f, 0.14f, 0.19f, 1f),
+        } : new Color[] {
             new Color(0.90f, 0.88f, 0.85f, 1f),
             new Color(0.90f, 0.88f, 0.85f, 1f),
+            new Color(0.90f, 0.88f, 0.85f, 1f),
         };
+        Color txtPrimary = tm?.TextPrimary ?? TextDark;
+        Color txtMuted   = tm?.TextMuted   ?? TextMuted;
 
         for (int i = 0; i < levelSelectButtons.Length; i++)
         {
@@ -1113,12 +1155,12 @@ public class UIManager : MonoBehaviour
             else if (unlocked)
             {
                 levelSelectButtonImages[i].color = colU[grp];
-                levelSelectButtonLabels[i].color = TextDark;
+                levelSelectButtonLabels[i].color = txtPrimary;
             }
             else
             {
                 levelSelectButtonImages[i].color = colL[grp];
-                levelSelectButtonLabels[i].color = TextMuted;
+                levelSelectButtonLabels[i].color = txtMuted;
             }
 
             // Lock icon
