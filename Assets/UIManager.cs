@@ -1965,11 +1965,11 @@ public class UIManager : MonoBehaviour
             else
                 onlinePlayerCountText.text = count == 1 ? "1 player in room" : $"{count} players in room";
         }
-        // Show Start Game button only for non-matchmaking host
+        // Show Start Game button only for non-matchmaking host WITH at least 2 players
         if (onlineStartBtn != null)
         {
 #if PHOTON_UNITY_NETWORKING
-            bool isHost = !mm && Photon.Pun.PhotonNetwork.IsMasterClient;
+            bool isHost = !mm && Photon.Pun.PhotonNetwork.IsMasterClient && count >= 2;
 #else
             bool isHost = false;
 #endif

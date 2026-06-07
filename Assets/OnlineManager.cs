@@ -310,7 +310,11 @@ public class OnlineManager : MonoBehaviour
         _roomCode = PhotonNetwork.CurrentRoom.Name;
         OnRoomCodeReady?.Invoke(_roomCode);
         SetState(MatchState.WaitingForOpponent);
-        OnStatusMessage?.Invoke("Waiting for host to start…");
+        // Host sees "share & wait"; guest sees "waiting for host to start"
+        string msg = _isHost
+            ? "Room created! Share the code and wait for players."
+            : "Joined! Waiting for the host to start…";
+        OnStatusMessage?.Invoke(msg);
         OnPlayerCountChanged?.Invoke(PhotonNetwork.CurrentRoom.PlayerCount);
     }
 
