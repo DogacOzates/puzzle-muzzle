@@ -19,7 +19,6 @@ public class GameManager : MonoBehaviour
     private HapticManager hapticManager;
     private int currentLevelIndex = 0;
     private bool isLevelTransitionRunning;
-    private int hintPressedThisLevel;
     private GameMode currentGameMode = GameMode.Regular;
 
     public bool IsTutorialRunning => tutorialController != null && tutorialController.IsRunning;
@@ -98,6 +97,7 @@ public class GameManager : MonoBehaviour
         uiManager.Initialize();
         monetizationManager.NoAdsStateChanged += RefreshMonetizationUI;
         monetizationManager.NoAdsPriceChanged += RefreshMonetizationUI;
+        monetizationManager.HintPackGranted   += OnHintPackGranted;
         RefreshMonetizationUI();
 
         // Restore free hint badge if any hints were accumulated
@@ -194,7 +194,6 @@ public class GameManager : MonoBehaviour
 
         IsLevelComplete = false;
         currentLevelIndex = index;
-        hintPressedThisLevel = 0;
 
         AudioManager.Instance?.OnChainReset();
 
@@ -383,10 +382,8 @@ public class GameManager : MonoBehaviour
     public void UseHint()
     {
         if (IsLevelComplete) return;
-        if (monetizationManager == null)
-            return;
+        if (monetizationManager == null) return;
 
-        // Free hints take priority — no ad needed
         if (GetFreeHints() > 0)
         {
             ConsumeFreeHint();
@@ -394,18 +391,29 @@ public class GameManager : MonoBehaviour
             return;
         }
 
-        hintPressedThisLevel++;
+        // No hints in balance — open hint store (Watch Ad grants hint immediately)
+        OpenHintStore(grantOnWatch: true);
+    }
 
-        if (hintPressedThisLevel >= 2 && !monetizationManager.IsNoAdsPurchased)
-        {
-            uiManager?.ShowHintPromoPopup(
-                () => monetizationManager.ShowRewardedHintAdIfNeeded(GrantHint),
-                () => PurchaseNoAds()
-            );
-            return;
-        }
+    public void OpenHintStore(bool grantOnWatch = false)
+    {
+        Action onWatchAd = grantOnWatch
+            ? (Action)(() => monetizationManager.ShowRewardedHintAdIfNeeded(GrantHint))
+            : (Action)(() => monetizationManager.ShowRewardedHintAdIfNeeded(() => AddFreeHints(1)));
 
-        monetizationManager.ShowRewardedHintAdIfNeeded(GrantHint);
+        uiManager?.ShowHintStore(
+            onWatchAd:     onWatchAd,
+            onBuyPack5:    () => PurchaseHintPack(MonetizationManager.HintPack5Id),
+            onBuyPack20:   () => PurchaseHintPack(MonetizationManager.HintPack20Id),
+            onBuyPack60:   () => PurchaseHintPack(MonetizationManager.HintPack60Id),
+            onBuyNoAds:    () => PurchaseNoAds(),
+            isNoAdsPurchased: monetizationManager.IsNoAdsPurchased,
+            noAdsPrice:    monetizationManager.NoAdsPrice,
+            price5:        monetizationManager.HintPack5Price,
+            price20:       monetizationManager.HintPack20Price,
+            price60:       monetizationManager.HintPack60Price,
+            currentHints:  GetFreeHints()
+        );
     }
 
     public void PurchaseNoAds()
@@ -420,6 +428,24 @@ public class GameManager : MonoBehaviour
         }
 
         monetizationManager.PurchaseNoAds();
+    }
+
+    public void PurchaseHintPack(string productId)
+    {
+        if (monetizationManager == null) return;
+
+        if (!monetizationManager.IsStoreReady)
+        {
+            uiManager?.ShowStoreUnavailablePopup(monetizationManager.LastIapError);
+            return;
+        }
+
+        monetizationManager.PurchaseHintPack(productId);
+    }
+
+    private void OnHintPackGranted(int amount)
+    {
+        AddFreeHints(amount);
     }
 
     public void RestoreNoAdsPurchases()

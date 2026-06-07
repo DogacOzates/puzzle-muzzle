@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 #if UNITY_PURCHASING
@@ -10,20 +11,30 @@ public class NoAdsIapBridge
     : IStoreListener
 #endif
 {
-    private readonly string productId;
-    private readonly Action onPurchaseSucceeded;
-    private readonly Action<string> onPriceUpdated;
+    private readonly string noAdsProductId;
+    private readonly Action onNoAdsPurchased;
+    private readonly Action<string> onNoAdsPriceUpdated;
+
+    // consumable hint packs: productId → (hintAmount, priceCallback)
+    private readonly Dictionary<string, (int amount, Action<int> onGranted, Action<string> onPrice)> hintPacks
+        = new Dictionary<string, (int, Action<int>, Action<string>)>();
 
 #if UNITY_PURCHASING
     private IStoreController storeController;
     private IExtensionProvider extensionProvider;
 #endif
 
-    public NoAdsIapBridge(string productId, Action onPurchaseSucceeded, Action<string> onPriceUpdated)
+    public NoAdsIapBridge(string noAdsProductId, Action onNoAdsPurchased, Action<string> onNoAdsPriceUpdated)
     {
-        this.productId = productId;
-        this.onPurchaseSucceeded = onPurchaseSucceeded;
-        this.onPriceUpdated = onPriceUpdated;
+        this.noAdsProductId     = noAdsProductId;
+        this.onNoAdsPurchased    = onNoAdsPurchased;
+        this.onNoAdsPriceUpdated = onNoAdsPriceUpdated;
+    }
+
+    /// <summary>Register a consumable hint-pack product before calling Initialize().</summary>
+    public void AddHintPack(string productId, int hintAmount, Action<int> onGranted, Action<string> onPriceUpdated)
+    {
+        hintPacks[productId] = (hintAmount, onGranted, onPriceUpdated);
     }
 
     public void Initialize()
@@ -31,12 +42,23 @@ public class NoAdsIapBridge
 #if UNITY_PURCHASING
         LastInitError = null;
         var builder = ConfigurationBuilder.Instance(StandardPurchasingModule.Instance());
-        builder.AddProduct(productId, ProductType.NonConsumable);
+        builder.AddProduct(noAdsProductId, ProductType.NonConsumable);
+        foreach (var kvp in hintPacks)
+            builder.AddProduct(kvp.Key, ProductType.Consumable);
         UnityPurchasing.Initialize(this, builder);
 #else
-        onPriceUpdated?.Invoke("$4.99");
-        Debug.Log("Unity IAP bridge is inactive. Install the In-App Purchasing package to enable the No Ads purchase.");
+        onNoAdsPriceUpdated?.Invoke("$9.99");
+        foreach (var kvp in hintPacks)
+            kvp.Value.onPrice?.Invoke(DefaultHintPackFallback(kvp.Value.amount));
+        Debug.Log("Unity IAP bridge is inactive. Install the In-App Purchasing package to enable purchases.");
 #endif
+    }
+
+    private static string DefaultHintPackFallback(int amount)
+    {
+        if (amount <= 5)  return "$0.99";
+        if (amount <= 20) return "$2.99";
+        return "$5.99";
     }
 
     public bool IsStoreReady
@@ -53,27 +75,51 @@ public class NoAdsIapBridge
 
     public string LastInitError { get; private set; } = "UNITY_PURCHASING not defined";
 
+    // Purchase the No Ads non-consumable
     public void Purchase()
     {
 #if UNITY_PURCHASING
+        InitiatePurchase(noAdsProductId);
+#else
+        Debug.LogWarning("No Ads purchase requested, but Unity IAP is not installed.");
+#endif
+    }
+
+    // Purchase a hint pack consumable
+    public void PurchaseHintPack(string productId)
+    {
+#if UNITY_PURCHASING
+        if (!hintPacks.ContainsKey(productId))
+        {
+            Debug.LogWarning("Unknown hint pack product: " + productId);
+            return;
+        }
+        InitiatePurchase(productId);
+#else
+        if (hintPacks.TryGetValue(productId, out var pack))
+            pack.onGranted?.Invoke(pack.amount);
+        else
+            Debug.LogWarning("Unknown hint pack product: " + productId);
+#endif
+    }
+
+#if UNITY_PURCHASING
+    private void InitiatePurchase(string productId)
+    {
         if (storeController == null)
         {
             Debug.LogWarning("Store is not initialized yet.");
             return;
         }
-
-        Product product = storeController.products.WithID(productId);
+        var product = storeController.products.WithID(productId);
         if (product == null || !product.availableToPurchase)
         {
-            Debug.LogWarning("No Ads product is not available to purchase.");
+            Debug.LogWarning("Product not available: " + productId);
             return;
         }
-
         storeController.InitiatePurchase(product);
-#else
-        Debug.LogWarning("No Ads purchase requested, but Unity IAP is not installed.");
-#endif
     }
+#endif
 
     public void RestorePurchases(Action<bool, string> onComplete)
     {
@@ -96,14 +142,22 @@ public class NoAdsIapBridge
         storeController = controller;
         extensionProvider = extensions;
 
-        Product product = storeController.products.WithID(productId);
-        if (product != null)
+        // NoAds
+        var noAdsProduct = storeController.products.WithID(noAdsProductId);
+        if (noAdsProduct != null)
         {
-            if (product.metadata != null && !string.IsNullOrEmpty(product.metadata.localizedPriceString))
-                onPriceUpdated?.Invoke(product.metadata.localizedPriceString);
+            if (noAdsProduct.metadata != null && !string.IsNullOrEmpty(noAdsProduct.metadata.localizedPriceString))
+                onNoAdsPriceUpdated?.Invoke(noAdsProduct.metadata.localizedPriceString);
+            if (noAdsProduct.hasReceipt)
+                onNoAdsPurchased?.Invoke();
+        }
 
-            if (product.hasReceipt)
-                onPurchaseSucceeded?.Invoke();
+        // Hint packs — update prices from store
+        foreach (var kvp in hintPacks)
+        {
+            var p = storeController.products.WithID(kvp.Key);
+            if (p?.metadata != null && !string.IsNullOrEmpty(p.metadata.localizedPriceString))
+                kvp.Value.onPrice?.Invoke(p.metadata.localizedPriceString);
         }
     }
 
@@ -111,20 +165,33 @@ public class NoAdsIapBridge
     {
         LastInitError = error.ToString();
         Debug.LogWarning("Unity IAP initialization failed: " + error);
-        onPriceUpdated?.Invoke("$4.99");
+        onNoAdsPriceUpdated?.Invoke("$9.99");
+        foreach (var kvp in hintPacks)
+            kvp.Value.onPrice?.Invoke(DefaultHintPackFallback(kvp.Value.amount));
     }
 
     public void OnInitializeFailed(InitializationFailureReason error, string message)
     {
         LastInitError = error + ": " + message;
         Debug.LogWarning("Unity IAP initialization failed: " + error + " - " + message);
-        onPriceUpdated?.Invoke("$4.99");
+        onNoAdsPriceUpdated?.Invoke("$9.99");
+        foreach (var kvp in hintPacks)
+            kvp.Value.onPrice?.Invoke(DefaultHintPackFallback(kvp.Value.amount));
     }
 
     public PurchaseProcessingResult ProcessPurchase(PurchaseEventArgs args)
     {
-        if (args.purchasedProduct != null && args.purchasedProduct.definition.id == productId)
-            onPurchaseSucceeded?.Invoke();
+        string id = args.purchasedProduct?.definition?.id;
+        if (id == null) return PurchaseProcessingResult.Complete;
+
+        if (id == noAdsProductId)
+        {
+            onNoAdsPurchased?.Invoke();
+        }
+        else if (hintPacks.TryGetValue(id, out var pack))
+        {
+            pack.onGranted?.Invoke(pack.amount);
+        }
 
         return PurchaseProcessingResult.Complete;
     }

@@ -3,41 +3,50 @@ using UnityEngine;
 
 public class MonetizationManager : MonoBehaviour
 {
-    public const string NoAdsProductId = "com.dogac.puzzlemuzzle.removeads";
+    public const string NoAdsProductId    = "com.dogac.puzzlemuzzle.removeads";
+    public const string HintPack5Id       = "com.dogac.puzzlemuzzle.hints.5";
+    public const string HintPack20Id      = "com.dogac.puzzlemuzzle.hints.20";
+    public const string HintPack60Id      = "com.dogac.puzzlemuzzle.hints.60";
 
     private const bool NoAdsPurchasesEnabled = true;
-    private const string NoAdsPurchasedKey = "monetization.noads.purchased";
-    private const int AdFreeLevels = 10;
-    private const string DefaultNoAdsPrice = "$4.99";
+    private const string NoAdsPurchasedKey   = "monetization.noads.purchased";
+    private const string DefaultNoAdsPrice   = "$9.99";
 
     private LevelGateAdsBridge adsBridge;
     private NoAdsIapBridge iapBridge;
 
-    public bool IsNoAdsAvailable => NoAdsPurchasesEnabled;
-    public bool IsNoAdsPurchased { get; private set; }
-    public bool IsStoreReady => iapBridge != null && iapBridge.IsStoreReady;
-    public string LastIapError => iapBridge?.LastInitError ?? "iapBridge is null";
-    public string NoAdsPrice { get; private set; } = DefaultNoAdsPrice;
+    public bool IsNoAdsAvailable  => NoAdsPurchasesEnabled;
+    public bool IsNoAdsPurchased  { get; private set; }
+    public bool IsStoreReady      => iapBridge != null && iapBridge.IsStoreReady;
+    public string LastIapError    => iapBridge?.LastInitError ?? "iapBridge is null";
+    public string NoAdsPrice      { get; private set; } = DefaultNoAdsPrice;
     public string NoAdsButtonLabel => "No Ads\n" + NoAdsPrice;
+
+    // Hint pack prices (updated when IAP store is ready)
+    public string HintPack5Price  { get; private set; } = "$0.99";
+    public string HintPack20Price { get; private set; } = "$2.99";
+    public string HintPack60Price { get; private set; } = "$5.99";
 
     public event Action NoAdsStateChanged;
     public event Action NoAdsPriceChanged;
+    public event Action HintPackPricesChanged;
 
     public void Initialize()
     {
         IsNoAdsPurchased = PlayerPrefs.GetInt(NoAdsPurchasedKey, 0) == 1;
 
         adsBridge = new LevelGateAdsBridge();
-        // Ads are initialized later via InitializeAds() after ATT permission is granted.
 
         if (NoAdsPurchasesEnabled)
         {
             iapBridge = new NoAdsIapBridge(NoAdsProductId, OnNoAdsPurchased, OnNoAdsPriceUpdated);
+            iapBridge.AddHintPack(HintPack5Id,  5,  OnHintPackGranted, p => OnHintPackPrice(HintPack5Id,  p));
+            iapBridge.AddHintPack(HintPack20Id, 20, OnHintPackGranted, p => OnHintPackPrice(HintPack20Id, p));
+            iapBridge.AddHintPack(HintPack60Id, 60, OnHintPackGranted, p => OnHintPackPrice(HintPack60Id, p));
             iapBridge.Initialize();
         }
     }
 
-    // Called from GameManager after the ATT dialog has been shown.
     public void InitializeAds()
     {
         adsBridge.Initialize();
@@ -50,77 +59,62 @@ public class MonetizationManager : MonoBehaviour
 
     public bool ShouldShowLevelGateAd(int currentLevelIndex)
     {
-        if (IsNoAdsPurchased)
-            return false;
-
-        int lvl = currentLevelIndex + 1; // 1-based level number just completed
-
-        if (lvl <= 29) return false; // first 29 levels: no ads
-
-        // Each shape group is 300 levels. Within each group:
-        //   first 100 levels → every 10,  next 200 levels → every 5
-        int posInGroup = ((lvl - 1) % 300) + 1; // 1..300 within the current group
+        if (IsNoAdsPurchased) return false;
+        int lvl = currentLevelIndex + 1;
+        if (lvl <= 29) return false;
+        int posInGroup = ((lvl - 1) % 300) + 1;
         return posInGroup <= 100 ? posInGroup % 10 == 0 : posInGroup % 5 == 0;
     }
 
     public void ShowScheduledLevelGateAdIfNeeded(int currentLevelIndex, Action onFinished)
     {
-        if (!ShouldShowLevelGateAd(currentLevelIndex))
-        {
-            onFinished?.Invoke();
-            return;
-        }
-
+        if (!ShouldShowLevelGateAd(currentLevelIndex)) { onFinished?.Invoke(); return; }
         adsBridge.ShowLevelGateAd(() =>
         {
-            if (!IsNoAdsPurchased)
-                adsBridge.LoadLevelGateAd();
+            if (!IsNoAdsPurchased) adsBridge.LoadLevelGateAd();
             onFinished?.Invoke();
         });
     }
 
     public void PurchaseNoAds()
     {
-        if (!NoAdsPurchasesEnabled)
-        {
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            Debug.Log("No Ads purchase is temporarily disabled for builds.");
-#endif
-            return;
-        }
-
-        if (IsNoAdsPurchased)
-            return;
-
+        if (!NoAdsPurchasesEnabled || IsNoAdsPurchased) return;
         iapBridge.Purchase();
+    }
+
+    public void PurchaseHintPack(string productId)
+    {
+        if (iapBridge == null) { Debug.LogWarning("IAP not initialized"); return; }
+        iapBridge.PurchaseHintPack(productId);
     }
 
     public void RestorePurchases(Action<bool, string> onComplete)
     {
-        if (iapBridge == null)
-        {
-            onComplete?.Invoke(false, "Store not available");
-            return;
-        }
+        if (iapBridge == null) { onComplete?.Invoke(false, "Store not available"); return; }
         iapBridge.RestorePurchases(onComplete);
     }
 
-    public void ShowRewardedHintAdIfNeeded(Action onRewardEarned)
+    public void ShowRewardedHintAd(Action onRewardEarned)
     {
-        if (IsNoAdsPurchased)
-        {
-            onRewardEarned?.Invoke();
-            return;
-        }
-
         adsBridge.ShowRewardedHintAd(onRewardEarned);
     }
 
+    // Called from hint button during gameplay — no-ads users get hint without watching
+    public void ShowRewardedHintAdIfNeeded(Action onRewardEarned)
+    {
+        if (IsNoAdsPurchased) { onRewardEarned?.Invoke(); return; }
+        adsBridge.ShowRewardedHintAd(onRewardEarned);
+    }
+
+    // ── event from hint packs granted (consumed via IAP) ────────────────────────
+    // This is invoked by the IAP bridge; GameManager subscribes to handle granting.
+    public event Action<int> HintPackGranted;
+
+    private void OnHintPackGranted(int amount) => HintPackGranted?.Invoke(amount);
+
     private void OnNoAdsPurchased()
     {
-        if (IsNoAdsPurchased)
-            return;
-
+        if (IsNoAdsPurchased) return;
         IsNoAdsPurchased = true;
         PlayerPrefs.SetInt(NoAdsPurchasedKey, 1);
         PlayerPrefs.Save();
@@ -130,14 +124,18 @@ public class MonetizationManager : MonoBehaviour
 
     private void OnNoAdsPriceUpdated(string price)
     {
-        if (string.IsNullOrEmpty(price))
-            return;
-
-        // Unity IAP returns "$0.01" as a placeholder in the Editor. Ignore it.
-        if (price == "$0.01" || price == "0.01")
-            return;
-
+        if (string.IsNullOrEmpty(price)) return;
+        if (price == "$0.01" || price == "0.01") return;
         NoAdsPrice = price;
         NoAdsPriceChanged?.Invoke();
+    }
+
+    private void OnHintPackPrice(string productId, string price)
+    {
+        if (string.IsNullOrEmpty(price) || price == "$0.01" || price == "0.01") return;
+        if (productId == HintPack5Id)       HintPack5Price  = price;
+        else if (productId == HintPack20Id) HintPack20Price = price;
+        else if (productId == HintPack60Id) HintPack60Price = price;
+        HintPackPricesChanged?.Invoke();
     }
 }

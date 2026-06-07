@@ -31,7 +31,7 @@ public class UIManager : MonoBehaviour
     private GameObject hintPromoPopup;
     private GameObject promoTopBanner;
     private Coroutine bannerCoroutine;
-    private string noAdsPriceLabel = "$4.99";
+    private string noAdsPriceLabel = "$9.99";
 
     // ── Online Mode popup ────────────────────────────────────────────────────────
     private GameObject onlineModePopup;
@@ -67,6 +67,7 @@ public class UIManager : MonoBehaviour
     private Image[] _lsGroupTabIcons = new Image[3];
     private Image[] _lsGroupTabIconChips = new Image[3];
     private static Sprite _networkingSprite;
+    private static Sprite _cartSprite;
     private Text[] _lsGroupTabTitles = new Text[3];
     private Text[] _lsGroupTabRanges = new Text[3];
     private Text _lsHeaderTitle;
@@ -222,15 +223,15 @@ public class UIManager : MonoBehaviour
 
     private void CreateTopBar()
     {
-        // Top bar container
-        var bar = CreatePanel("TopBar", safeAreaRect, new Vector2(0, 0), new Vector2(0, -140));
+        // Top bar container — taller to accommodate stacked leaderboard + shop icons
+        var bar = CreatePanel("TopBar", safeAreaRect, new Vector2(0, 0), new Vector2(0, -180));
         var barRect = bar.GetComponent<RectTransform>();
         barRect.anchorMin = new Vector2(0, 1);
         barRect.anchorMax = new Vector2(1, 1);
         barRect.pivot = new Vector2(0.5f, 1);
         float aspect = (float)Screen.width / Mathf.Max(1f, Screen.height);
         bool useRaisedTopBarLayout = aspect >= 0.65f;
-        float topBarElementY = useRaisedTopBarLayout ? -42f : -70f;
+        float topBarElementY = useRaisedTopBarLayout ? -50f : -70f;
 
         // Level progress text (top center) — Georgia italic, matching tutorial style
         var georgiaFont = Font.CreateDynamicFontFromOSFont("Georgia", 72);
@@ -240,7 +241,7 @@ public class UIManager : MonoBehaviour
         levelSelectToggleButton = CreateInvisibleButton("LevelSelect", bar.transform, new Vector2(0, topBarElementY), new Vector2(520, 84));
         levelSelectToggleButton.onClick.AddListener(() => FindAnyObjectByType<GameManager>().ToggleLevelSelectMenu());
 
-        // Leaderboard button (left side of top bar) — reuse CreateIconButton for consistent interaction
+        // Leaderboard button (left side of top bar)
         var lbBtn = CreateIconButton("Leaderboard", bar.transform, new Vector2(100f, topBarElementY), 68f, "icons/top-three");
         lbBtn.onClick.AddListener(() => {
             if (GameCenterManager.Instance != null)
@@ -254,7 +255,14 @@ public class UIManager : MonoBehaviour
         });
         leaderboardButtonBg = lbBtn.GetComponent<Image>();
 
-        // Settings gear button (right side of top bar)
+        // Shop/Cart button — stacked below leaderboard button
+        float cartY = topBarElementY - 34f - 8f - 26f; // lb_half + gap + cart_half
+        var cartBtn = CreateIconButton("Shop", bar.transform, new Vector2(100f, cartY), 52f, "icons/cart");
+        cartBtn.onClick.AddListener(() => FindAnyObjectByType<GameManager>()?.OpenHintStore(grantOnWatch: false));
+        // Teal tint on cart icon
+        var cartIconImg = cartBtn.transform.Find("Icon")?.GetComponent<Image>();
+        if (cartIconImg != null) cartIconImg.color = new Color(0.18f, 0.55f, 0.62f, 1f);
+
         bool isDark = ThemeManager.Instance?.IsDarkMode ?? false;
         var settingsObj = new GameObject("SettingsBtn");
         settingsObj.transform.SetParent(bar.transform, false);
@@ -865,6 +873,15 @@ public class UIManager : MonoBehaviour
         return _networkingSprite;
     }
 
+    private static Sprite LoadCartSprite()
+    {
+        if (_cartSprite != null) return _cartSprite;
+        var tex = Resources.Load<Texture2D>("icons/cart");
+        if (tex == null) return null;
+        _cartSprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), Vector2.one * 0.5f);
+        return _cartSprite;
+    }
+
     private void LsBuildGroupGrid(Transform parent, int groupIndex, Sprite btnSprite, int startIdx, int endIdx)
     {
         const float BtnSize = 148f;
@@ -1293,78 +1310,304 @@ public class UIManager : MonoBehaviour
 
     // --- Hint Promo Popup ---
 
-    public void ShowHintPromoPopup(Action onWatchAd, Action onPurchase)
-    {
-        if (hintPromoPopup != null)
-            Destroy(hintPromoPopup);
+    // ─────────────────────────────────────────────────────────────────────────────
+    // --- Hint Store Popup ---
+    // ─────────────────────────────────────────────────────────────────────────────
 
-        hintPromoPopup = new GameObject("HintPromoPopup");
+    public void ShowHintStore(
+        Action onWatchAd, Action onBuyPack5, Action onBuyPack20, Action onBuyPack60,
+        Action onBuyNoAds, bool isNoAdsPurchased, string noAdsPrice,
+        string price5, string price20, string price60, int currentHints)
+    {
+        if (hintPromoPopup != null) Destroy(hintPromoPopup);
+
+        hintPromoPopup = new GameObject("HintStorePopup");
         hintPromoPopup.transform.SetParent(canvas.transform, false);
         hintPromoPopup.transform.SetAsLastSibling();
 
         var popupRect = hintPromoPopup.AddComponent<RectTransform>();
-        popupRect.anchorMin = Vector2.zero;
-        popupRect.anchorMax = Vector2.one;
-        popupRect.offsetMin = Vector2.zero;
-        popupRect.offsetMax = Vector2.zero;
+        popupRect.anchorMin = Vector2.zero; popupRect.anchorMax = Vector2.one;
+        popupRect.offsetMin = Vector2.zero; popupRect.offsetMax = Vector2.zero;
 
         var overlay = hintPromoPopup.AddComponent<Image>();
-        overlay.color = new Color(0.10f, 0.08f, 0.14f, 0.62f);
+        overlay.color = new Color(0.08f, 0.08f, 0.12f, 0.70f);
         var overlayBtn = hintPromoPopup.AddComponent<Button>();
         overlayBtn.targetGraphic = overlay;
         overlayBtn.onClick.AddListener(HideHintPromoPopup);
 
-        // Shadow
+        // Drop-shadow
         var shadowObj = new GameObject("Shadow");
         shadowObj.transform.SetParent(hintPromoPopup.transform, false);
         var shadowRect = shadowObj.AddComponent<RectTransform>();
-        shadowRect.anchorMin = new Vector2(0.5f, 0.5f);
-        shadowRect.anchorMax = new Vector2(0.5f, 0.5f);
+        shadowRect.anchorMin = new Vector2(0.5f, 0.5f); shadowRect.anchorMax = new Vector2(0.5f, 0.5f);
         shadowRect.pivot = new Vector2(0.5f, 0.5f);
-        shadowRect.sizeDelta = new Vector2(726f, 506f);
-        shadowRect.anchoredPosition = new Vector2(4f, -8f);
+        shadowRect.sizeDelta = new Vector2(726f, 784f);
+        shadowRect.anchoredPosition = new Vector2(5f, -10f);
         var shadowImg = shadowObj.AddComponent<Image>();
         shadowImg.sprite = SpriteGenerator.RoundedRect;
-        shadowImg.color = new Color(0f, 0f, 0f, 0.18f);
+        shadowImg.color = new Color(0f, 0f, 0f, 0.20f);
 
-        // Card
+        // Main card
         var card = new GameObject("Card");
         card.transform.SetParent(hintPromoPopup.transform, false);
         var cardRect = card.AddComponent<RectTransform>();
-        cardRect.anchorMin = new Vector2(0.5f, 0.5f);
-        cardRect.anchorMax = new Vector2(0.5f, 0.5f);
+        cardRect.anchorMin = new Vector2(0.5f, 0.5f); cardRect.anchorMax = new Vector2(0.5f, 0.5f);
         cardRect.pivot = new Vector2(0.5f, 0.5f);
-        cardRect.sizeDelta = new Vector2(700f, 480f);
+        cardRect.sizeDelta = new Vector2(700f, 760f);
         var cardImg = card.AddComponent<Image>();
         cardImg.sprite = SpriteGenerator.RoundedRect;
-        cardImg.color = new Color(1f, 1f, 1f, 0.98f);
+        cardImg.color = new Color(0.97f, 0.96f, 0.94f);
+
+        // ── Header band ──────────────────────────────────────────────────────────
+        var header = new GameObject("Header");
+        header.transform.SetParent(card.transform, false);
+        var hRect = header.AddComponent<RectTransform>();
+        hRect.anchorMin = new Vector2(0f, 1f); hRect.anchorMax = new Vector2(1f, 1f);
+        hRect.pivot = new Vector2(0.5f, 1f);
+        hRect.sizeDelta = new Vector2(0f, 128f);
+        hRect.anchoredPosition = Vector2.zero;
+        var hImg = header.AddComponent<Image>();
+        hImg.sprite = SpriteGenerator.RoundedRect;
+        hImg.color = new Color(0.18f, 0.55f, 0.62f, 1f); // teal
+
+        // Lightbulb icon in header
+        var hIcon = new GameObject("HIcon");
+        hIcon.transform.SetParent(header.transform, false);
+        var hIconRect = hIcon.AddComponent<RectTransform>();
+        hIconRect.anchorMin = new Vector2(0f, 0.5f); hIconRect.anchorMax = new Vector2(0f, 0.5f);
+        hIconRect.pivot = new Vector2(0f, 0.5f);
+        hIconRect.anchoredPosition = new Vector2(24f, 0f);
+        hIconRect.sizeDelta = new Vector2(60f, 60f);
+        var hIconImg = hIcon.AddComponent<Image>();
+        var lbSprite = LoadIconSprite("icons/lightbulb_white") ?? LoadIconSprite("icons/lightbulb");
+        if (lbSprite != null) { hIconImg.sprite = lbSprite; hIconImg.preserveAspect = true; }
+        hIconImg.color = Color.white;
 
         // Title
-        var title = MakeCardText("Title", card.transform, new Vector2(0, 155), 46, FontStyle.Bold, TextDark);
-        title.text = "Want more hints?";
+        var titleTxt = new GameObject("Title");
+        titleTxt.transform.SetParent(header.transform, false);
+        var titleRect = titleTxt.AddComponent<RectTransform>();
+        titleRect.anchorMin = Vector2.zero; titleRect.anchorMax = Vector2.one;
+        titleRect.offsetMin = new Vector2(100f, 0f); titleRect.offsetMax = new Vector2(-60f, 0f);
+        var t = titleTxt.AddComponent<Text>();
+        t.font = defaultFont; t.text = "Hint Store";
+        t.fontSize = 40; t.fontStyle = FontStyle.Bold;
+        t.color = Color.white; t.alignment = TextAnchor.MiddleLeft;
 
-        // Subtitle
-        var sub = MakeCardText("Subtitle", card.transform, new Vector2(0, 80), 30, FontStyle.Normal, TextMuted);
-        sub.text = "Watch a short ad or remove ads forever";
-        sub.GetComponent<RectTransform>().sizeDelta = new Vector2(560f, 60f);
+        // Hints count badge (top-right)
+        var badgeObj = new GameObject("HintsBadge");
+        badgeObj.transform.SetParent(header.transform, false);
+        var badgeRect2 = badgeObj.AddComponent<RectTransform>();
+        badgeRect2.anchorMin = new Vector2(1f, 0.5f); badgeRect2.anchorMax = new Vector2(1f, 0.5f);
+        badgeRect2.pivot = new Vector2(1f, 0.5f);
+        badgeRect2.anchoredPosition = new Vector2(-16f, 0f);
+        badgeRect2.sizeDelta = new Vector2(130f, 52f);
+        var badgeBg = badgeObj.AddComponent<Image>();
+        badgeBg.sprite = SpriteGenerator.RoundedRect;
+        badgeBg.color = new Color(1f, 1f, 1f, 0.22f);
+        var badgeTxt = new GameObject("Count");
+        badgeTxt.transform.SetParent(badgeObj.transform, false);
+        var btRect = badgeTxt.AddComponent<RectTransform>();
+        btRect.anchorMin = Vector2.zero; btRect.anchorMax = Vector2.one;
+        btRect.offsetMin = Vector2.zero; btRect.offsetMax = Vector2.zero;
+        var bt = badgeTxt.AddComponent<Text>();
+        bt.font = defaultFont;
+        bt.text = currentHints == 0 ? "0 hints" : (currentHints == 1 ? "1 hint" : $"{currentHints} hints");
+        bt.fontSize = 26; bt.fontStyle = FontStyle.Bold;
+        bt.color = Color.white; bt.alignment = TextAnchor.MiddleCenter;
 
-        // Watch Ad button (teal)
-        var watchBtn = CreateCardButton("Watch Ad", card.transform, new Vector2(0, -15), BtnTeal);
-        watchBtn.onClick.AddListener(() =>
+        // Close (×) button
+        var closeObj = new GameObject("Close");
+        closeObj.transform.SetParent(card.transform, false);
+        var closeRect = closeObj.AddComponent<RectTransform>();
+        closeRect.anchorMin = new Vector2(1f, 1f); closeRect.anchorMax = new Vector2(1f, 1f);
+        closeRect.pivot = new Vector2(0.5f, 0.5f);
+        closeRect.anchoredPosition = new Vector2(-28f, -28f);
+        closeRect.sizeDelta = new Vector2(52f, 52f);
+        var closeImg = closeObj.AddComponent<Image>();
+        closeImg.color = Color.clear;
+        var closeBtn = closeObj.AddComponent<Button>();
+        closeBtn.targetGraphic = closeImg;
+        closeBtn.onClick.AddListener(HideHintPromoPopup);
+        var closeTxt = new GameObject("X");
+        closeTxt.transform.SetParent(closeObj.transform, false);
+        var cxtRect = closeTxt.AddComponent<RectTransform>();
+        cxtRect.anchorMin = Vector2.zero; cxtRect.anchorMax = Vector2.one;
+        cxtRect.offsetMin = Vector2.zero; cxtRect.offsetMax = Vector2.zero;
+        var cx = closeTxt.AddComponent<Text>();
+        cx.font = defaultFont; cx.text = "×";
+        cx.fontSize = 44; cx.color = new Color(1f, 1f, 1f, 0.85f);
+        cx.alignment = TextAnchor.MiddleCenter;
+
+        // ── Rows container ────────────────────────────────────────────────────────
+        float rowTop = -144f; // below header (128) + 16px gap
+        const float rowH = 88f;
+        const float rowGap = 10f;
+
+        // Helper to build a store row
+        void BuildRow(string label, string sub, string priceStr, Color accentColor,
+                      Action onTap, Transform parent, float yPos, bool hasBestValue = false)
         {
-            HideHintPromoPopup();
-            onWatchAd?.Invoke();
-        });
+            var row = new GameObject("Row_" + label.Replace(" ", ""));
+            row.transform.SetParent(parent, false);
+            var rRT = row.AddComponent<RectTransform>();
+            rRT.anchorMin = new Vector2(0f, 1f); rRT.anchorMax = new Vector2(1f, 1f);
+            rRT.pivot = new Vector2(0.5f, 1f);
+            rRT.anchoredPosition = new Vector2(0f, yPos);
+            rRT.sizeDelta = new Vector2(-32f, rowH);
+            var rImg = row.AddComponent<Image>();
+            rImg.sprite = SpriteGenerator.RoundedRect;
+            rImg.color = Color.white;
+            var rBtn = row.AddComponent<Button>();
+            rBtn.targetGraphic = rImg;
+            var rc = rBtn.colors;
+            rc.highlightedColor = new Color(0.94f, 0.96f, 1f, 1f);
+            rc.pressedColor     = new Color(0.86f, 0.92f, 0.98f, 1f);
+            rBtn.colors = rc;
+            rBtn.onClick.AddListener(() => { HideHintPromoPopup(); onTap?.Invoke(); });
 
-        // Remove Ads button (golden)
-        var noAdsBuyBtn = CreateCardButton($"No Ads Forever  —  {noAdsPriceLabel}", card.transform, new Vector2(0, -110), new Color(0.92f, 0.68f, 0.08f));
-        var noAdsBuyText = noAdsBuyBtn.GetComponentInChildren<Text>();
-        if (noAdsBuyText != null) noAdsBuyText.fontSize = 28;
-        noAdsBuyBtn.onClick.AddListener(() =>
+            // Accent stripe on left
+            var stripe = new GameObject("Stripe");
+            stripe.transform.SetParent(row.transform, false);
+            var stRT = stripe.AddComponent<RectTransform>();
+            stRT.anchorMin = new Vector2(0f, 0f); stRT.anchorMax = new Vector2(0f, 1f);
+            stRT.pivot = new Vector2(0f, 0.5f);
+            stRT.offsetMin = Vector2.zero; stRT.offsetMax = new Vector2(6f, 0f);
+            var stImg = stripe.AddComponent<Image>();
+            stImg.color = accentColor;
+
+            // Label
+            var lbl = new GameObject("Label");
+            lbl.transform.SetParent(row.transform, false);
+            var lblRT = lbl.AddComponent<RectTransform>();
+            lblRT.anchorMin = new Vector2(0f, 0.5f); lblRT.anchorMax = new Vector2(1f, 0.5f);
+            lblRT.pivot = new Vector2(0f, 0.5f);
+            lblRT.anchoredPosition = new Vector2(18f, string.IsNullOrEmpty(sub) ? 0f : 12f);
+            lblRT.sizeDelta = new Vector2(-180f, 36f);
+            var lt = lbl.AddComponent<Text>();
+            lt.font = defaultFont; lt.text = label;
+            lt.fontSize = 30; lt.fontStyle = FontStyle.Bold;
+            lt.color = TextDark; lt.alignment = TextAnchor.MiddleLeft;
+
+            if (!string.IsNullOrEmpty(sub))
+            {
+                var sublbl = new GameObject("Sub");
+                sublbl.transform.SetParent(row.transform, false);
+                var sRT = sublbl.AddComponent<RectTransform>();
+                sRT.anchorMin = new Vector2(0f, 0.5f); sRT.anchorMax = new Vector2(1f, 0.5f);
+                sRT.pivot = new Vector2(0f, 0.5f);
+                sRT.anchoredPosition = new Vector2(18f, -14f);
+                sRT.sizeDelta = new Vector2(-180f, 28f);
+                var st = sublbl.AddComponent<Text>();
+                st.font = defaultFont; st.text = sub;
+                st.fontSize = 24; st.color = TextMuted; st.alignment = TextAnchor.MiddleLeft;
+            }
+
+            // Price pill
+            var pill = new GameObject("PricePill");
+            pill.transform.SetParent(row.transform, false);
+            var pRT = pill.AddComponent<RectTransform>();
+            pRT.anchorMin = new Vector2(1f, 0.5f); pRT.anchorMax = new Vector2(1f, 0.5f);
+            pRT.pivot = new Vector2(1f, 0.5f);
+            pRT.anchoredPosition = new Vector2(-14f, 0f);
+            pRT.sizeDelta = new Vector2(140f, 52f);
+            var pImg = pill.AddComponent<Image>();
+            pImg.sprite = SpriteGenerator.RoundedRect;
+            pImg.color = accentColor;
+            var pTxt = new GameObject("PriceTxt");
+            pTxt.transform.SetParent(pill.transform, false);
+            var ptRT = pTxt.AddComponent<RectTransform>();
+            ptRT.anchorMin = Vector2.zero; ptRT.anchorMax = Vector2.one;
+            ptRT.offsetMin = Vector2.zero; ptRT.offsetMax = Vector2.zero;
+            var pt = pTxt.AddComponent<Text>();
+            pt.font = defaultFont; pt.text = priceStr;
+            pt.fontSize = 28; pt.fontStyle = FontStyle.Bold;
+            pt.color = Color.white; pt.alignment = TextAnchor.MiddleCenter;
+
+            // Best Value badge
+            if (hasBestValue)
+            {
+                var bvObj = new GameObject("BestValue");
+                bvObj.transform.SetParent(row.transform, false);
+                var bvRT = bvObj.AddComponent<RectTransform>();
+                bvRT.anchorMin = new Vector2(1f, 1f); bvRT.anchorMax = new Vector2(1f, 1f);
+                bvRT.pivot = new Vector2(1f, 0f);
+                bvRT.anchoredPosition = new Vector2(-14f, 0f);
+                bvRT.sizeDelta = new Vector2(140f, 28f);
+                var bvImg = bvObj.AddComponent<Image>();
+                bvImg.sprite = SpriteGenerator.RoundedRect;
+                bvImg.color = new Color(0.98f, 0.72f, 0.08f, 1f);
+                var bvTxt = new GameObject("BVTxt");
+                bvTxt.transform.SetParent(bvObj.transform, false);
+                var bvtRT = bvTxt.AddComponent<RectTransform>();
+                bvtRT.anchorMin = Vector2.zero; bvtRT.anchorMax = Vector2.one;
+                bvtRT.offsetMin = Vector2.zero; bvtRT.offsetMax = Vector2.zero;
+                var bvt = bvTxt.AddComponent<Text>();
+                bvt.font = defaultFont; bvt.text = "BEST VALUE";
+                bvt.fontSize = 18; bvt.fontStyle = FontStyle.Bold;
+                bvt.color = Color.white; bvt.alignment = TextAnchor.MiddleCenter;
+            }
+        }
+
+        float y = rowTop;
+
+        // Section label helper
+        void SectionLabel(string txt, float yPos)
         {
-            HideHintPromoPopup();
-            onPurchase?.Invoke();
-        });
+            var sl = new GameObject("Section_" + txt);
+            sl.transform.SetParent(card.transform, false);
+            var slRT = sl.AddComponent<RectTransform>();
+            slRT.anchorMin = new Vector2(0f, 1f); slRT.anchorMax = new Vector2(1f, 1f);
+            slRT.pivot = new Vector2(0.5f, 1f);
+            slRT.anchoredPosition = new Vector2(0f, yPos);
+            slRT.sizeDelta = new Vector2(-32f, 36f);
+            var slT = sl.AddComponent<Text>();
+            slT.font = defaultFont; slT.text = txt;
+            slT.fontSize = 24; slT.fontStyle = FontStyle.Bold;
+            slT.color = TextMuted; slT.alignment = TextAnchor.MiddleLeft;
+        }
+
+        // ── Free: Watch Ad ────────────────────────────────────────────────────────
+        if (!isNoAdsPurchased)
+        {
+            SectionLabel("FREE", y);
+            y -= 36f + 4f;
+            BuildRow("Watch a Short Video", "Earn 1 hint",
+                     "FREE", new Color(0.18f, 0.72f, 0.52f, 1f), onWatchAd, card.transform, y);
+            y -= rowH + rowGap;
+        }
+
+        // ── Buy Hint Packs ────────────────────────────────────────────────────────
+        SectionLabel("BUY HINTS", y);
+        y -= 36f + 4f;
+
+        BuildRow("5 Hints",  "",          price5,  new Color(0.26f, 0.52f, 0.96f, 1f), onBuyPack5,  card.transform, y);
+        y -= rowH + rowGap;
+        BuildRow("20 Hints", "",          price20, new Color(0.26f, 0.52f, 0.96f, 1f), onBuyPack20, card.transform, y);
+        y -= rowH + rowGap;
+        BuildRow("60 Hints", "",          price60, new Color(0.26f, 0.52f, 0.96f, 1f), onBuyPack60, card.transform, y, hasBestValue: true);
+        y -= rowH + rowGap;
+
+        // ── Remove Ads ────────────────────────────────────────────────────────────
+        y -= 4f; // extra gap before section label
+        SectionLabel("REMOVE ADS", y);
+        y -= 36f + 4f;
+
+        if (isNoAdsPurchased)
+        {
+            BuildRow("Remove All Ads", "Already purchased — thank you!", "✓",
+                     new Color(0.55f, 0.62f, 0.55f, 1f), null, card.transform, y);
+        }
+        else
+        {
+            BuildRow("Remove All Ads", "No more ads. Forever.",
+                     noAdsPrice, new Color(0.92f, 0.68f, 0.08f, 1f), onBuyNoAds, card.transform, y);
+        }
+
+        // Resize card to content
+        float contentHeight = Mathf.Abs(y) + rowH + 24f;
+        cardRect.sizeDelta = new Vector2(700f, contentHeight + 128f + 8f);
+        shadowRect.sizeDelta = new Vector2(726f, cardRect.sizeDelta.y + 24f);
     }
 
     public void HideHintPromoPopup()
@@ -2604,7 +2847,7 @@ public class UIManager : MonoBehaviour
         if (noAdsButton == null)
             return;
 
-        // Extract price from "No Ads\n$4.99" label format
+        // Extract price from "No Ads\n$9.99" label format
         if (!string.IsNullOrEmpty(buttonLabel))
         {
             var parts = buttonLabel.Split('\n');
