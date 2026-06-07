@@ -416,7 +416,9 @@ public class GameManager : MonoBehaviour
             AddFreeHints(5);
             uiManager?.ShowToast("Shared! +5 Hints added 🎉");
         }
-        string msg = $"Play Puzzle Muzzle with me! Enter code {code} to get 10 free hints! 🧩";
+        // TODO: Replace APP_STORE_ID with your real App Store ID before publishing
+        const string appStoreUrl = "https://apps.apple.com/app/id6739918641";
+        string msg = $"Play Puzzle Muzzle with me! 🧩\nEnter code {code} to get 10 free hints!\nDownload: {appStoreUrl}";
         NativeShare.Share(msg);
     }
 

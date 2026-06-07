@@ -6,8 +6,20 @@ extern "C" {
         UIActivityViewController* vc = [[UIActivityViewController alloc]
             initWithActivityItems:@[shareText] applicationActivities:nil];
 
-        UIViewController* root = [UIApplication sharedApplication].keyWindow.rootViewController;
-        // iPad needs a sourceRect
+        // iOS 13+ compatible root view controller lookup
+        UIWindowScene* scene = nil;
+        for (UIScene* s in [UIApplication sharedApplication].connectedScenes) {
+            if ([s isKindOfClass:[UIWindowScene class]] && s.activationState == UISceneActivationStateForegroundActive) {
+                scene = (UIWindowScene*)s;
+                break;
+            }
+        }
+        UIViewController* root = scene.windows.firstObject.rootViewController;
+        if (!root) root = [UIApplication sharedApplication].windows.firstObject.rootViewController;
+
+        // Walk to the top-most presented controller
+        while (root.presentedViewController) root = root.presentedViewController;
+
         if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad) {
             vc.popoverPresentationController.sourceView = root.view;
             vc.popoverPresentationController.sourceRect =
