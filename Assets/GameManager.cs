@@ -506,7 +506,7 @@ public class GameManager : MonoBehaviour
                 uiManager.ShowPromoTopBanner();
                 lastPromoBannerTime = Time.realtimeSinceStartup;
             }
-            yield return new WaitForSeconds(Random.Range(150f, 240f));
+            yield return new WaitForSeconds(UnityEngine.Random.Range(150f, 240f));
         }
     }
 
