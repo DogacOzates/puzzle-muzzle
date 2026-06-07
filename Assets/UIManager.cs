@@ -347,13 +347,26 @@ public class UIManager : MonoBehaviour
         badgeRect.anchorMin = new Vector2(1f, 0f);
         badgeRect.anchorMax = new Vector2(1f, 0f);
         badgeRect.pivot = new Vector2(1f, 0f);
-        badgeRect.anchoredPosition = new Vector2(10f, -10f);
+        badgeRect.anchoredPosition = new Vector2(-2f, 2f); // 2px inset from bottom-right
         badgeRect.sizeDelta = new Vector2(40f, 40f);
         var badgeImg = hintFreeBadgeObj.AddComponent<Image>();
         badgeImg.sprite = SpriteGenerator.Circle;
-        badgeImg.color = new Color(0.15f, 0.15f, 0.15f, 0.85f);
-        hintFreeBadgeText = MakeText("Count", hintFreeBadgeObj.transform, Vector2.zero, 22, FontStyle.Bold, Color.white);
+        badgeImg.color = new Color(0.12f, 0.12f, 0.12f, 0.88f);
+        // Text fills the circle exactly
+        var badgeTxtGo = new GameObject("CountTxt");
+        badgeTxtGo.transform.SetParent(hintFreeBadgeObj.transform, false);
+        var btRect = badgeTxtGo.AddComponent<RectTransform>();
+        btRect.anchorMin = Vector2.zero;
+        btRect.anchorMax = Vector2.one;
+        btRect.offsetMin = Vector2.zero;
+        btRect.offsetMax = Vector2.zero;
+        hintFreeBadgeText = badgeTxtGo.AddComponent<Text>();
+        hintFreeBadgeText.font = defaultFont;
+        hintFreeBadgeText.fontSize = 22;
+        hintFreeBadgeText.fontStyle = FontStyle.Bold;
         hintFreeBadgeText.alignment = TextAnchor.MiddleCenter;
+        hintFreeBadgeText.color = Color.white;
+        hintFreeBadgeText.text = "0";
         hintFreeBadgeObj.SetActive(true);
 
         // Restart button (right) with icon
