@@ -2751,8 +2751,6 @@ public class UIManager : MonoBehaviour
         StartCoroutine(ScrollToCurrentLevelButton(currentLevelIndex));
     }
 
-    }
-
     // ── Toast notification ────────────────────────────────────────────────────
     public void ShowToast(string message)
     {
