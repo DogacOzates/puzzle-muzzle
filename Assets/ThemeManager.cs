@@ -5,7 +5,7 @@ public class ThemeManager : MonoBehaviour
     public static ThemeManager Instance { get; private set; }
     public static event System.Action OnThemeChanged;
 
-    // Dark mode is session-only — always starts light on app launch
+    private const string PrefKey = "theme.darkMode";
     private bool _isDarkMode = false;
 
     public bool IsDarkMode
@@ -13,7 +13,10 @@ public class ThemeManager : MonoBehaviour
         get => _isDarkMode;
         set
         {
+            if (_isDarkMode == value) return;
             _isDarkMode = value;
+            PlayerPrefs.SetInt(PrefKey, value ? 1 : 0);
+            PlayerPrefs.Save();
             OnThemeChanged?.Invoke();
         }
     }
@@ -22,6 +25,9 @@ public class ThemeManager : MonoBehaviour
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
+        // Restore saved preference — do NOT fire OnThemeChanged here;
+        // UIManager reads IsDarkMode directly during Initialize() which runs after Awake.
+        _isDarkMode = PlayerPrefs.GetInt(PrefKey, 0) == 1;
     }
 
     // ── Color palette ────────────────────────────────────────────────────────
