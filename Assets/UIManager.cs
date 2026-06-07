@@ -21,6 +21,7 @@ public class UIManager : MonoBehaviour
     private Text hintFreeBadgeText;
     private Image hintButtonIcon;
     private Image restartButtonIcon;
+    private Image cartIconImage;
     // (basePath, Image) pairs for icons that need dark/light sprite swap
     private System.Collections.Generic.List<(string basePath, Image img)> themedIcons
         = new System.Collections.Generic.List<(string, Image)>();
@@ -235,13 +236,20 @@ public class UIManager : MonoBehaviour
         levelSelectToggleButton = CreateInvisibleButton("LevelSelect", bar.transform, new Vector2(0, topBarElementY), new Vector2(520, 84));
         levelSelectToggleButton.onClick.AddListener(() => FindAnyObjectByType<GameManager>().ToggleLevelSelectMenu());
 
-        // Shop/Cart button (top-left) — opens Hint Store
-        float cartY = topBarElementY;
-        var cartBtn = CreateIconButton("Shop", bar.transform, new Vector2(100f, cartY), 52f, "icons/cart");
-        cartBtn.onClick.AddListener(() => FindAnyObjectByType<GameManager>()?.OpenHintStore(grantOnWatch: false));
-        // Teal tint on cart icon
-        var cartIconImg = cartBtn.transform.Find("Icon")?.GetComponent<Image>();
-        if (cartIconImg != null) cartIconImg.color = new Color(0.18f, 0.55f, 0.62f, 1f);
+        // Leaderboard button (top-left)
+        float lbY = topBarElementY;
+        var lbTopBtn = CreateIconButton("Leaderboard", bar.transform, new Vector2(100f, lbY), 52f, "icons/top-three");
+        lbTopBtn.onClick.AddListener(() => {
+            if (GameCenterManager.Instance != null)
+                GameCenterManager.Instance.ShowLeaderboard();
+            else
+            {
+#if UNITY_IOS && !UNITY_EDITOR
+                Social.ShowLeaderboardUI();
+#endif
+            }
+        });
+        leaderboardButtonBg = lbTopBtn.GetComponent<Image>();
 
         bool isDark = ThemeManager.Instance?.IsDarkMode ?? false;
         var settingsObj = new GameObject("SettingsBtn");
@@ -313,22 +321,16 @@ public class UIManager : MonoBehaviour
         barRect.pivot = new Vector2(0.5f, 0);
         barRect.sizeDelta = new Vector2(0, 160);
 
-        // Leaderboard button (bottom-left)
-        var lbBtn = CreateIconButton("Leaderboard", bar.transform, new Vector2(100, 80), 68f, "icons/top-three");
-        var lbRect = lbBtn.GetComponent<RectTransform>();
-        lbRect.anchorMin = new Vector2(0, 0);
-        lbRect.anchorMax = new Vector2(0, 0);
-        lbBtn.onClick.AddListener(() => {
-            if (GameCenterManager.Instance != null)
-                GameCenterManager.Instance.ShowLeaderboard();
-            else
-            {
-#if UNITY_IOS && !UNITY_EDITOR
-                Social.ShowLeaderboardUI();
-#endif
-            }
-        });
-        leaderboardButtonBg = lbBtn.GetComponent<Image>();
+        // Shop/Cart button (bottom-left) — opens Hint Store
+        var cartBtn = CreateIconButton("Shop", bar.transform, new Vector2(100, 80), 72f, "icons/cart");
+        var cartRect = cartBtn.GetComponent<RectTransform>();
+        cartRect.anchorMin = new Vector2(0, 0);
+        cartRect.anchorMax = new Vector2(0, 0);
+        cartBtn.onClick.AddListener(() => FindAnyObjectByType<GameManager>()?.OpenHintStore(grantOnWatch: false));
+        var cartIconImg = cartBtn.transform.Find("Icon")?.GetComponent<Image>();
+        if (cartIconImg != null) cartIconImg.color = new Color(0.18f, 0.55f, 0.62f, 1f);
+        cartIconImage = cartIconImg;
+        StartCoroutine(CartGlowCoroutine());
 
         // Hint button (center) with icon
         hintButton = CreateIconButton("Hint", bar.transform, new Vector2(0, 82), 106, "icons/lightbulb");
@@ -338,21 +340,21 @@ public class UIManager : MonoBehaviour
         hRect.pivot = new Vector2(0.5f, 0.5f);
         hintButton.onClick.AddListener(() => FindAnyObjectByType<GameManager>().UseHint());
 
-        // Free hint badge (top-right corner of hint button)
+        // Hint count badge (bottom-right corner of hint button) — always visible
         hintFreeBadgeObj = new GameObject("FreeBadge");
         hintFreeBadgeObj.transform.SetParent(hintButton.transform, false);
         var badgeRect = hintFreeBadgeObj.AddComponent<RectTransform>();
-        badgeRect.anchorMin = new Vector2(1f, 1f);
-        badgeRect.anchorMax = new Vector2(1f, 1f);
-        badgeRect.pivot = new Vector2(1f, 1f);
-        badgeRect.anchoredPosition = new Vector2(10f, 10f);
-        badgeRect.sizeDelta = new Vector2(34f, 34f);
+        badgeRect.anchorMin = new Vector2(1f, 0f);
+        badgeRect.anchorMax = new Vector2(1f, 0f);
+        badgeRect.pivot = new Vector2(1f, 0f);
+        badgeRect.anchoredPosition = new Vector2(10f, -10f);
+        badgeRect.sizeDelta = new Vector2(40f, 40f);
         var badgeImg = hintFreeBadgeObj.AddComponent<Image>();
         badgeImg.sprite = SpriteGenerator.Circle;
-        badgeImg.color = new Color(0.95f, 0.35f, 0.25f);
-        hintFreeBadgeText = MakeText("Count", hintFreeBadgeObj.transform, Vector2.zero, 20, FontStyle.Bold, Color.white);
+        badgeImg.color = new Color(0.15f, 0.15f, 0.15f, 0.85f);
+        hintFreeBadgeText = MakeText("Count", hintFreeBadgeObj.transform, Vector2.zero, 22, FontStyle.Bold, Color.white);
         hintFreeBadgeText.alignment = TextAnchor.MiddleCenter;
-        hintFreeBadgeObj.SetActive(false);
+        hintFreeBadgeObj.SetActive(true);
 
         // Restart button (right) with icon
         restartButton = CreateIconButton("Restart", bar.transform, new Vector2(-100, 80), 70, "icons/reload");
@@ -2062,7 +2064,7 @@ public class UIManager : MonoBehaviour
     public void UpdateHintBadge(int count)
     {
         if (hintFreeBadgeObj == null) return;
-        hintFreeBadgeObj.SetActive(count > 0);
+        hintFreeBadgeObj.SetActive(true);
         if (hintFreeBadgeText != null)
             hintFreeBadgeText.text = count.ToString();
     }
