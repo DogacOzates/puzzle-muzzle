@@ -361,9 +361,11 @@ public class UIManager : MonoBehaviour
         btRect.offsetMax = Vector2.zero;
         hintFreeBadgeText = badgeTxtGo.AddComponent<Text>();
         hintFreeBadgeText.font = defaultFont;
-        hintFreeBadgeText.fontSize = 38;
+        hintFreeBadgeText.fontSize = 33;
         hintFreeBadgeText.fontStyle = FontStyle.Bold;
         hintFreeBadgeText.alignment = TextAnchor.MiddleCenter;
+        hintFreeBadgeText.horizontalOverflow = HorizontalWrapMode.Overflow;
+        hintFreeBadgeText.verticalOverflow = VerticalWrapMode.Overflow;
         hintFreeBadgeText.color = Color.black;
         hintFreeBadgeText.text = "0";
         hintFreeBadgeObj.SetActive(true);
