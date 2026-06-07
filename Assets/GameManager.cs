@@ -5,7 +5,7 @@ public class GameManager : MonoBehaviour
 {
     private const string SavedLevelIndexKey = "progress.savedLevelIndex";
 
-    private enum GameMode { Regular, Daily, Online }
+    private enum GameMode { Regular, Online }
 
     public bool IsLevelComplete { get; private set; }
 
@@ -21,7 +21,6 @@ public class GameManager : MonoBehaviour
     private bool isLevelTransitionRunning;
     private int hintPressedThisLevel;
     private GameMode currentGameMode = GameMode.Regular;
-    private int preDailyLevelIndex;
 
     public bool IsTutorialRunning => tutorialController != null && tutorialController.IsRunning;
     public bool IsOnlineMode => currentGameMode == GameMode.Online;
@@ -101,8 +100,6 @@ public class GameManager : MonoBehaviour
         monetizationManager.NoAdsPriceChanged += RefreshMonetizationUI;
         RefreshMonetizationUI();
 
-        // Show streak on launch (may be 0, which hides the label)
-        uiManager.UpdateStreakDisplay(DailyChallengeManager.GetStreak());
         // Restore free hint badge if any hints were accumulated
         uiManager.UpdateHintBadge(GetFreeHints());
 
@@ -266,24 +263,6 @@ public class GameManager : MonoBehaviour
         AudioManager.Instance?.OnLevelComplete();
         HapticManager.Instance?.LevelComplete();
 
-        if (currentGameMode == GameMode.Daily)
-        {
-            // Daily challenge: don't advance campaign progress.
-            DailyChallengeManager.MarkTodayCompleted();
-            int streak = DailyChallengeManager.GetStreak();
-            gameCenterManager?.ReportDailyCompleted(streak);
-            uiManager?.UpdateStreakDisplay(streak);
-            // Award 1 free hint for completing today's daily challenge
-            AddFreeHints(1);
-            // Restore currentLevelIndex immediately so GetHighestUnlockedLevelIndex()
-            // never sees the daily level index again (e.g. during transition animation).
-            currentLevelIndex = preDailyLevelIndex;
-            currentGameMode = GameMode.Regular;
-            uiManager.HideLevelComplete();
-            TransitionToLevel(preDailyLevelIndex, false);
-            return;
-        }
-
         if (currentGameMode == GameMode.Online)
         {
             // Don't save progress or advance campaign — notify online manager
@@ -300,14 +279,6 @@ public class GameManager : MonoBehaviour
         TryRequestReview();
         uiManager.HideLevelComplete();
         NextLevel();
-    }
-
-    public void PlayDailyChallenge()
-    {
-        preDailyLevelIndex = currentLevelIndex;
-        currentGameMode = GameMode.Daily;
-        uiManager?.HideLevelSelect();
-        TransitionToLevel(DailyChallengeManager.GetDailyLevelIndex(), false);
     }
 
     public void StartOnlineMatch(int levelIndex)
@@ -377,7 +348,6 @@ public class GameManager : MonoBehaviour
         }
 
         uiManager.ShowLevelSelect(currentLevelIndex, GetHighestUnlockedLevelIndex(), LevelDatabase.TotalLevels);
-        uiManager.UpdateDailyChallengeCard();
     }
 
     public void SelectLevel(int index)

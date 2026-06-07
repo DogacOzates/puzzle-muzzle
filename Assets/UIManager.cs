@@ -56,10 +56,6 @@ public class UIManager : MonoBehaviour
     private int _lsCurrentIdx;
     private int _lsHighestUnlocked = -1;
     private int _lsTotalLevels;
-    private Image dailyChallengeCardImage;
-    private Button dailyChallengeCardButton;
-    private Text dailyChallengeCardMainText;
-    private Text dailyChallengeCardSubText;
     private GameObject transitionOverlay;
     private Image transitionOverlayImage;
     private Text transitionOverlayText;
@@ -70,7 +66,6 @@ public class UIManager : MonoBehaviour
     private Button[] _lsGroupTabButtons = new Button[3];
     private Image[] _lsGroupTabIcons = new Image[3];
     private Image[] _lsGroupTabIconChips = new Image[3];
-    private static Sprite _giftSprite;
     private static Sprite _networkingSprite;
     private Text[] _lsGroupTabTitles = new Text[3];
     private Text[] _lsGroupTabRanges = new Text[3];
@@ -646,15 +641,12 @@ public class UIManager : MonoBehaviour
         // ── Online Mode Card (fixed, below header) ─────────────────────────────────
         LsBuildOnlineModeCard(panelObj.transform);
 
-        // ── Daily Challenge Card (fixed, below online card) ────────────────────────
-        LsBuildDailyChallengeCard(panelObj.transform);
-
-        // ── ScrollView (fills below header + daily card) ────────────────────────────
+        // ── ScrollView (fills below header + online card) ────────────────────────────
         var scrollObj = new GameObject("ScrollView");
         scrollObj.transform.SetParent(panelObj.transform, false);
         var scrollRT = scrollObj.AddComponent<RectTransform>();
         scrollRT.anchorMin = Vector2.zero; scrollRT.anchorMax = Vector2.one;
-        scrollRT.offsetMin = Vector2.zero; scrollRT.offsetMax = new Vector2(0f, -521f);
+        scrollRT.offsetMin = Vector2.zero; scrollRT.offsetMax = new Vector2(0f, -300f);
         var scrollRect = scrollObj.AddComponent<ScrollRect>();
         scrollRect.horizontal = false;
         scrollRect.movementType = ScrollRect.MovementType.Clamped;
@@ -785,90 +777,6 @@ public class UIManager : MonoBehaviour
         LsMakeVlgText("Sub2", textInner.transform, 27, FontStyle.Normal, TextMuted, "Anyone with the code can join!");
     }
 
-    private void LsBuildDailyChallengeCard(Transform parent)
-    {
-        var card = new GameObject("DailyCard");
-        card.transform.SetParent(parent, false);
-        var cardRT = card.AddComponent<RectTransform>();
-        cardRT.anchorMin = new Vector2(0f, 1f); cardRT.anchorMax = new Vector2(1f, 1f);
-        cardRT.pivot = new Vector2(0.5f, 1f);
-        cardRT.anchoredPosition = new Vector2(0f, -300f);
-        cardRT.sizeDelta = new Vector2(0f, 220f);
-
-        // Card background — fills the card slot with margins
-        var outer = new GameObject("Outer");
-        outer.transform.SetParent(card.transform, false);
-        var outerRect = outer.AddComponent<RectTransform>();
-        outerRect.anchorMin = Vector2.zero; outerRect.anchorMax = Vector2.one;
-        outerRect.offsetMin = new Vector2(16f, 12f); outerRect.offsetMax = new Vector2(-16f, -12f);
-        dailyChallengeCardImage = outer.AddComponent<Image>();
-        dailyChallengeCardImage.sprite = SpriteGenerator.RoundedRect;
-        dailyChallengeCardImage.color = new Color(0.875f, 0.924f, 0.913f, 1f);
-        var dcBtn = outer.AddComponent<Button>();
-        var dcColors = dcBtn.colors;
-        dcColors.highlightedColor = new Color(0.83f, 0.90f, 0.88f, 1f);
-        dcColors.pressedColor     = new Color(0.75f, 0.85f, 0.83f, 1f);
-        dcBtn.colors = dcColors; dcBtn.targetGraphic = dailyChallengeCardImage;
-        dcBtn.onClick.AddListener(() => FindAnyObjectByType<GameManager>().PlayDailyChallenge());
-        dailyChallengeCardButton = dcBtn;
-
-        // Pure anchor layout — no HLG, guaranteed to fill card width correctly.
-        // Gift icon: pinned to left-center
-        var giftGo = new GameObject("GiftImg");
-        giftGo.transform.SetParent(outer.transform, false);
-        var giftRT = giftGo.AddComponent<RectTransform>();
-        giftRT.anchorMin = new Vector2(0f, 0.5f); giftRT.anchorMax = new Vector2(0f, 0.5f);
-        giftRT.pivot = new Vector2(0f, 0.5f);
-        giftRT.anchoredPosition = new Vector2(20f, 0f);
-        giftRT.sizeDelta = new Vector2(90f, 90f);
-        var giftImg = giftGo.AddComponent<Image>();
-        giftImg.sprite = LoadGiftSprite();
-        giftImg.preserveAspect = true;
-
-        // Arrow: pinned to right-center
-        var arrGo = new GameObject("Arrow");
-        arrGo.transform.SetParent(outer.transform, false);
-        var arrRT = arrGo.AddComponent<RectTransform>();
-        arrRT.anchorMin = new Vector2(1f, 0.5f); arrRT.anchorMax = new Vector2(1f, 0.5f);
-        arrRT.pivot = new Vector2(1f, 0.5f);
-        arrRT.anchoredPosition = new Vector2(-14f, 0f);
-        arrRT.sizeDelta = new Vector2(44f, 60f);
-        var arrTxt = arrGo.AddComponent<Text>();
-        arrTxt.font = defaultFont; arrTxt.text = "›"; arrTxt.fontSize = 52;
-        arrTxt.fontStyle = FontStyle.Bold; arrTxt.alignment = TextAnchor.MiddleCenter;
-        arrTxt.color = new Color(0.45f, 0.45f, 0.45f, 1f);
-
-        // Text area: stretches between gift and arrow.
-        var textCol = new GameObject("TextCol");
-        textCol.transform.SetParent(outer.transform, false);
-        var textRT = textCol.AddComponent<RectTransform>();
-        textRT.anchorMin = new Vector2(0f, 0f); textRT.anchorMax = new Vector2(1f, 1f);
-        textRT.offsetMin = new Vector2(150f, 8f);   // 20(pad) + 90(gift) + 40(gap)
-        textRT.offsetMax = new Vector2(-72f, -8f);  // -(14+44+14)
-        
-        // Keep the text as a centered block instead of hugging the far left.
-        var textInner = new GameObject("TextInner");
-        textInner.transform.SetParent(textCol.transform, false);
-        var textInnerRT = textInner.AddComponent<RectTransform>();
-        textInnerRT.anchorMin = new Vector2(0.5f, 0.5f);
-        textInnerRT.anchorMax = new Vector2(0.5f, 0.5f);
-        textInnerRT.pivot = new Vector2(0.5f, 0.5f);
-        textInnerRT.anchoredPosition = new Vector2(-56f, 0f);
-        textInnerRT.sizeDelta = new Vector2(500f, 124f);
-        var tcVlg = textInner.AddComponent<VerticalLayoutGroup>();
-        tcVlg.spacing = 4f; tcVlg.padding = new RectOffset(0, 0, 0, 0);
-        tcVlg.childForceExpandWidth = true; tcVlg.childForceExpandHeight = false;
-        tcVlg.childControlWidth = true;    tcVlg.childControlHeight    = true;
-        tcVlg.childAlignment = TextAnchor.MiddleLeft;
-
-        dailyChallengeCardMainText = LsMakeVlgText("DCTitle", textInner.transform, 34, FontStyle.Bold,
-            new Color(0.15f, 0.52f, 0.48f, 1f), "Daily Challenge");
-        dailyChallengeCardSubText = LsMakeVlgText("DCSub1", textInner.transform, 27, FontStyle.Normal,
-            TextMuted, "A new puzzle every day");
-        LsMakeVlgText("DCSub2", textInner.transform, 27, FontStyle.Normal,
-            TextMuted, "Complete to earn 1 hint!");
-    }
-
     private Text LsMakeVlgText(string name, Transform parent, int size, FontStyle style, Color color, string text)
     {
         var obj = new GameObject(name);
@@ -946,15 +854,6 @@ public class UIManager : MonoBehaviour
             _lsGroupTabRanges[g].alignment = TextAnchor.MiddleCenter;
             _lsGroupTabRanges[g].color = (g == 0) ? new Color(1f, 1f, 1f, 0.92f) : TextMuted;
         }
-    }
-
-    private static Sprite LoadGiftSprite()
-    {
-        if (_giftSprite != null) return _giftSprite;
-        var tex = Resources.Load<Texture2D>("gift");
-        if (tex == null) return null;
-        _giftSprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), Vector2.one * 0.5f);
-        return _giftSprite;
     }
 
     private static Sprite LoadNetworkingSprite()
@@ -2347,42 +2246,6 @@ public class UIManager : MonoBehaviour
     public void SetLevelInfo(string name, int index, int total)
     {
         if (levelProgressText != null) levelProgressText.text = $"Level {index + 1} / {total}";
-    }
-
-    public void UpdateStreakDisplay(int streak)
-    {
-        // Streak is shown only inside the daily challenge card in level select.
-        // Top-bar streak label is intentionally kept hidden.
-    }
-
-    public void UpdateDailyChallengeCard()
-    {
-        RefreshDailyChallenge();
-    }
-
-    public void RefreshDailyChallenge()
-    {
-        if (dailyChallengeCardImage == null) return;
-
-        bool completed = DailyChallengeManager.IsTodayCompleted();
-        int dailyIndex = DailyChallengeManager.GetDailyLevelIndex();
-        int streak = DailyChallengeManager.GetStreak();
-
-        dailyChallengeCardImage.color = completed
-            ? new Color(0.860f, 0.940f, 0.890f, 1f)
-            : new Color(0.875f, 0.924f, 0.913f, 1f);
-        dailyChallengeCardMainText.color = completed
-            ? new Color(0.18f, 0.58f, 0.35f, 1f)
-            : new Color(0.15f, 0.52f, 0.48f, 1f);
-
-        string streakSuffix = streak > 0 ? $"  🔥 {streak}" : "";
-        dailyChallengeCardMainText.text = completed ? $"✓ Daily Complete!{streakSuffix}" : "Daily Challenge";
-        dailyChallengeCardSubText.text  = completed
-            ? "Great job! Come back tomorrow 🎉"
-            : "A new puzzle every day";
-
-        if (dailyChallengeCardButton != null)
-            dailyChallengeCardButton.interactable = !completed;
     }
 
     public void ShowLevelComplete()
