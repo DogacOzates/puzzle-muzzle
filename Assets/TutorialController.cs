@@ -341,6 +341,10 @@ public class TutorialController : MonoBehaviour
 
         handObj.SetActive(false);
         yield return new WaitForSeconds(0.3f);
+
+        // 5. Online mode — text-only hint (button is inside level select)
+        SetHintText("Want a challenge?\nTap the level number to find 1v1 online battles!");
+        yield return new WaitForSeconds(2.5f);
     }
 
     private Vector3 ScreenToWorld(RectTransform uiElement)
