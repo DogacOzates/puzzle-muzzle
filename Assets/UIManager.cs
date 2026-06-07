@@ -350,8 +350,7 @@ public class UIManager : MonoBehaviour
         badgeRect.anchoredPosition = new Vector2(-2f, 2f); // 2px inset from bottom-right
         badgeRect.sizeDelta = new Vector2(40f, 40f);
         var badgeImg = hintFreeBadgeObj.AddComponent<Image>();
-        badgeImg.sprite = SpriteGenerator.Circle;
-        badgeImg.color = new Color(0.12f, 0.12f, 0.12f, 0.88f);
+        badgeImg.color = Color.clear; // no background
         // Text fills the circle exactly
         var badgeTxtGo = new GameObject("CountTxt");
         badgeTxtGo.transform.SetParent(hintFreeBadgeObj.transform, false);
@@ -365,7 +364,7 @@ public class UIManager : MonoBehaviour
         hintFreeBadgeText.fontSize = 22;
         hintFreeBadgeText.fontStyle = FontStyle.Bold;
         hintFreeBadgeText.alignment = TextAnchor.MiddleCenter;
-        hintFreeBadgeText.color = Color.white;
+        hintFreeBadgeText.color = Color.black;
         hintFreeBadgeText.text = "0";
         hintFreeBadgeObj.SetActive(true);
 
