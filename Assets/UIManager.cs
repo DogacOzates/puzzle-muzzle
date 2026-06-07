@@ -1969,6 +1969,36 @@ public class UIManager : MonoBehaviour
         StartCoroutine(DelayedStartMatch(levelIndex));
     }
 
+    private System.Collections.IEnumerator CartGlowCoroutine()
+    {
+        var normalColor  = new Color(0.18f, 0.55f, 0.62f, 1f);
+        var brightColor  = new Color(0.55f, 0.92f, 1.00f, 1f);
+        while (true)
+        {
+            yield return new WaitForSeconds(60f);
+            if (cartIconImage == null) yield break;
+            // Pulse 3 times
+            for (int i = 0; i < 3; i++)
+            {
+                float t = 0f;
+                while (t < 0.35f)
+                {
+                    t += Time.deltaTime;
+                    cartIconImage.color = Color.Lerp(normalColor, brightColor, t / 0.35f);
+                    yield return null;
+                }
+                t = 0f;
+                while (t < 0.35f)
+                {
+                    t += Time.deltaTime;
+                    cartIconImage.color = Color.Lerp(brightColor, normalColor, t / 0.35f);
+                    yield return null;
+                }
+            }
+            cartIconImage.color = normalColor;
+        }
+    }
+
     private System.Collections.IEnumerator DelayedStartMatch(int levelIndex)
     {
         yield return new WaitForSeconds(1.2f);
