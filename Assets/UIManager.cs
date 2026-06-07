@@ -2642,7 +2642,6 @@ public class UIManager : MonoBehaviour
             if (gm == null) return;
             ShowInvitePopup(
                 gm.GetReferralCode(),
-                () => gm.ShareReferralCode(),
                 (code) => gm.ClaimReferralCode(code, (ok, msg) => ShowToast(msg))
             );
         });
@@ -2845,7 +2844,7 @@ public class UIManager : MonoBehaviour
     }
 
     // ── Invite Friends Popup ──────────────────────────────────────────────────
-    public void ShowInvitePopup(string myCode, System.Action onShare, System.Action<string> onClaim)
+    public void ShowInvitePopup(string myCode, System.Action<string> onClaim)
     {
         // Overlay
         var overlay = new GameObject("InviteOverlay");
@@ -2858,7 +2857,7 @@ public class UIManager : MonoBehaviour
         overlay.AddComponent<Button>().onClick.AddListener(() => Destroy(overlay));
 
         // Card — all child positions are center-anchored (0 = card center)
-        const float cardH = 620f;
+        const float cardH = 460f;
         var card = new GameObject("Card");
         card.transform.SetParent(overlay.transform, false);
         var cRect = card.AddComponent<RectTransform>();
@@ -2928,20 +2927,16 @@ public class UIManager : MonoBehaviour
         codeTxtT.horizontalOverflow = HorizontalWrapMode.Overflow;
         codeTxtT.verticalOverflow = VerticalWrapMode.Overflow;
 
-        // Share button
-        var shareBtn = CreateCardButton("Share & Get +5 Hints", card.transform, new Vector2(0f, 48f), new Color(0.18f, 0.62f, 0.55f));
-        shareBtn.GetComponent<RectTransform>().sizeDelta = new Vector2(480f, 68f);
-        shareBtn.onClick.AddListener(() => { onShare?.Invoke(); Destroy(overlay); });
-
+        // Share button removed — code is shown above, user can share manually
         // Divider
-        CLabel("Div", "- OR ENTER A FRIEND'S CODE -", -30f, 22, new Color(0.50f, 0.46f, 0.60f));
+        CLabel("Div", "- OR ENTER A FRIEND'S CODE -", 60f, 22, new Color(0.50f, 0.46f, 0.60f));
 
         // Input field
         var inputGo = new GameObject("CodeInput"); inputGo.transform.SetParent(card.transform, false);
         var inR = inputGo.AddComponent<RectTransform>();
         inR.anchorMin = new Vector2(0.5f, 0.5f); inR.anchorMax = new Vector2(0.5f, 0.5f);
         inR.pivot = new Vector2(0.5f, 0.5f);
-        inR.anchoredPosition = new Vector2(0f, -100f);
+        inR.anchoredPosition = new Vector2(0f, -10f);
         inR.sizeDelta = new Vector2(480f, 68f);
         var inBg = inputGo.AddComponent<Image>(); inBg.sprite = SpriteGenerator.RoundedRect;
         inBg.color = new Color(0.22f, 0.18f, 0.32f);
@@ -2972,14 +2967,9 @@ public class UIManager : MonoBehaviour
         inputField.characterValidation = InputField.CharacterValidation.Alphanumeric;
 
         // Claim button
-        var claimBtn = CreateCardButton("Get +5 Hints", card.transform, new Vector2(0f, -193f), new Color(0.85f, 0.62f, 0.08f));
+        var claimBtn = CreateCardButton("Get +5 Hints", card.transform, new Vector2(0f, -103f), new Color(0.85f, 0.62f, 0.08f));
         claimBtn.GetComponent<RectTransform>().sizeDelta = new Vector2(480f, 68f);
         claimBtn.onClick.AddListener(() => { onClaim?.Invoke(inputField.text); Destroy(overlay); });
-
-        // Close
-        var closeBtn = CreateCardButton("Close", card.transform, new Vector2(0f, -280f), new Color(0.28f, 0.24f, 0.36f));
-        closeBtn.GetComponent<RectTransform>().sizeDelta = new Vector2(480f, 56f);
-        closeBtn.onClick.AddListener(() => Destroy(overlay));
     }
 
     private IEnumerator ScrollToCurrentLevelButton(int idx)

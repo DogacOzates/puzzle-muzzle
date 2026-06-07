@@ -431,13 +431,6 @@ public class GameManager : MonoBehaviour
     public void ShareReferralCode()
     {
         string code = GetReferralCode();
-        if (PlayerPrefs.GetInt("referral.shared", 0) == 0)
-        {
-            PlayerPrefs.SetInt("referral.shared", 1);
-            PlayerPrefs.Save();
-            AddFreeHints(5);
-            uiManager?.ShowToast("Shared! +5 Hints added 🎉");
-        }
         const string appStoreUrl = "https://apps.apple.com/app/id6739918641";
         string msg = $"Play Puzzle Muzzle with me! 🧩\nEnter code {code} to get 5 free hints!\nDownload: {appStoreUrl}";
         NativeShare.Share(msg);
