@@ -1531,9 +1531,9 @@ public class UIManager : MonoBehaviour
 
         BuildRow("5 Hints",  "", price5,  new Color(0.26f, 0.52f, 0.96f, 1f), onBuyPack5,  card.transform, y);
         y -= rowH + rowGap;
-        BuildRow("20 Hints", "", price20, new Color(0.26f, 0.52f, 0.96f, 1f), onBuyPack20, card.transform, y);
+        BuildRow("30 Hints", "", price20, new Color(0.26f, 0.52f, 0.96f, 1f), onBuyPack20, card.transform, y);
         y -= rowH + rowGap;
-        BuildRow("60 Hints", "", price60, new Color(0.26f, 0.52f, 0.96f, 1f), onBuyPack60, card.transform, y);
+        BuildRow("70 Hints", "", price60, new Color(0.26f, 0.52f, 0.96f, 1f), onBuyPack60, card.transform, y);
         y -= rowH + rowGap;
 
         // ── Remove Ads ────────────────────────────────────────────────────────────
@@ -1613,7 +1613,7 @@ public class UIManager : MonoBehaviour
         lblRT.anchoredPosition = new Vector2(84f, 12f);
         lblRT.sizeDelta = new Vector2(-248f, 36f);
         var lt = lbl.AddComponent<Text>();
-        lt.font = defaultFont; lt.text = "Welcome Deal  ·  15 Hints";
+        lt.font = defaultFont; lt.text = "Welcome Deal  ·  25 Hints";
         lt.fontSize = 30; lt.fontStyle = FontStyle.Bold;
         lt.color = Color.white; lt.alignment = TextAnchor.MiddleLeft;
 
