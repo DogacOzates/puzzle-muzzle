@@ -106,7 +106,6 @@ public class GameManager : MonoBehaviour
 
         currentLevelIndex = LoadSavedLevelIndex();
         LoadLevel(currentLevelIndex);
-        StartCoroutine(PeriodicPromoBannerCoroutine());
         StartCoroutine(RequestATTThenInitAds());
     }
 
@@ -481,32 +480,8 @@ public class GameManager : MonoBehaviour
         LevelData level = LevelDatabase.GetLevel(currentLevelIndex);
         if (gridManager.SolveHint(level.solutions))
         {
-            if (monetizationManager != null && !monetizationManager.IsNoAdsPurchased &&
-                Time.realtimeSinceStartup - lastPromoBannerTime > 180f)
-            {
-                uiManager?.ShowPromoTopBanner();
-                lastPromoBannerTime = Time.realtimeSinceStartup;
-            }
             if (gridManager.IsLevelComplete())
                 OnLevelComplete();
-        }
-    }
-
-    private float lastPromoBannerTime = -9999f;
-
-    private IEnumerator PeriodicPromoBannerCoroutine()
-    {
-        yield return new WaitForSeconds(180f);
-        while (true)
-        {
-            if (!IsLevelComplete && !isLevelTransitionRunning &&
-                monetizationManager != null && !monetizationManager.IsNoAdsPurchased &&
-                uiManager != null)
-            {
-                uiManager.ShowPromoTopBanner();
-                lastPromoBannerTime = Time.realtimeSinceStartup;
-            }
-            yield return new WaitForSeconds(UnityEngine.Random.Range(150f, 240f));
         }
     }
 

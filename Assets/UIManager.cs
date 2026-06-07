@@ -14,23 +14,17 @@ public class UIManager : MonoBehaviour
     private Button retryButton;
     private Button restartButton;
     private Button hintButton;
-    private Button noAdsButton;
     private Button levelSelectToggleButton;
     private GameObject noAdsPurchasePopup;
     private GameObject ratePopup;
     private GameObject hintFreeBadgeObj;
     private Text hintFreeBadgeText;
     private Image hintButtonIcon;
-    private Image noAdsButtonIcon;
     private Image restartButtonIcon;
-    private Image noAdsPingRing1;
-    private Image noAdsPingRing2;
     // (basePath, Image) pairs for icons that need dark/light sprite swap
     private System.Collections.Generic.List<(string basePath, Image img)> themedIcons
         = new System.Collections.Generic.List<(string, Image)>();
     private GameObject hintPromoPopup;
-    private GameObject promoTopBanner;
-    private Coroutine bannerCoroutine;
     private string noAdsPriceLabel = "$9.99";
 
     // ── Online Mode popup ────────────────────────────────────────────────────────
@@ -223,15 +217,15 @@ public class UIManager : MonoBehaviour
 
     private void CreateTopBar()
     {
-        // Top bar container — taller to accommodate stacked leaderboard + shop icons
-        var bar = CreatePanel("TopBar", safeAreaRect, new Vector2(0, 0), new Vector2(0, -180));
+        // Top bar container
+        var bar = CreatePanel("TopBar", safeAreaRect, new Vector2(0, 0), new Vector2(0, -140));
         var barRect = bar.GetComponent<RectTransform>();
         barRect.anchorMin = new Vector2(0, 1);
         barRect.anchorMax = new Vector2(1, 1);
         barRect.pivot = new Vector2(0.5f, 1);
         float aspect = (float)Screen.width / Mathf.Max(1f, Screen.height);
         bool useRaisedTopBarLayout = aspect >= 0.65f;
-        float topBarElementY = useRaisedTopBarLayout ? -50f : -70f;
+        float topBarElementY = useRaisedTopBarLayout ? -42f : -70f;
 
         // Level progress text (top center) — Georgia italic, matching tutorial style
         var georgiaFont = Font.CreateDynamicFontFromOSFont("Georgia", 72);
@@ -241,22 +235,8 @@ public class UIManager : MonoBehaviour
         levelSelectToggleButton = CreateInvisibleButton("LevelSelect", bar.transform, new Vector2(0, topBarElementY), new Vector2(520, 84));
         levelSelectToggleButton.onClick.AddListener(() => FindAnyObjectByType<GameManager>().ToggleLevelSelectMenu());
 
-        // Leaderboard button (left side of top bar)
-        var lbBtn = CreateIconButton("Leaderboard", bar.transform, new Vector2(100f, topBarElementY), 68f, "icons/top-three");
-        lbBtn.onClick.AddListener(() => {
-            if (GameCenterManager.Instance != null)
-                GameCenterManager.Instance.ShowLeaderboard();
-            else
-            {
-#if UNITY_IOS && !UNITY_EDITOR
-                Social.ShowLeaderboardUI();
-#endif
-            }
-        });
-        leaderboardButtonBg = lbBtn.GetComponent<Image>();
-
-        // Shop/Cart button — stacked below leaderboard button
-        float cartY = topBarElementY - 34f - 8f - 26f; // lb_half + gap + cart_half
+        // Shop/Cart button (top-left) — opens Hint Store
+        float cartY = topBarElementY;
         var cartBtn = CreateIconButton("Shop", bar.transform, new Vector2(100f, cartY), 52f, "icons/cart");
         cartBtn.onClick.AddListener(() => FindAnyObjectByType<GameManager>()?.OpenHintStore(grantOnWatch: false));
         // Teal tint on cart icon
@@ -333,11 +313,29 @@ public class UIManager : MonoBehaviour
         barRect.pivot = new Vector2(0.5f, 0);
         barRect.sizeDelta = new Vector2(0, 160);
 
-        // Hint button (left) with icon
-        hintButton = CreateIconButton("Hint", bar.transform, new Vector2(100, 80), 88, "icons/lightbulb");
+        // Leaderboard button (bottom-left)
+        var lbBtn = CreateIconButton("Leaderboard", bar.transform, new Vector2(100, 80), 68f, "icons/top-three");
+        var lbRect = lbBtn.GetComponent<RectTransform>();
+        lbRect.anchorMin = new Vector2(0, 0);
+        lbRect.anchorMax = new Vector2(0, 0);
+        lbBtn.onClick.AddListener(() => {
+            if (GameCenterManager.Instance != null)
+                GameCenterManager.Instance.ShowLeaderboard();
+            else
+            {
+#if UNITY_IOS && !UNITY_EDITOR
+                Social.ShowLeaderboardUI();
+#endif
+            }
+        });
+        leaderboardButtonBg = lbBtn.GetComponent<Image>();
+
+        // Hint button (center) with icon
+        hintButton = CreateIconButton("Hint", bar.transform, new Vector2(0, 82), 106, "icons/lightbulb");
         var hRect = hintButton.GetComponent<RectTransform>();
-        hRect.anchorMin = new Vector2(0, 0);
-        hRect.anchorMax = new Vector2(0, 0);
+        hRect.anchorMin = new Vector2(0.5f, 0f);
+        hRect.anchorMax = new Vector2(0.5f, 0f);
+        hRect.pivot = new Vector2(0.5f, 0.5f);
         hintButton.onClick.AddListener(() => FindAnyObjectByType<GameManager>().UseHint());
 
         // Free hint badge (top-right corner of hint button)
@@ -362,40 +360,6 @@ public class UIManager : MonoBehaviour
         rRect.anchorMin = new Vector2(1, 0);
         rRect.anchorMax = new Vector2(1, 0);
         restartButton.onClick.AddListener(() => FindAnyObjectByType<GameManager>().RetryLevel());
-
-        noAdsButton = CreateIconButton("NoAds", bar.transform, new Vector2(0, 82), 106, "icons/adblock");
-        var noAdsRect = noAdsButton.GetComponent<RectTransform>();
-        noAdsRect.anchorMin = new Vector2(0.5f, 0f);
-        noAdsRect.anchorMax = new Vector2(0.5f, 0f);
-        noAdsRect.pivot = new Vector2(0.5f, 0.5f);
-        noAdsButton.onClick.AddListener(ShowNoAdsPurchasePopup);
-
-        // Two ping rings behind icon — expand outward on each glow pulse
-        var ring1Obj = new GameObject("PingRing1");
-        ring1Obj.transform.SetParent(noAdsButton.transform, false);
-        ring1Obj.transform.SetSiblingIndex(0);
-        var ring1Rect = ring1Obj.AddComponent<RectTransform>();
-        ring1Rect.anchorMin = new Vector2(0.5f, 0.5f);
-        ring1Rect.anchorMax = new Vector2(0.5f, 0.5f);
-        ring1Rect.pivot = new Vector2(0.5f, 0.5f);
-        ring1Rect.sizeDelta = new Vector2(106f, 106f);
-        noAdsPingRing1 = ring1Obj.AddComponent<Image>();
-        noAdsPingRing1.sprite = SpriteGenerator.Circle;
-        noAdsPingRing1.color = new Color(1f, 0.82f, 0.08f, 0f);
-
-        var ring2Obj = new GameObject("PingRing2");
-        ring2Obj.transform.SetParent(noAdsButton.transform, false);
-        ring2Obj.transform.SetSiblingIndex(1);
-        var ring2Rect = ring2Obj.AddComponent<RectTransform>();
-        ring2Rect.anchorMin = new Vector2(0.5f, 0.5f);
-        ring2Rect.anchorMax = new Vector2(0.5f, 0.5f);
-        ring2Rect.pivot = new Vector2(0.5f, 0.5f);
-        ring2Rect.sizeDelta = new Vector2(106f, 106f);
-        noAdsPingRing2 = ring2Obj.AddComponent<Image>();
-        noAdsPingRing2.sprite = SpriteGenerator.Circle;
-        noAdsPingRing2.color = new Color(1f, 0.82f, 0.08f, 0f);
-
-        StartCoroutine(NoAdsGlowCoroutine());
     }
 
     private Sprite LoadIconSprite(string name)
@@ -455,8 +419,6 @@ public class UIManager : MonoBehaviour
             hintButtonIcon = iconImg;
         if (name == "Restart")
             restartButtonIcon = iconImg;
-        if (name == "NoAds")
-            noAdsButtonIcon = iconImg;
 
         themedIcons.Add((iconPath, iconImg));
 
@@ -2304,186 +2266,6 @@ public class UIManager : MonoBehaviour
 
     // --- Promo Top Banner ---
 
-    public void ShowPromoTopBanner()
-    {
-        if (promoTopBanner == null)
-            promoTopBanner = CreatePromoTopBanner();
-
-        if (promoTopBanner.activeSelf) return;
-
-        if (bannerCoroutine != null)
-            StopCoroutine(bannerCoroutine);
-        bannerCoroutine = StartCoroutine(PromoTopBannerCoroutine());
-    }
-
-    private GameObject CreatePromoTopBanner()
-    {
-        // Calculate top safe area inset in canvas units so content clears the notch/Dynamic Island
-        float canvasH = ((RectTransform)canvas.transform).rect.height;
-        float safeTopFraction = Mathf.Max(0f, (Screen.height - Screen.safeArea.yMax) / (float)Screen.height);
-        float topPad = canvasH * safeTopFraction;
-        float contentH = 110f;
-        float bannerH = contentH + topPad;
-
-        var bannerObj = new GameObject("PromoTopBanner");
-        bannerObj.transform.SetParent(canvas.transform, false);
-
-        var bannerRect = bannerObj.AddComponent<RectTransform>();
-        bannerRect.anchorMin = new Vector2(0f, 1f);
-        bannerRect.anchorMax = new Vector2(1f, 1f);
-        bannerRect.pivot = new Vector2(0.5f, 1f);
-        bannerRect.sizeDelta = new Vector2(0f, bannerH);
-        bannerRect.anchoredPosition = new Vector2(0f, bannerH);
-
-        var bgImg = bannerObj.AddComponent<Image>();
-        bgImg.color = new Color(0.22f, 0.14f, 0.42f, 0.97f);
-
-        var tapBtn = bannerObj.AddComponent<Button>();
-        tapBtn.targetGraphic = bgImg;
-        tapBtn.onClick.AddListener(() =>
-        {
-            if (bannerCoroutine != null) StopCoroutine(bannerCoroutine);
-            promoTopBanner.SetActive(false);
-            FindAnyObjectByType<GameManager>().PurchaseNoAds();
-        });
-
-        // Content row sits at the very bottom of the banner — always below the notch/island
-        var rowObj = new GameObject("ContentRow");
-        rowObj.transform.SetParent(bannerObj.transform, false);
-        var rowRect = rowObj.AddComponent<RectTransform>();
-        rowRect.anchorMin = new Vector2(0f, 0f);
-        rowRect.anchorMax = new Vector2(1f, 0f);
-        rowRect.pivot = new Vector2(0.5f, 0f);
-        rowRect.sizeDelta = new Vector2(0f, contentH);
-        rowRect.anchoredPosition = Vector2.zero;
-
-        // Star icon
-        var starObj = new GameObject("Star");
-        starObj.transform.SetParent(rowObj.transform, false);
-        var starRect = starObj.AddComponent<RectTransform>();
-        starRect.anchorMin = new Vector2(0f, 0f);
-        starRect.anchorMax = new Vector2(0f, 1f);
-        starRect.pivot = new Vector2(0f, 0.5f);
-        starRect.anchoredPosition = new Vector2(16f, 0f);
-        starRect.sizeDelta = new Vector2(70f, 0f);
-        var starTxt = starObj.AddComponent<Text>();
-        starTxt.font = defaultFont;
-        starTxt.text = "★";
-        starTxt.fontSize = 42;
-        starTxt.alignment = TextAnchor.MiddleCenter;
-        starTxt.color = new Color(1f, 0.85f, 0.2f);
-
-        // Message text
-        var msgObj = new GameObject("Message");
-        msgObj.transform.SetParent(rowObj.transform, false);
-        var msgRect = msgObj.AddComponent<RectTransform>();
-        msgRect.anchorMin = new Vector2(0f, 0f);
-        msgRect.anchorMax = new Vector2(0.80f, 1f);
-        msgRect.offsetMin = new Vector2(96f, 0f);
-        msgRect.offsetMax = new Vector2(0f, 0f);
-        var msgTxt = msgObj.AddComponent<Text>();
-        msgTxt.font = defaultFont;
-        msgTxt.text = $"Tired of Ads?  Get Ad Free for {noAdsPriceLabel}";
-        msgTxt.fontSize = 30;
-        msgTxt.fontStyle = FontStyle.Bold;
-        msgTxt.alignment = TextAnchor.MiddleLeft;
-        msgTxt.color = Color.white;
-
-        bannerObj.SetActive(false);
-        return bannerObj;
-    }
-
-    private IEnumerator NoAdsGlowCoroutine()
-    {
-        while (true)
-        {
-            yield return new WaitForSeconds(UnityEngine.Random.Range(25f, 35f));
-
-            if (noAdsPingRing1 == null || noAdsButton == null || !noAdsButton.gameObject.activeSelf)
-                continue;
-
-            // Two staggered ping rings expand outward
-            StartCoroutine(PingRingRoutine(noAdsPingRing1, 0f));
-            StartCoroutine(PingRingRoutine(noAdsPingRing2, 0.22f));
-
-            // Button scale bounce
-            const float bounceDuration = 0.35f;
-            float bt = 0f;
-            while (bt < bounceDuration)
-            {
-                bt += Time.deltaTime;
-                float s = 1f + 0.08f * Mathf.Sin((bt / bounceDuration) * Mathf.PI);
-                noAdsButton.transform.localScale = Vector3.one * s;
-                yield return null;
-            }
-            noAdsButton.transform.localScale = Vector3.one;
-        }
-    }
-
-    private IEnumerator PingRingRoutine(Image ring, float delay)
-    {
-        if (delay > 0f) yield return new WaitForSeconds(delay);
-        if (ring == null) yield break;
-
-        const float duration = 0.65f;
-        float t = 0f;
-        while (t < duration)
-        {
-            t += Time.deltaTime;
-            float p = t / duration;
-            float ease = 1f - (1f - p) * (1f - p); // ease-out quad
-            ring.rectTransform.localScale = Vector3.one * (1f + ease * 1.4f);
-            ring.color = new Color(1f, 0.82f, 0.08f, (1f - p) * 0.55f);
-            yield return null;
-        }
-        ring.color = new Color(1f, 0.82f, 0.08f, 0f);
-        ring.rectTransform.localScale = Vector3.one;
-    }
-
-    private IEnumerator PromoTopBannerCoroutine()
-    {
-        if (promoTopBanner == null) yield break;
-
-        var bannerRect = promoTopBanner.GetComponent<RectTransform>();
-        float bannerH = bannerRect.sizeDelta.y;
-
-        // Reset to off-screen before activating to prevent one-frame flash
-        bannerRect.anchoredPosition = new Vector2(0f, bannerH);
-        promoTopBanner.SetActive(true);
-        promoTopBanner.transform.SetAsLastSibling();
-
-        const float slideDuration = 0.38f;
-
-        // Slide in from above
-        float t = 0f;
-        while (t < slideDuration)
-        {
-            t += Time.deltaTime;
-            float p = Mathf.Clamp01(t / slideDuration);
-            float eased = 1f - Mathf.Pow(1f - p, 3f);
-            bannerRect.anchoredPosition = new Vector2(0f, Mathf.Lerp(bannerH, 0f, eased));
-            yield return null;
-        }
-        bannerRect.anchoredPosition = new Vector2(0f, 0f);
-
-        yield return new WaitForSeconds(4.6f);
-
-        if (promoTopBanner == null) yield break;
-
-        // Slide out
-        t = 0f;
-        while (t < slideDuration)
-        {
-            t += Time.deltaTime;
-            float p = Mathf.Clamp01(t / slideDuration);
-            float eased = p * p * p;
-            bannerRect.anchoredPosition = new Vector2(0f, Mathf.Lerp(0f, bannerH, eased));
-            yield return null;
-        }
-        if (promoTopBanner != null)
-            promoTopBanner.SetActive(false);
-    }
-
     // --- Public API ---
 
     public void SetLevelInfo(string name, int index, int total)
@@ -2844,9 +2626,6 @@ public class UIManager : MonoBehaviour
 
     public void SetNoAdsState(bool isAvailable, bool isPurchased, string buttonLabel)
     {
-        if (noAdsButton == null)
-            return;
-
         // Extract price from "No Ads\n$9.99" label format
         if (!string.IsNullOrEmpty(buttonLabel))
         {
@@ -2854,9 +2633,6 @@ public class UIManager : MonoBehaviour
             if (parts.Length > 1 && !string.IsNullOrEmpty(parts[1]))
                 noAdsPriceLabel = parts[1];
         }
-
-        noAdsButton.gameObject.SetActive(!isPurchased);
-        noAdsButton.interactable = isAvailable && !isPurchased;
     }
 
     public void SetHintAvailable(bool isAvailable)
@@ -2881,7 +2657,6 @@ public class UIManager : MonoBehaviour
     public void SetTutorialMode(bool isTutorial)
     {
         if (hintButton != null)           hintButton.interactable           = !isTutorial;
-        if (noAdsButton != null)          noAdsButton.interactable          = !isTutorial;
         if (restartButton != null)        restartButton.interactable        = !isTutorial;
         if (levelSelectToggleButton != null) levelSelectToggleButton.interactable = !isTutorial;
     }
@@ -2897,9 +2672,5 @@ public class UIManager : MonoBehaviour
         UpdateHintBadge(count);
     }
 
-    public void SetNoAdsPurchased(bool purchased)
-    {
-        if (noAdsButton != null)
-            noAdsButton.gameObject.SetActive(!purchased);
-    }
+    public void SetNoAdsPurchased(bool purchased) { }
 }
