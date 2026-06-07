@@ -104,6 +104,8 @@ public class GameManager : MonoBehaviour
         // Restore free hint badge if any hints were accumulated
         uiManager.UpdateHintBadge(GetFreeHints());
 
+        StartCoroutine(CheckDailyRewardCoroutine());
+
         currentLevelIndex = LoadSavedLevelIndex();
         LoadLevel(currentLevelIndex);
         StartCoroutine(RequestATTThenInitAds());
@@ -111,6 +113,31 @@ public class GameManager : MonoBehaviour
 
     // ATT must be shown after the app window is fully ready.
     // A short delay ensures iOS doesn't silently drop the dialog.
+    private IEnumerator CheckDailyRewardCoroutine()
+    {
+        yield return new WaitForSeconds(1.5f);
+
+        string today     = DateTime.Now.ToString("yyyy-MM-dd");
+        string yesterday = DateTime.Now.AddDays(-1).ToString("yyyy-MM-dd");
+        string lastClaim = PlayerPrefs.GetString("daily.lastClaim", "");
+
+        if (lastClaim == today) yield break; // already claimed today
+
+        int streak = PlayerPrefs.GetInt("daily.streak", 0);
+        streak = (lastClaim == yesterday) ? streak + 1 : 1;
+        if (streak > 7) streak = 1; // safety reset
+
+        bool isStreakBonus = streak == 7;
+        int hintsGranted   = isStreakBonus ? 10 : 1;
+
+        AddFreeHints(hintsGranted);
+        PlayerPrefs.SetString("daily.lastClaim", today);
+        PlayerPrefs.SetInt("daily.streak", isStreakBonus ? 0 : streak);
+        PlayerPrefs.Save();
+
+        uiManager?.ShowDailyRewardPopup(streak, hintsGranted, isStreakBonus);
+    }
+
     private IEnumerator RequestATTThenInitAds()
     {
         yield return new WaitForSeconds(0.5f);

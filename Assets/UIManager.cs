@@ -2092,6 +2092,178 @@ public class UIManager : MonoBehaviour
             hintFreeBadgeText.text = count.ToString();
     }
 
+
+    // --- Daily Reward Popup ---
+
+    public void ShowDailyRewardPopup(int streak, int hintsGranted, bool isStreakBonus)
+    {
+        // Dark overlay
+        var overlay = new GameObject("DailyRewardOverlay");
+        overlay.transform.SetParent(safeAreaRect, false);
+        var oRect = overlay.AddComponent<RectTransform>();
+        oRect.anchorMin = Vector2.zero; oRect.anchorMax = Vector2.one;
+        oRect.offsetMin = Vector2.zero; oRect.offsetMax = Vector2.zero;
+        var oImg = overlay.AddComponent<Image>();
+        oImg.color = new Color(0f, 0f, 0f, 0.6f);
+        overlay.AddComponent<Button>(); // absorb touches outside
+
+        // Card
+        var card = new GameObject("DailyRewardCard");
+        card.transform.SetParent(overlay.transform, false);
+        var cRect = card.AddComponent<RectTransform>();
+        cRect.anchorMin = new Vector2(0.5f, 0.5f); cRect.anchorMax = new Vector2(0.5f, 0.5f);
+        cRect.pivot = new Vector2(0.5f, 0.5f);
+        cRect.anchoredPosition = Vector2.zero;
+        cRect.sizeDelta = new Vector2(540f, isStreakBonus ? 580f : 520f);
+        var cImg = card.AddComponent<Image>();
+        cImg.sprite = SpriteGenerator.RoundedRect;
+        cImg.color = new Color(0.12f, 0.10f, 0.18f, 1f); // deep dark purple
+
+        // Top ribbon
+        var ribbon = new GameObject("Ribbon");
+        ribbon.transform.SetParent(card.transform, false);
+        var rRect2 = ribbon.AddComponent<RectTransform>();
+        rRect2.anchorMin = new Vector2(0f, 1f); rRect2.anchorMax = new Vector2(1f, 1f);
+        rRect2.pivot = new Vector2(0.5f, 1f);
+        rRect2.anchoredPosition = Vector2.zero;
+        rRect2.sizeDelta = new Vector2(0f, 100f);
+        var rImg = ribbon.AddComponent<Image>();
+        rImg.sprite = SpriteGenerator.RoundedRect;
+        rImg.color = isStreakBonus ? new Color(0.85f, 0.62f, 0.08f) : new Color(0.18f, 0.55f, 0.62f);
+
+        var titleTxt = new GameObject("Title");
+        titleTxt.transform.SetParent(ribbon.transform, false);
+        var ttRect = titleTxt.AddComponent<RectTransform>();
+        ttRect.anchorMin = Vector2.zero; ttRect.anchorMax = Vector2.one;
+        ttRect.offsetMin = Vector2.zero; ttRect.offsetMax = Vector2.zero;
+        var tt = titleTxt.AddComponent<Text>();
+        tt.font = defaultFont;
+        tt.text = isStreakBonus ? "🎉  7-Day Streak Bonus!" : "🎁  Daily Reward";
+        tt.fontSize = 34; tt.fontStyle = FontStyle.Bold;
+        tt.color = Color.white; tt.alignment = TextAnchor.MiddleCenter;
+
+        // Hint amount
+        var amtGo = new GameObject("Amount");
+        amtGo.transform.SetParent(card.transform, false);
+        var amtRect = amtGo.AddComponent<RectTransform>();
+        amtRect.anchorMin = new Vector2(0.5f, 1f); amtRect.anchorMax = new Vector2(0.5f, 1f);
+        amtRect.pivot = new Vector2(0.5f, 1f);
+        amtRect.anchoredPosition = new Vector2(0f, -116f);
+        amtRect.sizeDelta = new Vector2(500f, 100f);
+        var amtTxt = amtGo.AddComponent<Text>();
+        amtTxt.font = defaultFont;
+        amtTxt.text = isStreakBonus ? "+10 Hints" : "+1 Hint";
+        amtTxt.fontSize = isStreakBonus ? 64 : 72; amtTxt.fontStyle = FontStyle.Bold;
+        amtTxt.color = isStreakBonus ? new Color(1f, 0.85f, 0.20f) : new Color(0.35f, 0.92f, 0.78f);
+        amtTxt.alignment = TextAnchor.MiddleCenter;
+        amtTxt.horizontalOverflow = HorizontalWrapMode.Overflow;
+        amtTxt.verticalOverflow = VerticalWrapMode.Overflow;
+
+        // Sub label
+        var subGo = new GameObject("Sub");
+        subGo.transform.SetParent(card.transform, false);
+        var subRect2 = subGo.AddComponent<RectTransform>();
+        subRect2.anchorMin = new Vector2(0.5f, 1f); subRect2.anchorMax = new Vector2(0.5f, 1f);
+        subRect2.pivot = new Vector2(0.5f, 1f);
+        subRect2.anchoredPosition = new Vector2(0f, -222f);
+        subRect2.sizeDelta = new Vector2(460f, 48f);
+        var subTxt2 = subGo.AddComponent<Text>();
+        subTxt2.font = defaultFont;
+        subTxt2.text = isStreakBonus
+            ? "Amazing! You played 7 days in a row!"
+            : $"Come back tomorrow for day {(streak < 7 ? streak + 1 : 1)}!";
+        subTxt2.fontSize = 26; subTxt2.color = new Color(0.72f, 0.68f, 0.82f);
+        subTxt2.alignment = TextAnchor.MiddleCenter;
+        subTxt2.horizontalOverflow = HorizontalWrapMode.Overflow;
+        subTxt2.verticalOverflow   = VerticalWrapMode.Overflow;
+
+        // 7-day progress dots
+        float dotsY = -278f;
+        float dotSpacing = 68f;
+        float dotsStartX = -(dotSpacing * 3);
+        for (int d = 1; d <= 7; d++)
+        {
+            var dot = new GameObject($"Day{d}");
+            dot.transform.SetParent(card.transform, false);
+            var dRect = dot.AddComponent<RectTransform>();
+            dRect.anchorMin = new Vector2(0.5f, 1f); dRect.anchorMax = new Vector2(0.5f, 1f);
+            dRect.pivot = new Vector2(0.5f, 1f);
+            dRect.anchoredPosition = new Vector2(dotsStartX + (d - 1) * dotSpacing, dotsY);
+            dRect.sizeDelta = new Vector2(52f, 52f);
+            var dImg = dot.AddComponent<Image>();
+            dImg.sprite = SpriteGenerator.Circle;
+
+            bool completed = d < streak || (isStreakBonus && d <= 7);
+            bool current   = d == streak && !isStreakBonus;
+            if (completed)      dImg.color = new Color(0.18f, 0.72f, 0.58f);       // teal filled
+            else if (current)   dImg.color = new Color(1.00f, 0.82f, 0.10f);       // gold current
+            else                dImg.color = new Color(0.30f, 0.26f, 0.40f);       // dark empty
+
+            var dTxt = new GameObject("Num");
+            dTxt.transform.SetParent(dot.transform, false);
+            var dtRect = dTxt.AddComponent<RectTransform>();
+            dtRect.anchorMin = Vector2.zero; dtRect.anchorMax = Vector2.one;
+            dtRect.offsetMin = Vector2.zero; dtRect.offsetMax = Vector2.zero;
+            var dt = dTxt.AddComponent<Text>();
+            dt.font = defaultFont; dt.text = d == 7 ? "★" : d.ToString();
+            dt.fontSize = d == 7 ? 28 : 24; dt.fontStyle = FontStyle.Bold;
+            dt.color = (completed || current) ? Color.white : new Color(0.55f, 0.50f, 0.65f);
+            dt.alignment = TextAnchor.MiddleCenter;
+            dt.horizontalOverflow = HorizontalWrapMode.Overflow;
+            dt.verticalOverflow   = VerticalWrapMode.Overflow;
+        }
+
+        // "Day X" label row below dots
+        float lblY = dotsY - 56f;
+        for (int d = 1; d <= 7; d++)
+        {
+            var lbl = new GameObject($"DayLbl{d}");
+            lbl.transform.SetParent(card.transform, false);
+            var lRect = lbl.AddComponent<RectTransform>();
+            lRect.anchorMin = new Vector2(0.5f, 1f); lRect.anchorMax = new Vector2(0.5f, 1f);
+            lRect.pivot = new Vector2(0.5f, 1f);
+            lRect.anchoredPosition = new Vector2(dotsStartX + (d - 1) * dotSpacing, lblY);
+            lRect.sizeDelta = new Vector2(60f, 28f);
+            var lt = lbl.AddComponent<Text>();
+            lt.font = defaultFont;
+            lt.text = d == 7 ? "+10" : "+1";
+            lt.fontSize = 18; lt.fontStyle = FontStyle.Bold;
+            lt.color = d <= streak ? new Color(0.35f, 0.90f, 0.72f) : new Color(0.45f, 0.40f, 0.55f);
+            lt.alignment = TextAnchor.MiddleCenter;
+            lt.horizontalOverflow = HorizontalWrapMode.Overflow;
+            lt.verticalOverflow   = VerticalWrapMode.Overflow;
+        }
+
+        // Collect button
+        float btnY = isStreakBonus ? -520f : -460f;
+        var collectGo = new GameObject("CollectBtn");
+        collectGo.transform.SetParent(card.transform, false);
+        var cbRect = collectGo.AddComponent<RectTransform>();
+        cbRect.anchorMin = new Vector2(0.5f, 1f); cbRect.anchorMax = new Vector2(0.5f, 1f);
+        cbRect.pivot = new Vector2(0.5f, 0.5f);
+        cbRect.anchoredPosition = new Vector2(0f, btnY);
+        cbRect.sizeDelta = new Vector2(360f, 72f);
+        var cbImg = collectGo.AddComponent<Image>();
+        cbImg.sprite = SpriteGenerator.RoundedRect;
+        cbImg.color = isStreakBonus ? new Color(0.85f, 0.62f, 0.08f) : new Color(0.18f, 0.62f, 0.55f);
+        var cbBtn = collectGo.AddComponent<Button>();
+        cbBtn.targetGraphic = cbImg;
+        var cbc = cbBtn.colors;
+        cbc.highlightedColor = isStreakBonus ? new Color(1f, 0.75f, 0.15f) : new Color(0.22f, 0.75f, 0.65f);
+        cbc.pressedColor     = isStreakBonus ? new Color(0.70f, 0.50f, 0.05f) : new Color(0.12f, 0.48f, 0.42f);
+        cbBtn.colors = cbc;
+        cbBtn.onClick.AddListener(() => Destroy(overlay));
+        var cbTxt = new GameObject("Txt");
+        cbTxt.transform.SetParent(collectGo.transform, false);
+        var ctRect = cbTxt.AddComponent<RectTransform>();
+        ctRect.anchorMin = Vector2.zero; ctRect.anchorMax = Vector2.one;
+        ctRect.offsetMin = Vector2.zero; ctRect.offsetMax = Vector2.zero;
+        var ct = cbTxt.AddComponent<Text>();
+        ct.font = defaultFont; ct.text = "Collect";
+        ct.fontSize = 34; ct.fontStyle = FontStyle.Bold;
+        ct.color = Color.white; ct.alignment = TextAnchor.MiddleCenter;
+    }
+
     // --- Rate App Popup ---
 
     public void ShowRatePopup(System.Action onRate, System.Action onDismiss)
