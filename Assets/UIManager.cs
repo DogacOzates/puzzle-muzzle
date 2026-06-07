@@ -361,7 +361,7 @@ public class UIManager : MonoBehaviour
         btRect.offsetMax = Vector2.zero;
         hintFreeBadgeText = badgeTxtGo.AddComponent<Text>();
         hintFreeBadgeText.font = defaultFont;
-        hintFreeBadgeText.fontSize = 30;
+        hintFreeBadgeText.fontSize = 38;
         hintFreeBadgeText.fontStyle = FontStyle.Bold;
         hintFreeBadgeText.alignment = TextAnchor.MiddleCenter;
         hintFreeBadgeText.color = Color.black;
@@ -1393,28 +1393,7 @@ public class UIManager : MonoBehaviour
         bt.fontSize = 26; bt.fontStyle = FontStyle.Bold;
         bt.color = Color.white; bt.alignment = TextAnchor.MiddleCenter;
 
-        // Close (×) button
-        var closeObj = new GameObject("Close");
-        closeObj.transform.SetParent(card.transform, false);
-        var closeRect = closeObj.AddComponent<RectTransform>();
-        closeRect.anchorMin = new Vector2(1f, 1f); closeRect.anchorMax = new Vector2(1f, 1f);
-        closeRect.pivot = new Vector2(0.5f, 0.5f);
-        closeRect.anchoredPosition = new Vector2(-28f, -28f);
-        closeRect.sizeDelta = new Vector2(52f, 52f);
-        var closeImg = closeObj.AddComponent<Image>();
-        closeImg.color = Color.clear;
-        var closeBtn = closeObj.AddComponent<Button>();
-        closeBtn.targetGraphic = closeImg;
-        closeBtn.onClick.AddListener(HideHintPromoPopup);
-        var closeTxt = new GameObject("X");
-        closeTxt.transform.SetParent(closeObj.transform, false);
-        var cxtRect = closeTxt.AddComponent<RectTransform>();
-        cxtRect.anchorMin = Vector2.zero; cxtRect.anchorMax = Vector2.one;
-        cxtRect.offsetMin = Vector2.zero; cxtRect.offsetMax = Vector2.zero;
-        var cx = closeTxt.AddComponent<Text>();
-        cx.font = defaultFont; cx.text = "×";
-        cx.fontSize = 44; cx.color = new Color(1f, 1f, 1f, 0.85f);
-        cx.alignment = TextAnchor.MiddleCenter;
+        // Close button removed — tap overlay to dismiss
 
         // ── Rows container ────────────────────────────────────────────────────────
         float rowTop = -144f; // below header (128) + 16px gap
