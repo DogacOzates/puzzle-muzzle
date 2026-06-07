@@ -2893,7 +2893,7 @@ public class UIManager : MonoBehaviour
         inputField.characterValidation = InputField.CharacterValidation.Alphanumeric;
 
         // Claim button
-        var claimBtn = CreateCardButton("Get +10 Hints", card.transform, new Vector2(0, -450), new Color(0.85f, 0.62f, 0.08f));
+        var claimBtn = CreateCardButton("Get +5 Hints", card.transform, new Vector2(0, -450), new Color(0.85f, 0.62f, 0.08f));
         claimBtn.GetComponent<RectTransform>().sizeDelta = new Vector2(460f, 64f);
         claimBtn.onClick.AddListener(() =>
         {

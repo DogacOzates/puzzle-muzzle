@@ -387,22 +387,44 @@ public class GameManager : MonoBehaviour
 
     // --- Free Hint Helpers ---
     // ── Referral System ──────────────────────────────────────────────────────────
+    // Codes are 8 chars: 7 data chars + 1 checksum (base-36).
+    // This makes ~97% of randomly guessed codes invalid structurally.
+
+    private static readonly string Base36 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+    private static char ReferralChecksum(string data)
+    {
+        int sum = 0;
+        for (int i = 0; i < data.Length; i++)
+            sum += (i + 1) * (Base36.IndexOf(data[i]) + 1);
+        return Base36[sum % 36];
+    }
+
+    private static bool ValidateReferralCode(string code)
+    {
+        if (code.Length != 8) return false;
+        string data = code.Substring(0, 7);
+        char expected = ReferralChecksum(data);
+        return code[7] == expected;
+    }
 
     public string GetReferralCode()
     {
         string code = PlayerPrefs.GetString("referral.myCode", "");
-        if (string.IsNullOrEmpty(code))
-        {
-            string raw = SystemInfo.deviceUniqueIdentifier.Replace("-", "").ToUpper();
-            // Ensure only alphanumeric, 6 chars
-            var sb = new System.Text.StringBuilder();
-            foreach (char c in raw)
-                if (char.IsLetterOrDigit(c)) sb.Append(c);
-            string cleaned = sb.ToString();
-            code = cleaned.Length >= 6 ? cleaned.Substring(0, 6) : cleaned.PadRight(6, '0');
-            PlayerPrefs.SetString("referral.myCode", code);
-            PlayerPrefs.Save();
-        }
+        if (!string.IsNullOrEmpty(code) && ValidateReferralCode(code))
+            return code;
+
+        // Build 7-char data segment from device unique identifier
+        string raw = SystemInfo.deviceUniqueIdentifier.Replace("-", "").ToUpper();
+        var sb = new System.Text.StringBuilder();
+        foreach (char c in raw)
+            if (Base36.Contains(c)) sb.Append(c);
+        string cleaned = sb.ToString();
+        while (cleaned.Length < 7) cleaned += "0";
+        string data = cleaned.Substring(0, 7);
+        code = data + ReferralChecksum(data);
+        PlayerPrefs.SetString("referral.myCode", code);
+        PlayerPrefs.Save();
         return code;
     }
 
@@ -416,18 +438,17 @@ public class GameManager : MonoBehaviour
             AddFreeHints(5);
             uiManager?.ShowToast("Shared! +5 Hints added 🎉");
         }
-        // TODO: Replace APP_STORE_ID with your real App Store ID before publishing
         const string appStoreUrl = "https://apps.apple.com/app/id6739918641";
-        string msg = $"Play Puzzle Muzzle with me! 🧩\nEnter code {code} to get 10 free hints!\nDownload: {appStoreUrl}";
+        string msg = $"Play Puzzle Muzzle with me! 🧩\nEnter code {code} to get 5 free hints!\nDownload: {appStoreUrl}";
         NativeShare.Share(msg);
     }
 
     public void ClaimReferralCode(string code, System.Action<bool, string> onResult)
     {
         code = code.Trim().ToUpper();
-        if (string.IsNullOrEmpty(code) || code.Length < 4)
+        if (!ValidateReferralCode(code))
         {
-            onResult(false, "Enter a valid code."); return;
+            onResult(false, "Invalid code. Check and try again."); return;
         }
         if (code == GetReferralCode())
         {
@@ -439,8 +460,8 @@ public class GameManager : MonoBehaviour
         }
         PlayerPrefs.SetInt("referral.claimed", 1);
         PlayerPrefs.Save();
-        AddFreeHints(10);
-        onResult(true, "+10 Hints added! Thanks for connecting.");
+        AddFreeHints(5);
+        onResult(true, "+5 Hints added! Thanks for connecting. 🎉");
     }
 
     private int GetFreeHints() => PlayerPrefs.GetInt("hints.free", 0);
