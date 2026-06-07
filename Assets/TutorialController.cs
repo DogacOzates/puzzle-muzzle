@@ -262,25 +262,25 @@ public class TutorialController : MonoBehaviour
 
     private IEnumerator ShowButtonExplanations()
     {
-        var hintBtn = GameObject.Find("HintBtn");
-        var menuBtn = GameObject.Find("LevelSelectBtn");
-        var restartBtn = GameObject.Find("RestartBtn");
-        var noAdsBtn = GameObject.Find("NoAdsBtn");
+        var hintBtn     = GameObject.Find("HintBtn");
+        var shopBtn     = GameObject.Find("ShopBtn");
+        var menuBtn     = GameObject.Find("LevelSelectBtn");
+        var restartBtn  = GameObject.Find("RestartBtn");
 
         var handVisual = handObj.transform.Find("HandVisual");
         Vector3 origScale = handVisual.localScale;
         Quaternion origRot = handVisual.localRotation;
         pointingAtButton = true;
 
-        // 1. Hint button (bottom-left): hand from upper-right, finger points down-left
+        // 1. Hint button (bottom-center): hand from upper-right, finger points down
         if (hintBtn != null)
         {
             handVisual.localScale = new Vector3(origScale.x, -origScale.y, origScale.z);
-            handVisual.localRotation = Quaternion.Euler(0, 0, -30f);
-            Vector3 offset = new Vector3(0.4f, 0.55f, 0);
+            handVisual.localRotation = Quaternion.Euler(0, 0, -15f);
+            Vector3 offset = new Vector3(0.35f, 0.55f, 0);
             buttonNudgeDir = -offset.normalized;
 
-            SetHintText("Stuck on a level?\nTap this to get a hint!");
+            SetHintText("Stuck on a level?\nTap the lightbulb for a hint!");
             Vector3 btnWorld = ScreenToWorld(hintBtn.GetComponent<RectTransform>());
             yield return StartCoroutine(MoveHand(btnWorld + offset));
             yield return StartCoroutine(WaitForAnyTap());
@@ -288,7 +288,23 @@ public class TutorialController : MonoBehaviour
 
         yield return new WaitForSeconds(0.3f);
 
-        // 2. Restart button (bottom-right): hand from upper-left, finger points down-right
+        // 2. Shop button (bottom-left): hand from upper-right, finger points down-left
+        if (shopBtn != null)
+        {
+            handVisual.localScale = new Vector3(origScale.x, -origScale.y, origScale.z);
+            handVisual.localRotation = Quaternion.Euler(0, 0, -30f);
+            Vector3 offset = new Vector3(0.42f, 0.55f, 0);
+            buttonNudgeDir = -offset.normalized;
+
+            SetHintText("Need more hints?\nTap the cart to open the shop!");
+            Vector3 btnWorld = ScreenToWorld(shopBtn.GetComponent<RectTransform>());
+            yield return StartCoroutine(MoveHand(btnWorld + offset));
+            yield return StartCoroutine(WaitForAnyTap());
+        }
+
+        yield return new WaitForSeconds(0.3f);
+
+        // 3. Restart button (bottom-right): hand from upper-left, finger points down-right
         if (restartBtn != null)
         {
             handVisual.localScale = new Vector3(-origScale.x, -origScale.y, origScale.z);
@@ -296,7 +312,7 @@ public class TutorialController : MonoBehaviour
             Vector3 offset = new Vector3(-0.4f, 0.55f, 0);
             buttonNudgeDir = -offset.normalized;
 
-            SetHintText("Made a mistake?\nTap this to restart!");
+            SetHintText("Made a mistake?\nTap this to restart the level!");
             Vector3 btnWorld = ScreenToWorld(restartBtn.GetComponent<RectTransform>());
             yield return StartCoroutine(MoveHand(btnWorld + offset));
             yield return StartCoroutine(WaitForAnyTap());
@@ -304,23 +320,7 @@ public class TutorialController : MonoBehaviour
 
         yield return new WaitForSeconds(0.3f);
 
-        // 3. No Ads button (bottom-center): hand from upper-right, finger points down-left
-        if (noAdsBtn != null)
-        {
-            handVisual.localScale = new Vector3(origScale.x, -origScale.y, origScale.z);
-            handVisual.localRotation = Quaternion.Euler(0, 0, -24f);
-            Vector3 offset = new Vector3(0.42f, 0.58f, 0f);
-            buttonNudgeDir = -offset.normalized;
-
-            SetHintText("Want to remove ads forever?\nTap this to buy No Ads!");
-            Vector3 btnWorld = ScreenToWorld(noAdsBtn.GetComponent<RectTransform>());
-            yield return StartCoroutine(MoveHand(btnWorld + offset));
-            yield return StartCoroutine(WaitForAnyTap());
-        }
-
-        yield return new WaitForSeconds(0.3f);
-
-        // 4. Level text (top center, last): hand from lower-right, finger points up-left
+        // 4. Level progress text (top center): hand from below, finger points up
         if (menuBtn != null)
         {
             handVisual.localScale = origScale;
@@ -328,7 +328,7 @@ public class TutorialController : MonoBehaviour
             Vector3 offset = new Vector3(0.48f, -0.52f, 0f);
             buttonNudgeDir = -offset.normalized;
 
-            SetHintText("Want to replay an earlier level?\nTap the level text to open the level menu!");
+            SetHintText("Want to replay an earlier level?\nTap the level text to open the menu!");
             Vector3 btnWorld = ScreenToWorld(menuBtn.GetComponent<RectTransform>());
             yield return StartCoroutine(MoveHand(btnWorld + offset));
             yield return StartCoroutine(WaitForAnyTap());
