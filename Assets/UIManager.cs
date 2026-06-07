@@ -238,7 +238,7 @@ public class UIManager : MonoBehaviour
 
         // Leaderboard button (top-left)
         float lbY = topBarElementY;
-        var lbTopBtn = CreateIconButton("Leaderboard", bar.transform, new Vector2(100f, lbY), 52f, "icons/top-three");
+        var lbTopBtn = CreateIconButton("Leaderboard", bar.transform, new Vector2(100f, lbY), 68f, "icons/top-three");
         lbTopBtn.onClick.AddListener(() => {
             if (GameCenterManager.Instance != null)
                 GameCenterManager.Instance.ShowLeaderboard();
