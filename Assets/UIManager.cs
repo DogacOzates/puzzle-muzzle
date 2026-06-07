@@ -166,6 +166,10 @@ public class UIManager : MonoBehaviour
         if (levelSelectButtonImages != null && _lsTotalLevels > 0)
             RefreshLevelSelectButtons(_lsCurrentIdx, _lsHighestUnlocked, _lsTotalLevels);
 
+        // Cart icon: teal in light mode, white in dark mode
+        if (cartIconImage != null)
+            cartIconImage.color = dark ? Color.white : new Color(0.18f, 0.55f, 0.62f, 1f);
+
         // Transition overlay
         if (transitionOverlayImage != null)
             transitionOverlayImage.color = tm.TransitionBg;
@@ -1964,12 +1968,14 @@ public class UIManager : MonoBehaviour
 
     private System.Collections.IEnumerator CartGlowCoroutine()
     {
-        var normalColor  = new Color(0.18f, 0.55f, 0.62f, 1f);
+        var tealColor    = new Color(0.18f, 0.55f, 0.62f, 1f);
         var brightColor  = new Color(0.55f, 0.92f, 1.00f, 1f);
         while (true)
         {
             yield return new WaitForSeconds(60f);
             if (cartIconImage == null) yield break;
+            bool dark = ThemeManager.Instance != null && ThemeManager.Instance.IsDarkMode;
+            var normalColor = dark ? Color.white : tealColor;
             // Pulse 3 times
             for (int i = 0; i < 3; i++)
             {
