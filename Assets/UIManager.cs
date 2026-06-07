@@ -14,6 +14,7 @@ public class UIManager : MonoBehaviour
     private Button retryButton;
     private Button restartButton;
     private Button hintButton;
+    private Button cartButton;
     private Button levelSelectToggleButton;
     private GameObject noAdsPurchasePopup;
     private GameObject ratePopup;
@@ -350,6 +351,7 @@ public class UIManager : MonoBehaviour
             cartIconImg.color = darkNow ? Color.white : new Color(0.18f, 0.55f, 0.62f, 1f);
         }
         cartIconImage = cartIconImg;
+        cartButton = cartBtn;
         StartCoroutine(CartGlowCoroutine());
 
         // Hint button (center) with icon
@@ -3191,6 +3193,7 @@ public class UIManager : MonoBehaviour
     {
         if (hintButton != null)           hintButton.interactable           = !isTutorial;
         if (restartButton != null)        restartButton.interactable        = !isTutorial;
+        if (cartButton != null)           cartButton.interactable           = !isTutorial;
         if (levelSelectToggleButton != null) levelSelectToggleButton.interactable = !isTutorial;
     }
 
