@@ -52,3 +52,6 @@ Thumbs.db
 
 # Crashlytics
 crashlytics-build.properties
+
+# Local Xcode test build output
+/[Ii][Oo][Ss]\ [Tt]est/

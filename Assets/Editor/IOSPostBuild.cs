@@ -45,7 +45,7 @@ public static class IOSPostBuild
         {
             root.SetString(
                 "GADApplicationIdentifier",
-                "ca-app-pub-2933494287812005~7293120559"
+                "ca-app-pub-8895029835368826~5954789359"
             );
         }
 

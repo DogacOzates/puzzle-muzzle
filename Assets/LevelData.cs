@@ -61,6 +61,10 @@ public class LevelData
     public SolutionPath[] solutions;
     public BlockedCellData[] blockedCells;
     public CellShape cellShape = CellShape.Square;
+    // Sequence mode: one continuous chain; numbers are cumulative step counts
+    // (waypoints), not independent segment lengths. The last number equals the
+    // total playable cell count.
+    public bool sequenceMode;
 
     public LevelData(string name, int width, int height, NumberCellData[] cells, SolutionPath[] solutions, BlockedCellData[] blockedCells = null)
     {
@@ -75,9 +79,9 @@ public class LevelData
 
 public static class LevelDatabase
 {
-    public const int TotalLevels = 900;
+    public const int TotalLevels = 1800;
     private const int CampaignLoadBatchSize = 1;
-    private const int GeneratedLevelCacheVersion = 3;
+    private const int GeneratedLevelCacheVersion = 4;
     private const string BundledLevelsResourcePath = "generated_levels";
 
     private struct LevelBatchLoad
@@ -231,6 +235,9 @@ public static class LevelDatabase
                 _levels = bundledLevels;
                 _usingBundledLevels = true;
             }
+
+            // Handcrafted, smaller intro for the Sequence campaigns (tutorial level 901)
+            _levels[GameManager.SequenceTutorialLevelIndex] = SequenceTutorialLevel();
         }
     }
 
@@ -271,14 +278,27 @@ public static class LevelDatabase
             };
         }
 
-        int triRelativeIndex = index - 600;
-        int triBatchStart = (triRelativeIndex / CampaignLoadBatchSize) * CampaignLoadBatchSize;
-        int triBatchCount = Math.Min(CampaignLoadBatchSize, 300 - triBatchStart);
-        int triAbsoluteStart = 600 + triBatchStart;
+        if (index < 900)
+        {
+            int triRelativeIndex = index - 600;
+            int triBatchStart = (triRelativeIndex / CampaignLoadBatchSize) * CampaignLoadBatchSize;
+            int triBatchCount = Math.Min(CampaignLoadBatchSize, 300 - triBatchStart);
+            int triAbsoluteStart = 600 + triBatchStart;
+            return new LevelBatchLoad
+            {
+                absoluteStart = triAbsoluteStart,
+                levels = LevelGenerator.GenerateThreeGenCampaign(triBatchStart, triBatchCount)
+            };
+        }
+
+        int seqRelativeIndex = index - 900;
+        int seqBatchStart = (seqRelativeIndex / CampaignLoadBatchSize) * CampaignLoadBatchSize;
+        int seqBatchCount = Math.Min(CampaignLoadBatchSize, 900 - seqBatchStart);
+        int seqAbsoluteStart = 900 + seqBatchStart;
         return new LevelBatchLoad
         {
-            absoluteStart = triAbsoluteStart,
-            levels = LevelGenerator.GenerateThreeGenCampaign(triBatchStart, triBatchCount)
+            absoluteStart = seqAbsoluteStart,
+            levels = LevelGenerator.GenerateSequenceCampaign(seqBatchStart, seqBatchCount)
         };
     }
 
@@ -342,6 +362,13 @@ public static class LevelDatabase
                 for (int i = 0; i < 300; i++)
                     _levels[600 + i] = threeGenLevels[i];
             }
+
+            if (_levels[900] == null || _levels[1799] == null)
+            {
+                LevelData[] sequenceLevels = LevelGenerator.GenerateSequenceCampaign(900);
+                for (int i = 0; i < 900; i++)
+                    _levels[900 + i] = sequenceLevels[i];
+            }
         }
     }
 
@@ -365,15 +392,12 @@ public static class LevelDatabase
         LevelGenerator.UseBundledBuildOptimizations = true;
         try
         {
-            const int bundleChunkSize = 25;
-            Parallel.For(0, Mathf.CeilToInt(300f / bundleChunkSize), chunkIndex =>
-            {
-                int start = chunkIndex * bundleChunkSize;
-                int count = Math.Min(bundleChunkSize, 300 - start);
-                LevelData[] chunk = LevelGenerator.GenerateThreeGenCampaign(start, count);
-                for (int i = 0; i < count; i++)
-                    payload.levels[600 + start + i] = chunk[i];
-            });
+            // Single sequential pass: the generator's uniqueness trackers (blocked
+            // layouts, content fingerprints) only span one call, so chunked parallel
+            // generation produced repeated blocked-cell layouts across chunks.
+            LevelData[] triangleLevels = LevelGenerator.GenerateThreeGenCampaign(0, 300);
+            for (int i = 0; i < 300; i++)
+                payload.levels[600 + i] = triangleLevels[i];
         }
         finally
         {
@@ -414,14 +438,14 @@ public static class LevelDatabase
                     levels[300 + start + i] = chunk[i];
             });
 
-            Parallel.For(0, Mathf.CeilToInt(300f / bundleChunkSize), chunkIndex =>
-            {
-                int start = chunkIndex * bundleChunkSize;
-                int count = Math.Min(bundleChunkSize, 300 - start);
-                LevelData[] chunk = LevelGenerator.GenerateThreeGenCampaign(start, count);
-                for (int i = 0; i < count; i++)
-                    levels[600 + start + i] = chunk[i];
-            });
+            // Sequential: keeps uniqueness trackers spanning the whole triangle campaign.
+            LevelData[] triangleLevels = LevelGenerator.GenerateThreeGenCampaign(0, 300);
+            for (int i = 0; i < 300; i++)
+                levels[600 + i] = triangleLevels[i];
+
+            LevelData[] sequenceLevels = LevelGenerator.GenerateSequenceCampaign(0, 900);
+            for (int i = 0; i < 900; i++)
+                levels[900 + i] = sequenceLevels[i];
 
             return levels;
         }
@@ -530,6 +554,26 @@ public static class LevelDatabase
             new SolutionPath(2,0, 2,1, 1,1, 0,1),
             new SolutionPath(0,2, 1,2, 2,2),
         });
+    }
+
+    // Level 901: 3x3 snake, checkpoints 3 → 6 → 9 (shows that the count never resets)
+    static LevelData SequenceTutorialLevel()
+    {
+        var level = new LevelData("Sequence", 3, 3, new NumberCellData[]
+        {
+            new NumberCellData(2, 0, 3),
+            new NumberCellData(0, 1, 6),
+            new NumberCellData(2, 2, 9),
+        },
+        new SolutionPath[]
+        {
+            new SolutionPath(0,0, 1,0, 2,0),
+            new SolutionPath(2,1, 1,1, 0,1),
+            new SolutionPath(0,2, 1,2, 2,2),
+        });
+        level.cellShape = CellShape.Square;
+        level.sequenceMode = true;
+        return level;
     }
 
     static LevelData SecondLevel()

@@ -27,23 +27,8 @@ public class UIManager : MonoBehaviour
     private System.Collections.Generic.List<(string basePath, Image img)> themedIcons
         = new System.Collections.Generic.List<(string, Image)>();
     private GameObject hintPromoPopup;
-    private string noAdsPriceLabel = "$9.99";
+    private string noAdsPriceLabel = "$19.99";
 
-    // ── Online Mode popup ────────────────────────────────────────────────────────
-    private GameObject onlineModePopup;
-    private Text onlineStatusText;
-    private Text onlineRoomCodeText;
-    private Button onlineCreateBtn;
-    private Button onlineJoinBtn;
-    private UnityEngine.UI.InputField onlineCodeInput;
-    private Button onlineCancelBtn;
-    private GameObject onlineMainSection;     // create + divider + join row
-    private GameObject onlineWaitingSection;  // room code display
-    private Text onlinePlayerCountText;   // shows "X players in room"
-    private Button onlineStartBtn;        // host-only Start Game button
-    private Button onlineFindBtn;         // quick matchmaking button
-    private Text onlineCodeHintText;      // "Share this code" hint (hidden during matchmaking)
-    // ─────────────────────────────────────────────────────────────────────────────
     private GameObject levelSelectPanel;
     private ScrollRect levelSelectScrollRect;
     private Button[] levelSelectButtons;
@@ -58,25 +43,23 @@ public class UIManager : MonoBehaviour
     private RectTransform transitionSquaresRoot;
     private Image[] transitionSquares;
     private int _lsActiveGroup;
-    private Image[] _lsGroupTabBgs = new Image[3];
-    private Button[] _lsGroupTabButtons = new Button[3];
-    private Image[] _lsGroupTabIcons = new Image[3];
-    private Image[] _lsGroupTabIconChips = new Image[3];
-    private static Sprite _networkingSprite;
+    private Image[] _lsGroupTabBgs = new Image[6];
+    private Button[] _lsGroupTabButtons = new Button[6];
+    private Image[] _lsGroupTabIcons = new Image[6];
+    private Image[] _lsGroupTabIconChips = new Image[6];
     private static Sprite _cartSprite;
-    private Text[] _lsGroupTabTitles = new Text[3];
-    private Text[] _lsGroupTabRanges = new Text[3];
+    private Text[] _lsGroupTabRanges = new Text[6];
     private Text _lsHeaderTitle;
     private Image _lsProgressBarFill;
     private Text _lsProgressCountText;
     private Text[] _lsLockLabels;
-    private Transform[] _lsGroupGridRoots = new Transform[3];
+    private Transform[] _lsGroupGridRoots = new Transform[6];
 
     // Lazy-load data for group grids (built on first tab switch, not all at startup)
     private Transform _lsContentParent;
-    private readonly Sprite[]  _lsGroupSpritesLazy = new Sprite[3];
-    private readonly int[]     _lsGroupStart        = new int[3];
-    private readonly int[]     _lsGroupEnd          = new int[3];
+    private readonly Sprite[]  _lsGroupSpritesLazy = new Sprite[6];
+    private readonly int[]     _lsGroupStart        = new int[6];
+    private readonly int[]     _lsGroupEnd          = new int[6];
 
     private Canvas canvas;
     private RectTransform safeAreaRect;
@@ -92,10 +75,6 @@ public class UIManager : MonoBehaviour
     // Level select panel theme refs
     private Image _lsPanelBg;
     private Text  _lsBackArrowText;
-    private Image _lsOnlineCardBg;
-    private Text  _lsOnlineCardArrow;
-    private Text  _lsOnlineSub1;
-    private Text  _lsOnlineSub2;
 
     // Colors
     private static readonly Color BtnTeal = new Color(0.25f, 0.78f, 0.72f);
@@ -114,14 +93,27 @@ public class UIManager : MonoBehaviour
         new Color(0.92f, 0.68f, 0.12f),
         new Color(0.20f, 0.72f, 0.67f),
         new Color(0.88f, 0.22f, 0.52f),
+        new Color(0.30f, 0.52f, 0.90f),
+        new Color(0.28f, 0.68f, 0.40f),
+        new Color(0.62f, 0.36f, 0.86f),
     };
-    private static readonly string[] GrpName = { "Square", "Hexagon", "Triangle" };
-    private static readonly string[] GrpRange = { "1-300", "301-600", "601-900" };
+    private static readonly string[] GrpName = { "Square", "Hexagon", "Triangle", "Seq Square", "Seq Hexagon", "Seq Triangle" };
+    private static readonly string[] GrpRange = { "1-300", "301-600", "601-900", "901-1200", "1201-1500", "1501-1800" };
     private static readonly Func<Sprite>[] GrpSprite = {
         () => SpriteGenerator.RoundedRect,
         () => SpriteGenerator.FlatHexagon,
         () => SpriteGenerator.Triangle,
+        () => SpriteGenerator.RoundedRect,
+        () => SpriteGenerator.FlatHexagon,
+        () => SpriteGenerator.Triangle,
     };
+
+    private const int GroupCount = 6;
+    private static readonly int[] GrpStart = { 0, 300, 600, 900, 1200, 1500 };
+    private static readonly int[] GrpEnd   = { 299, 599, 899, 1199, 1499, 1799 };
+
+    private static int LsGroupOf(int levelIndex)
+        => Mathf.Clamp(levelIndex / 300, 0, GroupCount - 1);
 
     public void Initialize()
     {
@@ -146,8 +138,6 @@ public class UIManager : MonoBehaviour
     private void OnDestroy()
     {
         ThemeManager.OnThemeChanged -= OnThemeChanged;
-        var om = OnlineManager.Instance;
-        if (om != null) om.OnMatchResult -= OnOnlineMatchResult;
     }
 
     private void OnThemeChanged()
@@ -184,13 +174,6 @@ public class UIManager : MonoBehaviour
         if (_lsPanelBg      != null) _lsPanelBg.color      = lsBg;
         if (_lsBackArrowText != null) _lsBackArrowText.color = lsTxt;
         if (_lsHeaderTitle  != null) _lsHeaderTitle.color   = lsTxt;
-        // Online card
-        if (_lsOnlineCardBg != null)
-            _lsOnlineCardBg.color = dark ? new Color(0.18f, 0.20f, 0.30f, 1f) : new Color(0.91f, 0.93f, 0.97f, 1f);
-        if (_lsOnlineCardArrow != null)
-            _lsOnlineCardArrow.color = dark ? new Color(0.70f, 0.70f, 0.70f) : new Color(0.45f, 0.45f, 0.45f);
-        if (_lsOnlineSub1 != null) _lsOnlineSub1.color = lsMuted;
-        if (_lsOnlineSub2 != null) _lsOnlineSub2.color = lsMuted;
 
         // Cart icon: teal in light mode, white in dark mode
         if (cartIconImage != null)
@@ -639,15 +622,14 @@ public class UIManager : MonoBehaviour
         _lsBackArrowText = baTxt;
 
         // Title "Level X / Y"
-        var georgiaFont = Font.CreateDynamicFontFromOSFont("Georgia", 72);
         var titleObj = new GameObject("Title");
         titleObj.transform.SetParent(header.transform, false);
         var tRect = titleObj.AddComponent<RectTransform>();
         tRect.anchorMin = new Vector2(0.12f, 0f); tRect.anchorMax = new Vector2(0.88f, 1f);
         tRect.offsetMin = Vector2.zero; tRect.offsetMax = Vector2.zero;
         _lsHeaderTitle = titleObj.AddComponent<Text>();
-        _lsHeaderTitle.font = georgiaFont ?? defaultFont;
-        _lsHeaderTitle.fontSize = 40; _lsHeaderTitle.fontStyle = FontStyle.Italic;
+        _lsHeaderTitle.font = defaultFont;
+        _lsHeaderTitle.fontSize = 42; _lsHeaderTitle.fontStyle = FontStyle.Bold;
         _lsHeaderTitle.alignment = TextAnchor.MiddleCenter;
         _lsHeaderTitle.color = lsDark ? new Color(0.92f, 0.90f, 0.88f) : TextDark;
         _lsHeaderTitle.text = "Level 1 / 900";
@@ -672,15 +654,12 @@ public class UIManager : MonoBehaviour
         gtTxt.alignment = TextAnchor.MiddleCenter;
         gtTxt.color = new Color(0.80f, 0.64f, 0.20f, 1f);
 
-        // ── Online Mode Card (fixed, below header) ─────────────────────────────────
-        LsBuildOnlineModeCard(panelObj.transform);
-
-        // ── ScrollView (fills below header + online card) ────────────────────────────
+        // ── ScrollView (fills below header) ─────────────────────────────────────────
         var scrollObj = new GameObject("ScrollView");
         scrollObj.transform.SetParent(panelObj.transform, false);
         var scrollRT = scrollObj.AddComponent<RectTransform>();
         scrollRT.anchorMin = Vector2.zero; scrollRT.anchorMax = Vector2.one;
-        scrollRT.offsetMin = Vector2.zero; scrollRT.offsetMax = new Vector2(0f, -300f);
+        scrollRT.offsetMin = Vector2.zero; scrollRT.offsetMax = new Vector2(0f, -130f);
         var scrollRect = scrollObj.AddComponent<ScrollRect>();
         scrollRect.horizontal = false;
         scrollRect.movementType = ScrollRect.MovementType.Clamped;
@@ -716,6 +695,7 @@ public class UIManager : MonoBehaviour
 
         // ── Group Tabs ──────────────────────────────────────────────────────────────
         LsBuildGroupTabsRow(content.transform);
+        LsBuildProgressRow(content.transform);
 
         // ── Level Button Grids ──────────────────────────────────────────────────────
         levelSelectButtons      = new Button[LevelDatabase.TotalLevels];
@@ -725,95 +705,17 @@ public class UIManager : MonoBehaviour
 
         // Store lazy-load params — only group 0 is built now; others built on first tab switch.
         _lsContentParent = content.transform;
-        _lsGroupSpritesLazy[0] = SpriteGenerator.RoundedRect; _lsGroupStart[0] = 0;   _lsGroupEnd[0] = 299;
-        _lsGroupSpritesLazy[1] = SpriteGenerator.FlatHexagon; _lsGroupStart[1] = 300; _lsGroupEnd[1] = 599;
-        _lsGroupSpritesLazy[2] = SpriteGenerator.Triangle;    _lsGroupStart[2] = 600; _lsGroupEnd[2] = 899;
+        for (int g = 0; g < GroupCount; g++)
+        {
+            _lsGroupSpritesLazy[g] = GrpSprite[g]();
+            _lsGroupStart[g] = GrpStart[g];
+            _lsGroupEnd[g]   = GrpEnd[g];
+        }
 
         LsBuildGroupGrid(_lsContentParent, 0, _lsGroupSpritesLazy[0], _lsGroupStart[0], _lsGroupEnd[0]);
 
         levelSelectPanel = panelObj;
         levelSelectPanel.SetActive(false);
-    }
-
-    private void LsBuildOnlineModeCard(Transform parent)
-    {
-        var card = new GameObject("OnlineCard");
-        card.transform.SetParent(parent, false);
-        var cardRT = card.AddComponent<RectTransform>();
-        cardRT.anchorMin = new Vector2(0f, 1f); cardRT.anchorMax = new Vector2(1f, 1f);
-        cardRT.pivot = new Vector2(0.5f, 1f);
-        cardRT.anchoredPosition = new Vector2(0f, -120f);
-        cardRT.sizeDelta = new Vector2(0f, 180f);
-
-        var outer = new GameObject("Outer");
-        outer.transform.SetParent(card.transform, false);
-        var outerRect = outer.AddComponent<RectTransform>();
-        outerRect.anchorMin = Vector2.zero; outerRect.anchorMax = Vector2.one;
-        outerRect.offsetMin = new Vector2(16f, 12f); outerRect.offsetMax = new Vector2(-16f, -12f);
-        var bg = outer.AddComponent<Image>();
-        bg.sprite = SpriteGenerator.RoundedRect;
-        bool ocDark = ThemeManager.Instance?.IsDarkMode ?? false;
-        bg.color = ocDark ? new Color(0.18f, 0.20f, 0.30f, 1f) : new Color(0.91f, 0.93f, 0.97f, 1f);
-        _lsOnlineCardBg = bg;
-
-        var btn = outer.AddComponent<Button>();
-        var bc = btn.colors;
-        bc.highlightedColor = new Color(0.86f, 0.89f, 0.95f, 1f);
-        bc.pressedColor = new Color(0.78f, 0.83f, 0.92f, 1f);
-        btn.colors = bc; btn.targetGraphic = bg;
-        btn.onClick.AddListener(ShowOnlineModePopup);
-
-        // Networking icon — pinned to left-center (same layout as DC gift icon)
-        var iconGo = new GameObject("NetworkIcon");
-        iconGo.transform.SetParent(outer.transform, false);
-        var iconRT = iconGo.AddComponent<RectTransform>();
-        iconRT.anchorMin = new Vector2(0f, 0.5f); iconRT.anchorMax = new Vector2(0f, 0.5f);
-        iconRT.pivot = new Vector2(0f, 0.5f);
-        iconRT.anchoredPosition = new Vector2(20f, 0f);
-        iconRT.sizeDelta = new Vector2(90f, 90f);
-        var iconImg = iconGo.AddComponent<Image>();
-        iconImg.sprite = LoadNetworkingSprite();
-        iconImg.preserveAspect = true;
-
-        // Arrow — pinned to right-center
-        var arrGo = new GameObject("Arrow");
-        arrGo.transform.SetParent(outer.transform, false);
-        var arrRT = arrGo.AddComponent<RectTransform>();
-        arrRT.anchorMin = new Vector2(1f, 0.5f); arrRT.anchorMax = new Vector2(1f, 0.5f);
-        arrRT.pivot = new Vector2(1f, 0.5f);
-        arrRT.anchoredPosition = new Vector2(-14f, 0f); arrRT.sizeDelta = new Vector2(44f, 60f);
-        var arrTxt = arrGo.AddComponent<Text>();
-        arrTxt.font = defaultFont; arrTxt.text = "›"; arrTxt.fontSize = 52;
-        arrTxt.fontStyle = FontStyle.Bold; arrTxt.alignment = TextAnchor.MiddleCenter;
-        arrTxt.color = ocDark ? new Color(0.70f, 0.70f, 0.70f) : new Color(0.45f, 0.45f, 0.45f, 1f);
-        _lsOnlineCardArrow = arrTxt;
-
-        // Text column — stretches between icon and arrow
-        var textCol = new GameObject("TextCol");
-        textCol.transform.SetParent(outer.transform, false);
-        var textRT = textCol.AddComponent<RectTransform>();
-        textRT.anchorMin = new Vector2(0f, 0f); textRT.anchorMax = new Vector2(1f, 1f);
-        textRT.offsetMin = new Vector2(150f, 8f);
-        textRT.offsetMax = new Vector2(-72f, -8f);
-
-        var textInner = new GameObject("TextInner");
-        textInner.transform.SetParent(textCol.transform, false);
-        var textInnerRT = textInner.AddComponent<RectTransform>();
-        textInnerRT.anchorMin = new Vector2(0.5f, 0.5f);
-        textInnerRT.anchorMax = new Vector2(0.5f, 0.5f);
-        textInnerRT.pivot = new Vector2(0.5f, 0.5f);
-        textInnerRT.anchoredPosition = new Vector2(-56f, 0f);
-        textInnerRT.sizeDelta = new Vector2(500f, 100f);
-        var tcVlg = textInner.AddComponent<VerticalLayoutGroup>();
-        tcVlg.spacing = 4f; tcVlg.childForceExpandWidth = true; tcVlg.childForceExpandHeight = false;
-        tcVlg.childControlWidth = true; tcVlg.childControlHeight = true;
-        tcVlg.childAlignment = TextAnchor.MiddleLeft;
-
-        LsMakeVlgText("Title", textInner.transform, 34, FontStyle.Bold, new Color(0.22f, 0.40f, 0.72f, 1f), "Online Mode");
-        _lsOnlineSub1 = LsMakeVlgText("Sub", textInner.transform, 27, FontStyle.Normal,
-            ocDark ? new Color(0.60f, 0.58f, 0.56f) : TextMuted, "Race friends on the same puzzle");
-        _lsOnlineSub2 = LsMakeVlgText("Sub2", textInner.transform, 27, FontStyle.Normal,
-            ocDark ? new Color(0.60f, 0.58f, 0.56f) : TextMuted, "Anyone with the code can join!");
     }
 
     private Text LsMakeVlgText(string name, Transform parent, int size, FontStyle style, Color color, string text)
@@ -830,78 +732,147 @@ public class UIManager : MonoBehaviour
 
     private void LsBuildGroupTabsRow(Transform parent)
     {
-        var row = new GameObject("GroupTabs");
-        row.transform.SetParent(parent, false);
-        var rowLE = row.AddComponent<LayoutElement>();
-        rowLE.preferredHeight = 110f; rowLE.minHeight = 110f; rowLE.flexibleWidth = 1f;
-        var hlg = row.AddComponent<HorizontalLayoutGroup>();
-        hlg.spacing = 12f;
-        hlg.padding = new RectOffset(20, 20, 14, 10);
-        hlg.childForceExpandWidth = true; hlg.childForceExpandHeight = false;
-        hlg.childControlWidth = true; hlg.childControlHeight = false;
-        hlg.childAlignment = TextAnchor.MiddleCenter;
+        // Two rows of three tabs: classic campaigns on top, sequence campaigns below.
+        var container = new GameObject("GroupTabs");
+        container.transform.SetParent(parent, false);
+        var contLE = container.AddComponent<LayoutElement>();
+        contLE.preferredHeight = 216f; contLE.minHeight = 216f; contLE.flexibleWidth = 1f;
+        var contVlg = container.AddComponent<VerticalLayoutGroup>();
+        contVlg.spacing = 0f;
+        contVlg.childForceExpandWidth = true; contVlg.childForceExpandHeight = false;
+        contVlg.childControlWidth = true; contVlg.childControlHeight = false;
 
-        for (int g = 0; g < 3; g++)
+        var rows = new Transform[2];
+        for (int r = 0; r < 2; r++)
+        {
+            var row = new GameObject($"Row{r}");
+            row.transform.SetParent(container.transform, false);
+            var rowLE = row.AddComponent<LayoutElement>();
+            rowLE.preferredHeight = 108f; rowLE.minHeight = 108f; rowLE.flexibleWidth = 1f;
+            var hlg = row.AddComponent<HorizontalLayoutGroup>();
+            hlg.spacing = 12f;
+            hlg.padding = new RectOffset(20, 20, r == 0 ? 14 : 4, r == 0 ? 4 : 10);
+            hlg.childForceExpandWidth = true; hlg.childForceExpandHeight = false;
+            hlg.childControlWidth = true; hlg.childControlHeight = false;
+            hlg.childAlignment = TextAnchor.MiddleCenter;
+            rows[r] = row.transform;
+        }
+
+        bool tabsDark = ThemeManager.Instance?.IsDarkMode ?? false;
+        Color tabIdleBg = tabsDark ? new Color(0.18f, 0.17f, 0.22f, 1f) : Color.white;
+
+        for (int g = 0; g < GroupCount; g++)
         {
             int grp = g;
             var tab = new GameObject($"Tab{g}");
-            tab.transform.SetParent(row.transform, false);
+            tab.transform.SetParent(rows[g / 3], false);
             var tabRT = tab.AddComponent<RectTransform>();
-            tabRT.sizeDelta = new Vector2(0f, 86f);
+            tabRT.sizeDelta = new Vector2(0f, 90f);
             var tabLE = tab.AddComponent<LayoutElement>();
-            tabLE.flexibleWidth = 1f; tabLE.preferredHeight = 86f; tabLE.minHeight = 86f;
+            tabLE.flexibleWidth = 1f; tabLE.preferredHeight = 90f; tabLE.minHeight = 90f;
             var tabImg = tab.AddComponent<Image>();
             tabImg.sprite = SpriteGenerator.RoundedRect;
-            tabImg.color = (g == 0) ? BtnTeal : new Color(0.97f, 0.96f, 0.94f, 1f);
+            tabImg.color = (g == 0) ? GrpAccent[0] : tabIdleBg;
             _lsGroupTabBgs[g] = tabImg;
             var tabBtn = tab.AddComponent<Button>();
             tabBtn.targetGraphic = tabImg;
             _lsGroupTabButtons[g] = tabBtn;
             var tc = tabBtn.colors;
-            tc.highlightedColor = (g == 0) ? Color.Lerp(BtnTeal, Color.white, 0.08f) : new Color(0.99f, 0.98f, 0.96f, 1f);
-            tc.pressedColor = (g == 0) ? Color.Lerp(BtnTeal, Color.black, 0.08f) : new Color(0.93f, 0.91f, 0.88f, 1f);
+            tc.highlightedColor = new Color(0.97f, 0.97f, 0.97f, 1f);
+            tc.pressedColor = new Color(0.90f, 0.90f, 0.90f, 1f);
             tabBtn.colors = tc;
             tabBtn.onClick.AddListener(() => LsSwitchGroupTab(grp));
 
-            var tabVlg = tab.AddComponent<VerticalLayoutGroup>();
-            tabVlg.spacing = 6f;
-            tabVlg.padding = new RectOffset(4, 4, 12, 10);
-            tabVlg.childForceExpandWidth = true; tabVlg.childForceExpandHeight = false;
-            tabVlg.childControlWidth = true; tabVlg.childControlHeight = true;
-            tabVlg.childAlignment = TextAnchor.MiddleCenter;
+            int shapeIdx = g % 3;   // 0 square, 1 hexagon, 2 triangle
+            float iconSize = (shapeIdx == 2) ? 40f : (shapeIdx == 1 ? 36f : 32f);
 
-            float iconSize = (g == 2) ? 44f : (g == 1 ? 40f : 36f);
+            // Icon inside a soft accent-tinted chip
+            var chipObj = new GameObject("Chip");
+            chipObj.transform.SetParent(tab.transform, false);
+            var chipRT = chipObj.AddComponent<RectTransform>();
+            chipRT.anchorMin = new Vector2(0.5f, 1f); chipRT.anchorMax = new Vector2(0.5f, 1f);
+            chipRT.pivot = new Vector2(0.5f, 1f);
+            chipRT.anchoredPosition = new Vector2(0f, -8f);
+            chipRT.sizeDelta = new Vector2(48f, 48f);
+            var chipImg = chipObj.AddComponent<Image>();
+            chipImg.sprite = SpriteGenerator.RoundedRect;
+            chipImg.color = (g == 0)
+                ? new Color(1f, 1f, 1f, 0.22f)
+                : new Color(GrpAccent[g].r, GrpAccent[g].g, GrpAccent[g].b, tabsDark ? 0.26f : 0.14f);
+            _lsGroupTabIconChips[g] = chipImg;
 
             var iconObj = new GameObject("Icon");
-            iconObj.transform.SetParent(tab.transform, false);
+            iconObj.transform.SetParent(chipObj.transform, false);
             var iconRT = iconObj.AddComponent<RectTransform>();
+            iconRT.anchorMin = new Vector2(0.5f, 0.5f); iconRT.anchorMax = new Vector2(0.5f, 0.5f);
+            iconRT.pivot = new Vector2(0.5f, 0.5f);
             iconRT.sizeDelta = new Vector2(iconSize, iconSize);
-            var iconLE = iconObj.AddComponent<LayoutElement>();
-            iconLE.preferredHeight = iconSize; iconLE.minHeight = iconSize; iconLE.preferredWidth = iconSize;
             _lsGroupTabIcons[g] = iconObj.AddComponent<Image>();
             _lsGroupTabIcons[g].sprite = GrpSprite[g]();
             _lsGroupTabIcons[g].preserveAspect = true;
-            _lsGroupTabIcons[g].color = (g == 0) ? Color.white : TextDark;
+            _lsGroupTabIcons[g].color = (g == 0) ? Color.white : GrpAccent[g];
 
             var rangeObj = new GameObject("Range");
             rangeObj.transform.SetParent(tab.transform, false);
-            var rangeLE = rangeObj.AddComponent<LayoutElement>();
-            rangeLE.preferredHeight = 28f; rangeLE.minHeight = 28f;
+            var rangeRT = rangeObj.AddComponent<RectTransform>();
+            rangeRT.anchorMin = new Vector2(0f, 0f); rangeRT.anchorMax = new Vector2(1f, 0f);
+            rangeRT.pivot = new Vector2(0.5f, 0f);
+            rangeRT.anchoredPosition = new Vector2(0f, 6f);
+            rangeRT.sizeDelta = new Vector2(0f, 24f);
             _lsGroupTabRanges[g] = rangeObj.AddComponent<Text>();
             _lsGroupTabRanges[g].font = defaultFont; _lsGroupTabRanges[g].text = GrpRange[g];
-            _lsGroupTabRanges[g].fontSize = 21; _lsGroupTabRanges[g].fontStyle = FontStyle.Bold;
+            _lsGroupTabRanges[g].fontSize = 19; _lsGroupTabRanges[g].fontStyle = FontStyle.Bold;
             _lsGroupTabRanges[g].alignment = TextAnchor.MiddleCenter;
-            _lsGroupTabRanges[g].color = (g == 0) ? new Color(1f, 1f, 1f, 0.92f) : TextMuted;
+            _lsGroupTabRanges[g].color = (g == 0)
+                ? new Color(1f, 1f, 1f, 0.92f)
+                : (tabsDark ? new Color(0.60f, 0.58f, 0.56f) : TextMuted);
         }
     }
 
-    private static Sprite LoadNetworkingSprite()
+    private void LsBuildProgressRow(Transform parent)
     {
-        if (_networkingSprite != null) return _networkingSprite;
-        var tex = Resources.Load<Texture2D>("icons/networking");
-        if (tex == null) return null;
-        _networkingSprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), Vector2.one * 0.5f);
-        return _networkingSprite;
+        bool dark = ThemeManager.Instance?.IsDarkMode ?? false;
+
+        var rowObj = new GameObject("ProgressRow");
+        rowObj.transform.SetParent(parent, false);
+        var le = rowObj.AddComponent<LayoutElement>();
+        le.preferredHeight = 40f; le.minHeight = 40f; le.flexibleWidth = 1f;
+
+        var track = new GameObject("Track");
+        track.transform.SetParent(rowObj.transform, false);
+        var trackRT = track.AddComponent<RectTransform>();
+        trackRT.anchorMin = new Vector2(0f, 0.5f); trackRT.anchorMax = new Vector2(1f, 0.5f);
+        trackRT.pivot = new Vector2(0.5f, 0.5f);
+        trackRT.offsetMin = new Vector2(24f, -6f); trackRT.offsetMax = new Vector2(-122f, 6f);
+        var trackImg = track.AddComponent<Image>();
+        trackImg.sprite = SpriteGenerator.RoundedRectSliced;
+        trackImg.type = Image.Type.Sliced;
+        trackImg.color = dark ? new Color(0.22f, 0.21f, 0.27f, 1f) : new Color(0.88f, 0.86f, 0.83f, 1f);
+
+        var fill = new GameObject("Fill");
+        fill.transform.SetParent(track.transform, false);
+        var fillRT = fill.AddComponent<RectTransform>();
+        fillRT.anchorMin = Vector2.zero; fillRT.anchorMax = new Vector2(0f, 1f);
+        fillRT.pivot = new Vector2(0f, 0.5f);
+        fillRT.offsetMin = Vector2.zero; fillRT.offsetMax = Vector2.zero;
+        _lsProgressBarFill = fill.AddComponent<Image>();
+        _lsProgressBarFill.sprite = SpriteGenerator.RoundedRectSliced;
+        _lsProgressBarFill.type = Image.Type.Sliced;
+        _lsProgressBarFill.color = GrpAccent[0];
+
+        var countObj = new GameObject("Count");
+        countObj.transform.SetParent(rowObj.transform, false);
+        var countRT = countObj.AddComponent<RectTransform>();
+        countRT.anchorMin = new Vector2(1f, 0f); countRT.anchorMax = new Vector2(1f, 1f);
+        countRT.pivot = new Vector2(1f, 0.5f);
+        countRT.anchoredPosition = new Vector2(-24f, 0f);
+        countRT.sizeDelta = new Vector2(92f, 0f);
+        _lsProgressCountText = countObj.AddComponent<Text>();
+        _lsProgressCountText.font = defaultFont; _lsProgressCountText.fontSize = 22;
+        _lsProgressCountText.fontStyle = FontStyle.Bold;
+        _lsProgressCountText.alignment = TextAnchor.MiddleRight;
+        _lsProgressCountText.color = dark ? new Color(0.60f, 0.58f, 0.56f) : TextMuted;
+        _lsProgressCountText.text = "0/300";
     }
 
     private static Sprite LoadCartSprite()
@@ -915,10 +886,7 @@ public class UIManager : MonoBehaviour
 
     private void LsBuildGroupGrid(Transform parent, int groupIndex, Sprite btnSprite, int startIdx, int endIdx)
     {
-        const float BtnSize = 148f;
-        const float ConnW   = 26f;
-        const float ConnH   = 3f;
-        var connColor = new Color(0.78f, 0.75f, 0.71f, 0.9f);
+        const float BtnSize = 140f;
 
         var wrapper = new GameObject($"Group{groupIndex}");
         wrapper.transform.SetParent(parent, false);
@@ -945,7 +913,7 @@ public class UIManager : MonoBehaviour
             var rowLE = rowObj.AddComponent<LayoutElement>();
             rowLE.preferredHeight = BtnSize; rowLE.minHeight = BtnSize; rowLE.flexibleWidth = 1f;
             var rowHlg = rowObj.AddComponent<HorizontalLayoutGroup>();
-            rowHlg.spacing = 0f;
+            rowHlg.spacing = 18f;
             rowHlg.padding = new RectOffset(0, 0, 0, 0);
             rowHlg.childForceExpandWidth = false; rowHlg.childForceExpandHeight = false;
             rowHlg.childControlWidth = true; rowHlg.childControlHeight = false;
@@ -960,19 +928,6 @@ public class UIManager : MonoBehaviour
             {
                 int idx = startIdx + row * Cols + col;
                 if (idx > endIdx) break;
-
-                if (col > 0)
-                {
-                    // Connector line
-                    var conn = new GameObject("C");
-                    conn.transform.SetParent(rowObj.transform, false);
-                    var connRT = conn.AddComponent<RectTransform>();
-                    connRT.sizeDelta = new Vector2(ConnW, ConnH);
-                    var connLE = conn.AddComponent<LayoutElement>();
-                    connLE.preferredWidth = ConnW; connLE.minWidth = ConnW;
-                    var connImg = conn.AddComponent<Image>();
-                    connImg.color = connColor;
-                }
 
                 // Button cell
                 int levelIndex = idx;
@@ -1007,7 +962,7 @@ public class UIManager : MonoBehaviour
                 btn.onClick.AddListener(() => FindAnyObjectByType<GameManager>().SelectLevel(levelIndex));
 
                 // Number label
-                bool isTriGroup = (groupIndex == 3);
+                bool isTriGroup = (groupIndex % 3 == 2);
                 var lblObj = new GameObject("N"); lblObj.transform.SetParent(cell.transform, false);
                 var lblRect = lblObj.AddComponent<RectTransform>();
                 lblRect.anchorMin = new Vector2(0.5f, 0.5f); lblRect.anchorMax = new Vector2(0.5f, 0.5f);
@@ -1059,28 +1014,23 @@ public class UIManager : MonoBehaviour
             if (_lsTotalLevels > 0)
                 RefreshLevelSelectButtons(_lsCurrentIdx, _lsHighestUnlocked, _lsTotalLevels);
         }
-        for (int i = 0; i < 3; i++)
+        bool tabsDark = ThemeManager.Instance?.IsDarkMode ?? false;
+        Color tabIdleBg = tabsDark ? new Color(0.18f, 0.17f, 0.22f, 1f) : Color.white;
+        for (int i = 0; i < GroupCount; i++)
         {
             bool active = (i == g);
             if (_lsGroupTabBgs[i] != null)
-                _lsGroupTabBgs[i].color = active ? BtnTeal : new Color(0.97f, 0.96f, 0.94f, 1f);
-            if (_lsGroupTabButtons[i] != null)
-            {
-                var tc = _lsGroupTabButtons[i].colors;
-                tc.highlightedColor = active ? Color.Lerp(BtnTeal, Color.white, 0.08f) : new Color(0.99f, 0.98f, 0.96f, 1f);
-                tc.pressedColor = active ? Color.Lerp(BtnTeal, Color.black, 0.08f) : new Color(0.93f, 0.91f, 0.88f, 1f);
-                _lsGroupTabButtons[i].colors = tc;
-            }
+                _lsGroupTabBgs[i].color = active ? GrpAccent[i] : tabIdleBg;
             if (_lsGroupTabIconChips[i] != null)
                 _lsGroupTabIconChips[i].color = active
-                    ? new Color(1f, 1f, 1f, 0.20f)
-                    : new Color(GrpAccent[i].r, GrpAccent[i].g, GrpAccent[i].b, 0.16f);
+                    ? new Color(1f, 1f, 1f, 0.22f)
+                    : new Color(GrpAccent[i].r, GrpAccent[i].g, GrpAccent[i].b, tabsDark ? 0.26f : 0.14f);
             if (_lsGroupTabIcons[i] != null)
-                _lsGroupTabIcons[i].color = active ? Color.white : TextDark;
-            if (_lsGroupTabTitles[i] != null)
-                _lsGroupTabTitles[i].color = active ? Color.white : TextDark;
+                _lsGroupTabIcons[i].color = active ? Color.white : GrpAccent[i];
             if (_lsGroupTabRanges[i] != null)
-                _lsGroupTabRanges[i].color = active ? new Color(1f, 1f, 1f, 0.92f) : TextMuted;
+                _lsGroupTabRanges[i].color = active
+                    ? new Color(1f, 1f, 1f, 0.92f)
+                    : (tabsDark ? new Color(0.60f, 0.58f, 0.56f) : TextMuted);
             if (_lsGroupGridRoots[i] != null) _lsGroupGridRoots[i].gameObject.SetActive(active);
         }
         LsRefreshProgressBar(g);
@@ -1091,16 +1041,18 @@ public class UIManager : MonoBehaviour
 
     private void LsRefreshProgressBar(int g)
     {
-        int groupStart    = g * 300;
-        int completed     = Mathf.Clamp(_lsHighestUnlocked - groupStart, 0, 300);
-        float fillFraction = 300 > 0 ? Mathf.Clamp01(completed / 300f) : 0f;
+        int groupStart    = GrpStart[g];
+        int groupSize     = GrpEnd[g] - GrpStart[g] + 1;
+        int completed     = Mathf.Clamp(_lsHighestUnlocked - groupStart, 0, groupSize);
+        float fillFraction = Mathf.Clamp01((float)completed / groupSize);
 
         if (_lsProgressCountText != null)
-            _lsProgressCountText.text = $"{completed}/300";
+            _lsProgressCountText.text = $"{completed}/{groupSize}";
         if (_lsProgressBarFill != null)
         {
             var fillRect = _lsProgressBarFill.GetComponent<RectTransform>();
             fillRect.anchorMax = new Vector2(fillFraction, 1f);
+            _lsProgressBarFill.color = GrpAccent[g];
         }
     }
 
@@ -1110,25 +1062,23 @@ public class UIManager : MonoBehaviour
         bool dark = tm?.IsDarkMode ?? false;
 
         // Per-group palette: unlocked, current, locked
-        Color[] colU = dark ? new Color[] {
-            new Color(0.22f, 0.21f, 0.27f, 1f),  // square
-            new Color(0.22f, 0.21f, 0.27f, 1f),  // hexagon
-            new Color(0.22f, 0.21f, 0.27f, 1f),  // triangle
-        } : new Color[] {
-            new Color(1.00f, 0.93f, 0.76f, 1f),
-            new Color(0.80f, 0.96f, 0.93f, 1f),
-            new Color(0.98f, 0.82f, 0.90f, 1f),
-        };
-        Color[] colC = { BtnTeal, BtnTeal, BtnTeal };
-        Color[] colL = dark ? new Color[] {
-            new Color(0.15f, 0.14f, 0.19f, 1f),
-            new Color(0.15f, 0.14f, 0.19f, 1f),
-            new Color(0.15f, 0.14f, 0.19f, 1f),
-        } : new Color[] {
-            new Color(0.90f, 0.88f, 0.85f, 1f),
-            new Color(0.90f, 0.88f, 0.85f, 1f),
-            new Color(0.90f, 0.88f, 0.85f, 1f),
-        };
+        Color darkU = new Color(0.22f, 0.21f, 0.27f, 1f);
+        Color darkL = new Color(0.15f, 0.14f, 0.19f, 1f);
+        Color lightL = new Color(0.90f, 0.88f, 0.85f, 1f);
+        Color[] colU = dark
+            ? new Color[] { darkU, darkU, darkU, darkU, darkU, darkU }
+            : new Color[] {
+                new Color(1.00f, 0.93f, 0.76f, 1f),  // square
+                new Color(0.80f, 0.96f, 0.93f, 1f),  // hexagon
+                new Color(0.98f, 0.82f, 0.90f, 1f),  // triangle
+                new Color(0.80f, 0.88f, 0.99f, 1f),  // seq square
+                new Color(0.84f, 0.95f, 0.82f, 1f),  // seq hexagon
+                new Color(0.90f, 0.84f, 0.98f, 1f),  // seq triangle
+            };
+        Color[] colC = GrpAccent;   // current level uses its group's accent color
+        Color[] colL = dark
+            ? new Color[] { darkL, darkL, darkL, darkL, darkL, darkL }
+            : new Color[] { lightL, lightL, lightL, lightL, lightL, lightL };
         Color txtPrimary = tm?.TextPrimary ?? TextDark;
         Color txtMuted   = tm?.TextMuted   ?? TextMuted;
 
@@ -1145,7 +1095,7 @@ public class UIManager : MonoBehaviour
             levelSelectButtons[i].interactable = unlocked;
             levelSelectButtonLabels[i].text = (i + 1).ToString();
 
-            int grp = i / 300;
+            int grp = LsGroupOf(i);
 
             if (isCurrent)
             {
@@ -1357,10 +1307,10 @@ public class UIManager : MonoBehaviour
     // ─────────────────────────────────────────────────────────────────────────────
 
     public void ShowHintStore(
-        Action onWatchAd, Action onBuyStarter, Action onBuyPack5, Action onBuyPack20, Action onBuyPack60,
+        Action onWatchAd, Action onBuyStarter, Action onBuyPack5, Action onBuyPack50, Action onBuyPack100,
         Action onBuyNoAds, bool isNoAdsPurchased, string noAdsPrice,
         bool isStarterAvailable, string starterPrice,
-        string price5, string price20, string price60, int currentHints)
+        string price5, string price50, string price100, int currentHints)
     {
         if (hintPromoPopup != null) Destroy(hintPromoPopup);
 
@@ -1373,341 +1323,305 @@ public class UIManager : MonoBehaviour
         popupRect.offsetMin = Vector2.zero; popupRect.offsetMax = Vector2.zero;
 
         var overlay = hintPromoPopup.AddComponent<Image>();
-        overlay.color = new Color(0.08f, 0.08f, 0.12f, 0.70f);
+        overlay.color = new Color(0.05f, 0.06f, 0.10f, 0.78f);
         var overlayBtn = hintPromoPopup.AddComponent<Button>();
         overlayBtn.targetGraphic = overlay;
+        overlayBtn.transition = Selectable.Transition.None;
         overlayBtn.onClick.AddListener(HideHintPromoPopup);
 
-        // Drop-shadow
+        var tm = ThemeManager.Instance;
+        bool dark = tm?.IsDarkMode ?? false;
+        Color accent   = new Color(0.13f, 0.59f, 0.63f);
+        Color green    = new Color(0.28f, 0.68f, 0.32f);
+        Color gold     = new Color(0.96f, 0.68f, 0.10f);
+        Color coral    = new Color(0.93f, 0.35f, 0.30f);
+        Color cardCol  = dark ? new Color(0.15f, 0.145f, 0.19f, 1f) : new Color(0.972f, 0.965f, 0.955f, 1f);
+        Color tileCol  = dark ? new Color(0.22f, 0.21f, 0.27f, 1f) : Color.white;
+        Color textCol  = tm != null ? tm.TextPrimary : TextDark;
+        Color mutedCol = dark ? new Color(0.62f, 0.60f, 0.66f) : new Color(0.55f, 0.53f, 0.58f);
+
+        // Portrait card: 2 columns × 3 rows of offer tiles
+        float canvasW = ((RectTransform)canvas.transform).rect.width;
+        float cardW = canvasW > 0f ? Mathf.Min(700f, canvasW - 60f) : 680f;
+        const float pad = 28f;
+
+        // Drop-shadow (resized at the end)
         var shadowObj = new GameObject("Shadow");
         shadowObj.transform.SetParent(hintPromoPopup.transform, false);
         var shadowRect = shadowObj.AddComponent<RectTransform>();
         shadowRect.anchorMin = new Vector2(0.5f, 0.5f); shadowRect.anchorMax = new Vector2(0.5f, 0.5f);
         shadowRect.pivot = new Vector2(0.5f, 0.5f);
-        shadowRect.sizeDelta = new Vector2(726f, 784f);
         shadowRect.anchoredPosition = new Vector2(5f, -10f);
         var shadowImg = shadowObj.AddComponent<Image>();
-        shadowImg.sprite = SpriteGenerator.RoundedRect;
-        shadowImg.color = new Color(0f, 0f, 0f, 0.20f);
+        shadowImg.sprite = SpriteGenerator.RoundedRectSliced;
+        shadowImg.type = Image.Type.Sliced;
+        shadowImg.color = new Color(0f, 0f, 0f, 0.24f);
 
-        // Main card
+        // Main card (height set at the end once content is measured)
         var card = new GameObject("Card");
         card.transform.SetParent(hintPromoPopup.transform, false);
         var cardRect = card.AddComponent<RectTransform>();
         cardRect.anchorMin = new Vector2(0.5f, 0.5f); cardRect.anchorMax = new Vector2(0.5f, 0.5f);
         cardRect.pivot = new Vector2(0.5f, 0.5f);
-        cardRect.sizeDelta = new Vector2(700f, 760f);
+        cardRect.sizeDelta = new Vector2(cardW, 900f);
         var cardImg = card.AddComponent<Image>();
-        cardImg.sprite = SpriteGenerator.RoundedRect;
-        cardImg.color = new Color(0.97f, 0.96f, 0.94f);
+        cardImg.sprite = SpriteGenerator.RoundedRectSliced;
+        cardImg.type = Image.Type.Sliced;
+        cardImg.color = cardCol;
+        var cardBlock = card.AddComponent<Button>();
+        cardBlock.targetGraphic = cardImg;
+        cardBlock.transition = Selectable.Transition.None;
 
-        // ── Header band ──────────────────────────────────────────────────────────
-        var header = new GameObject("Header");
-        header.transform.SetParent(card.transform, false);
-        var hRect = header.AddComponent<RectTransform>();
-        hRect.anchorMin = new Vector2(0f, 1f); hRect.anchorMax = new Vector2(1f, 1f);
-        hRect.pivot = new Vector2(0.5f, 1f);
-        hRect.sizeDelta = new Vector2(0f, 128f);
-        hRect.anchoredPosition = Vector2.zero;
-        var hImg = header.AddComponent<Image>();
-        hImg.sprite = SpriteGenerator.RoundedRect;
-        hImg.color = new Color(0.18f, 0.55f, 0.62f, 1f); // teal
+        // No close button — tapping the dimmed background closes the store
+        float y = -24f;
+        float rowW = cardW - pad * 2f;
+        Sprite bulbSprite = LoadIconSprite("icons/lightbulb") ?? LoadIconSprite("icons/lightbulb_white");
+        Sprite adSprite = LoadIconSprite("icons/adblock") ?? LoadIconSprite("icons/adblock_white");
 
-        // Lightbulb icon in header
-        var hIcon = new GameObject("HIcon");
-        hIcon.transform.SetParent(header.transform, false);
-        var hIconRect = hIcon.AddComponent<RectTransform>();
-        hIconRect.anchorMin = new Vector2(0f, 0.5f); hIconRect.anchorMax = new Vector2(0f, 0.5f);
-        hIconRect.pivot = new Vector2(0f, 0.5f);
-        hIconRect.anchoredPosition = new Vector2(24f, 0f);
-        hIconRect.sizeDelta = new Vector2(60f, 60f);
-        var hIconImg = hIcon.AddComponent<Image>();
-        var lbSprite = LoadIconSprite("icons/lightbulb_white") ?? LoadIconSprite("icons/lightbulb");
-        if (lbSprite != null) { hIconImg.sprite = lbSprite; hIconImg.preserveAspect = true; }
-        hIconImg.color = Color.white;
+        // ── Offer tiles (2-column grid) ───────────────────────────────────────────
+        var packSection = new GameObject("PackSection");
+        packSection.transform.SetParent(card.transform, false);
+        var psRT = packSection.AddComponent<RectTransform>();
+        psRT.anchorMin = psRT.anchorMax = new Vector2(0f, 1f);
+        psRT.pivot = new Vector2(0f, 1f);
 
-        // Title
-        var titleTxt = new GameObject("Title");
-        titleTxt.transform.SetParent(header.transform, false);
-        var titleRect = titleTxt.AddComponent<RectTransform>();
-        titleRect.anchorMin = Vector2.zero; titleRect.anchorMax = Vector2.one;
-        titleRect.offsetMin = new Vector2(100f, 0f); titleRect.offsetMax = new Vector2(-60f, 0f);
-        var t = titleTxt.AddComponent<Text>();
-        t.font = defaultFont; t.text = "Hint Store";
-        t.fontSize = 40; t.fontStyle = FontStyle.Bold;
-        t.color = Color.white; t.alignment = TextAnchor.MiddleLeft;
+        const int cols = 2;
+        const float packGap = 20f;      // horizontal gap
+        const float rowGap = 32f;       // vertical gap (leaves room for the ribbons)
+        const float packH = 290f;
+        int packCount = (isStarterAvailable ? 1 : 0) + 3 + 1 + (isNoAdsPurchased ? 0 : 1);
+        int rows = (packCount + cols - 1) / cols;
+        float packW = (rowW - packGap * (cols - 1)) / cols;
+        float gridH = rows * packH + (rows - 1) * rowGap;
+        y -= 22f;   // headroom for the first row's ribbons
+        psRT.anchoredPosition = new Vector2(pad, y);
+        psRT.sizeDelta = new Vector2(rowW, gridH);
 
-        // Hints count badge (top-right)
-        var badgeObj = new GameObject("HintsBadge");
-        badgeObj.transform.SetParent(header.transform, false);
-        var badgeRect2 = badgeObj.AddComponent<RectTransform>();
-        badgeRect2.anchorMin = new Vector2(1f, 0.5f); badgeRect2.anchorMax = new Vector2(1f, 0.5f);
-        badgeRect2.pivot = new Vector2(1f, 0.5f);
-        badgeRect2.anchoredPosition = new Vector2(-16f, 0f);
-        badgeRect2.sizeDelta = new Vector2(130f, 52f);
-        var badgeBg = badgeObj.AddComponent<Image>();
-        badgeBg.sprite = SpriteGenerator.RoundedRect;
-        badgeBg.color = new Color(1f, 1f, 1f, 0.22f);
-        var badgeTxt = new GameObject("Count");
-        badgeTxt.transform.SetParent(badgeObj.transform, false);
-        var btRect = badgeTxt.AddComponent<RectTransform>();
-        btRect.anchorMin = Vector2.zero; btRect.anchorMax = Vector2.one;
-        btRect.offsetMin = Vector2.zero; btRect.offsetMax = Vector2.zero;
-        var bt = badgeTxt.AddComponent<Text>();
-        bt.font = defaultFont;
-        bt.text = currentHints == 0 ? "0 hints" : (currentHints == 1 ? "1 hint" : $"{currentHints} hints");
-        bt.fontSize = 26; bt.fontStyle = FontStyle.Bold;
-        bt.color = Color.white; bt.alignment = TextAnchor.MiddleCenter;
-
-        // Close button removed — tap overlay to dismiss
-
-        // ── Rows container ────────────────────────────────────────────────────────
-        float rowTop = -144f; // below header (128) + 16px gap
-        const float rowH = 88f;
-        const float rowGap = 10f;
-
-        // Helper to build a store row
-        void BuildRow(string label, string sub, string priceStr, Color accentColor,
-                      Action onTap, Transform parent, float yPos)
+        void BuildPackCard(int slot, string title, string subtitle, string priceStr,
+                           Sprite iconSpr, Color iconTint, float iconSize,
+                           string ribbon, Color ribbonCol, bool highlight,
+                           Color btnCol, Action onTap,
+                           Color? tileBg = null, Color? titleCol = null, Color? subCol = null,
+                           bool featured = false, string iconGlyph = "💡")
         {
-            var row = new GameObject("Row_" + label.Replace(" ", ""));
-            row.transform.SetParent(parent, false);
-            var rRT = row.AddComponent<RectTransform>();
-            rRT.anchorMin = new Vector2(0f, 1f); rRT.anchorMax = new Vector2(1f, 1f);
-            rRT.pivot = new Vector2(0.5f, 1f);
-            rRT.anchoredPosition = new Vector2(0f, yPos);
-            rRT.sizeDelta = new Vector2(-32f, rowH);
-            var rImg = row.AddComponent<Image>();
-            rImg.sprite = SpriteGenerator.RoundedRect;
-            rImg.color = Color.white;
-            var rBtn = row.AddComponent<Button>();
-            rBtn.targetGraphic = rImg;
-            var rc = rBtn.colors;
-            rc.highlightedColor = new Color(0.94f, 0.96f, 1f, 1f);
-            rc.pressedColor     = new Color(0.86f, 0.92f, 0.98f, 1f);
-            rBtn.colors = rc;
-            rBtn.onClick.AddListener(() => { HideHintPromoPopup(); onTap?.Invoke(); });
+            var holder = new GameObject("Pack_" + slot);
+            holder.transform.SetParent(packSection.transform, false);
+            var hRT = holder.AddComponent<RectTransform>();
+            hRT.anchorMin = hRT.anchorMax = new Vector2(0f, 1f);
+            hRT.pivot = new Vector2(0.5f, 0.5f);   // centered so the featured pulse scales in place
+            int col = slot % cols, row = slot / cols;
+            // A lone tile on the last row is centered
+            float xOff = (slot == packCount - 1 && packCount % cols == 1) ? (packW + packGap) * 0.5f : 0f;
+            hRT.anchoredPosition = new Vector2(col * (packW + packGap) + packW * 0.5f + xOff,
+                                               -(row * (packH + rowGap)) - packH * 0.5f);
+            hRT.sizeDelta = new Vector2(packW, packH);
 
-            // Accent stripe on left
-            var stripe = new GameObject("Stripe");
-            stripe.transform.SetParent(row.transform, false);
-            var stRT = stripe.AddComponent<RectTransform>();
-            stRT.anchorMin = new Vector2(0f, 0f); stRT.anchorMax = new Vector2(0f, 1f);
-            stRT.pivot = new Vector2(0f, 0.5f);
-            stRT.offsetMin = Vector2.zero; stRT.offsetMax = new Vector2(6f, 0f);
-            var stImg = stripe.AddComponent<Image>();
-            stImg.color = accentColor;
-
-            // Label
-            var lbl = new GameObject("Label");
-            lbl.transform.SetParent(row.transform, false);
-            var lblRT = lbl.AddComponent<RectTransform>();
-            lblRT.anchorMin = new Vector2(0f, 0.5f); lblRT.anchorMax = new Vector2(1f, 0.5f);
-            lblRT.pivot = new Vector2(0f, 0.5f);
-            lblRT.anchoredPosition = new Vector2(18f, string.IsNullOrEmpty(sub) ? 0f : 12f);
-            lblRT.sizeDelta = new Vector2(-180f, 36f);
-            var lt = lbl.AddComponent<Text>();
-            lt.font = defaultFont; lt.text = label;
-            lt.fontSize = 30; lt.fontStyle = FontStyle.Bold;
-            lt.color = TextDark; lt.alignment = TextAnchor.MiddleLeft;
-
-            if (!string.IsNullOrEmpty(sub))
+            // Featured: soft pulsing glow behind the border
+            Image glowImg = null;
+            if (featured)
             {
-                var sublbl = new GameObject("Sub");
-                sublbl.transform.SetParent(row.transform, false);
-                var sRT = sublbl.AddComponent<RectTransform>();
-                sRT.anchorMin = new Vector2(0f, 0.5f); sRT.anchorMax = new Vector2(1f, 0.5f);
-                sRT.pivot = new Vector2(0f, 0.5f);
-                sRT.anchoredPosition = new Vector2(18f, -14f);
-                sRT.sizeDelta = new Vector2(-180f, 28f);
-                var st = sublbl.AddComponent<Text>();
-                st.font = defaultFont; st.text = sub;
-                st.fontSize = 24; st.color = TextMuted; st.alignment = TextAnchor.MiddleLeft;
+                var glow = new GameObject("Glow");
+                glow.transform.SetParent(holder.transform, false);
+                var gRT = glow.AddComponent<RectTransform>();
+                gRT.anchorMin = Vector2.zero; gRT.anchorMax = Vector2.one;
+                gRT.offsetMin = new Vector2(-8f, -8f); gRT.offsetMax = new Vector2(8f, 8f);
+                glowImg = glow.AddComponent<Image>();
+                glowImg.sprite = SpriteGenerator.RoundedRectSliced;
+                glowImg.type = Image.Type.Sliced;
+                glowImg.color = new Color(ribbonCol.r, ribbonCol.g, ribbonCol.b, 0.3f);
+                glowImg.raycastTarget = false;
             }
 
-            // Price pill
-            var pill = new GameObject("PricePill");
-            pill.transform.SetParent(row.transform, false);
-            var pRT = pill.AddComponent<RectTransform>();
-            pRT.anchorMin = new Vector2(1f, 0.5f); pRT.anchorMax = new Vector2(1f, 0.5f);
-            pRT.pivot = new Vector2(1f, 0.5f);
-            pRT.anchoredPosition = new Vector2(-14f, 0f);
-            pRT.sizeDelta = new Vector2(140f, 52f);
-            var pImg = pill.AddComponent<Image>();
-            pImg.sprite = SpriteGenerator.RoundedRect;
-            pImg.color = accentColor;
-            var pTxt = new GameObject("PriceTxt");
-            pTxt.transform.SetParent(pill.transform, false);
-            var ptRT = pTxt.AddComponent<RectTransform>();
-            ptRT.anchorMin = Vector2.zero; ptRT.anchorMax = Vector2.one;
-            ptRT.offsetMin = Vector2.zero; ptRT.offsetMax = Vector2.zero;
-            var pt = pTxt.AddComponent<Text>();
-            pt.font = defaultFont; pt.text = priceStr;
-            pt.fontSize = 28; pt.fontStyle = FontStyle.Bold;
-            pt.color = Color.white; pt.alignment = TextAnchor.MiddleCenter;
+            if (highlight)
+            {
+                var border = new GameObject("Border");
+                border.transform.SetParent(holder.transform, false);
+                var bRT = border.AddComponent<RectTransform>();
+                bRT.anchorMin = Vector2.zero; bRT.anchorMax = Vector2.one;
+                bRT.offsetMin = new Vector2(-4f, -4f); bRT.offsetMax = new Vector2(4f, 4f);
+                var bImg = border.AddComponent<Image>();
+                bImg.sprite = SpriteGenerator.RoundedRectSliced;
+                bImg.type = Image.Type.Sliced;
+                bImg.color = ribbonCol;
+            }
+
+            var tile = new GameObject("Tile");
+            tile.transform.SetParent(holder.transform, false);
+            var tRT = tile.AddComponent<RectTransform>();
+            tRT.anchorMin = Vector2.zero; tRT.anchorMax = Vector2.one;
+            tRT.offsetMin = Vector2.zero; tRT.offsetMax = Vector2.zero;
+            var tImg = tile.AddComponent<Image>();
+            tImg.sprite = SpriteGenerator.RoundedRectSliced;
+            tImg.type = Image.Type.Sliced;
+            tImg.color = tileBg ?? tileCol;
+            var tBtn = tile.AddComponent<Button>();
+            tBtn.targetGraphic = tImg;
+            if (onTap != null)
+                tBtn.onClick.AddListener(() => { HideHintPromoPopup(); onTap(); });
+            else
+                tBtn.transition = Selectable.Transition.None;
+
+            // Icon
+            var iconGo = new GameObject("Icon");
+            iconGo.transform.SetParent(tile.transform, false);
+            var iRT = iconGo.AddComponent<RectTransform>();
+            iRT.anchorMin = iRT.anchorMax = new Vector2(0.5f, 1f);
+            iRT.pivot = new Vector2(0.5f, 1f);
+            iRT.anchoredPosition = new Vector2(0f, -26f);
+            iRT.sizeDelta = new Vector2(iconSize, iconSize);
+            if (iconSpr != null)
+            {
+                var iImg = iconGo.AddComponent<Image>();
+                iImg.sprite = iconSpr; iImg.preserveAspect = true;
+                iImg.color = iconTint;
+            }
+            else
+            {
+                var iT = iconGo.AddComponent<Text>();
+                iT.font = defaultFont; iT.text = iconGlyph; iT.fontSize = (int)(iconSize * 0.8f);
+                iT.color = iconTint;
+                iT.alignment = TextAnchor.MiddleCenter;
+                iT.horizontalOverflow = HorizontalWrapMode.Overflow;
+                iT.verticalOverflow = VerticalWrapMode.Overflow;
+            }
+
+            // Title (e.g. ×50 or No Ads)
+            var cntGo = new GameObject("Title");
+            cntGo.transform.SetParent(tile.transform, false);
+            var cRT = cntGo.AddComponent<RectTransform>();
+            cRT.anchorMin = new Vector2(0f, 1f); cRT.anchorMax = new Vector2(1f, 1f);
+            cRT.pivot = new Vector2(0.5f, 1f);
+            cRT.anchoredPosition = new Vector2(0f, -118f);
+            cRT.sizeDelta = new Vector2(-16f, 52f);
+            var cT = cntGo.AddComponent<Text>();
+            cT.font = defaultFont; cT.text = title;
+            cT.fontSize = 42; cT.fontStyle = FontStyle.Bold;
+            cT.resizeTextForBestFit = true;
+            cT.resizeTextMinSize = 24; cT.resizeTextMaxSize = 42;
+            cT.color = titleCol ?? textCol; cT.alignment = TextAnchor.MiddleCenter;
+
+            var subGo = new GameObject("Subtitle");
+            subGo.transform.SetParent(tile.transform, false);
+            var hlRT = subGo.AddComponent<RectTransform>();
+            hlRT.anchorMin = new Vector2(0f, 1f); hlRT.anchorMax = new Vector2(1f, 1f);
+            hlRT.pivot = new Vector2(0.5f, 1f);
+            hlRT.anchoredPosition = new Vector2(0f, -172f);
+            hlRT.sizeDelta = new Vector2(0f, 30f);
+            var hlT = subGo.AddComponent<Text>();
+            hlT.font = defaultFont; hlT.text = subtitle;
+            hlT.fontSize = 23; hlT.color = subCol ?? mutedCol; hlT.alignment = TextAnchor.MiddleCenter;
+
+            // Price button
+            var priceBtnGo = new GameObject("PriceBtn");
+            priceBtnGo.transform.SetParent(tile.transform, false);
+            var pbRT = priceBtnGo.AddComponent<RectTransform>();
+            pbRT.anchorMin = new Vector2(0f, 0f); pbRT.anchorMax = new Vector2(1f, 0f);
+            pbRT.pivot = new Vector2(0.5f, 0f);
+            pbRT.offsetMin = new Vector2(16f, 18f); pbRT.offsetMax = new Vector2(-16f, 18f + 64f);
+            var pbImg = priceBtnGo.AddComponent<Image>();
+            pbImg.sprite = SpriteGenerator.RoundedRectSliced;
+            pbImg.type = Image.Type.Sliced;
+            pbImg.color = btnCol;
+            var pbBtn = priceBtnGo.AddComponent<Button>();
+            pbBtn.targetGraphic = pbImg;
+            if (onTap != null)
+                pbBtn.onClick.AddListener(() => { HideHintPromoPopup(); onTap(); });
+            else
+                pbBtn.transition = Selectable.Transition.None;
+            var pbTxtObj = new GameObject("Txt");
+            pbTxtObj.transform.SetParent(priceBtnGo.transform, false);
+            var pbtRT = pbTxtObj.AddComponent<RectTransform>();
+            pbtRT.anchorMin = Vector2.zero; pbtRT.anchorMax = Vector2.one;
+            pbtRT.offsetMin = Vector2.zero; pbtRT.offsetMax = Vector2.zero;
+            var pbT = pbTxtObj.AddComponent<Text>();
+            pbT.font = defaultFont; pbT.text = priceStr;
+            pbT.fontSize = 28; pbT.fontStyle = FontStyle.Bold;
+            pbT.color = Color.white; pbT.alignment = TextAnchor.MiddleCenter;
+            pbT.horizontalOverflow = HorizontalWrapMode.Overflow;
+
+            // Ribbon tag centered on the card's top edge
+            if (!string.IsNullOrEmpty(ribbon))
+            {
+                var rb = new GameObject("Ribbon");
+                rb.transform.SetParent(holder.transform, false);
+                var rbRT = rb.AddComponent<RectTransform>();
+                rbRT.anchorMin = rbRT.anchorMax = new Vector2(0.5f, 1f);
+                rbRT.pivot = new Vector2(0.5f, 0.5f);
+                rbRT.anchoredPosition = new Vector2(0f, 2f);
+                rbRT.sizeDelta = new Vector2(Mathf.Min(ribbon.Length * 12f + 32f, packW - 8f), 36f);
+                var rbImg = rb.AddComponent<Image>();
+                rbImg.sprite = SpriteGenerator.RoundedRectSliced;
+                rbImg.type = Image.Type.Sliced;
+                rbImg.color = ribbonCol;
+                var rbTxtObj = new GameObject("Txt");
+                rbTxtObj.transform.SetParent(rb.transform, false);
+                var rbtRT = rbTxtObj.AddComponent<RectTransform>();
+                rbtRT.anchorMin = Vector2.zero; rbtRT.anchorMax = Vector2.one;
+                rbtRT.offsetMin = Vector2.zero; rbtRT.offsetMax = Vector2.zero;
+                var rbT = rbTxtObj.AddComponent<Text>();
+                rbT.font = defaultFont; rbT.text = ribbon;
+                rbT.fontSize = 18; rbT.fontStyle = FontStyle.Bold;
+                rbT.color = Color.white; rbT.alignment = TextAnchor.MiddleCenter;
+                rbT.horizontalOverflow = HorizontalWrapMode.Overflow;
+            }
+
+            if (featured)
+                StartCoroutine(FeaturedPackPulse(hRT, glowImg));
         }
 
-        float y = rowTop;
-
-        // Section label helper
-        void SectionLabel(string txt, float yPos)
-        {
-            var sl = new GameObject("Section_" + txt);
-            sl.transform.SetParent(card.transform, false);
-            var slRT = sl.AddComponent<RectTransform>();
-            slRT.anchorMin = new Vector2(0f, 1f); slRT.anchorMax = new Vector2(1f, 1f);
-            slRT.pivot = new Vector2(0.5f, 1f);
-            slRT.anchoredPosition = new Vector2(0f, yPos);
-            slRT.sizeDelta = new Vector2(-32f, 36f);
-            var slT = sl.AddComponent<Text>();
-            slT.font = defaultFont; slT.text = txt;
-            slT.fontSize = 24; slT.fontStyle = FontStyle.Bold;
-            slT.color = TextMuted; slT.alignment = TextAnchor.MiddleLeft;
-        }
-
-        // ── Free: Watch Ad ────────────────────────────────────────────────────────
-        if (!isNoAdsPurchased)
-        {
-            SectionLabel("FREE", y);
-            y -= 36f + 4f;
-            BuildRow("Watch a Short Video", "Earn 1 hint",
-                     "FREE", new Color(0.18f, 0.72f, 0.52f, 1f), onWatchAd, card.transform, y);
-            y -= rowH + rowGap;
-        }
-
-        // ── Welcome Deal (first-time only) ─────────────────────────────────────────
+        Color bulbGold = new Color(1f, 0.80f, 0.20f, 1f);
+        Color starterPurple = new Color(0.36f, 0.21f, 0.68f, 1f);
+        int nextSlot = 0;
         if (isStarterAvailable)
         {
-            SectionLabel("WELCOME DEAL", y);
-            y -= 36f + 4f;
-            BuildStarterRow(starterPrice, onBuyStarter, card.transform, y);
-            y -= rowH + rowGap + 8f;
+            // Featured one-time Welcome Deal: purple tile, gold border + pulsing glow
+            BuildPackCard(nextSlot++, "×25", "Hints", starterPrice, bulbSprite, bulbGold, 76f,
+                "WELCOME DEAL", gold, true, gold, onBuyStarter,
+                starterPurple, Color.white, new Color(1f, 1f, 1f, 0.8f), true);
         }
-
-        // ── Buy Hint Packs ────────────────────────────────────────────────────────
-        SectionLabel("BUY HINTS", y);
-        y -= 36f + 4f;
-
-        BuildRow("5 Hints",  "", price5,  new Color(0.26f, 0.52f, 0.96f, 1f), onBuyPack5,  card.transform, y);
-        y -= rowH + rowGap;
-        BuildRow("30 Hints", "", price20, new Color(0.26f, 0.52f, 0.96f, 1f), onBuyPack20, card.transform, y);
-        y -= rowH + rowGap;
-        BuildRow("70 Hints", "", price60, new Color(0.26f, 0.52f, 0.96f, 1f), onBuyPack60, card.transform, y);
-        y -= rowH + rowGap;
-
-        // ── Remove Ads ────────────────────────────────────────────────────────────
-        y -= 4f;
-        SectionLabel("REMOVE ADS", y);
-        y -= 36f + 4f;
-
+        BuildPackCard(nextSlot++, "×5",   "Hints", price5,   bulbSprite, bulbGold, 58f, "CHEAPEST",   accent,      true,  green, onBuyPack5);
+        BuildPackCard(nextSlot++, "×50",  "Hints", price50,  bulbSprite, bulbGold, 68f, "POPULAR",    coral,       true,  green, onBuyPack50);
+        BuildPackCard(nextSlot++, "×100", "Hints", price100, bulbSprite, bulbGold, 78f, "BEST VALUE", gold,        true,  green, onBuyPack100);
+        Sprite adWhite = LoadIconSprite("icons/adblock_white") ?? adSprite;
+        Color noAdsNavy = new Color(0.17f, 0.20f, 0.29f, 1f);
         if (isNoAdsPurchased)
-        {
-            BuildRow("Remove All Ads", "Already purchased — thank you!", "✓",
-                     new Color(0.55f, 0.62f, 0.55f, 1f), null, card.transform, y);
-        }
+            BuildPackCard(nextSlot++, "No Ads", "Owned", "✓", adWhite, Color.white, 70f,
+                null, Color.clear, false, new Color(0.45f, 0.58f, 0.50f, 1f), null,
+                noAdsNavy, Color.white, new Color(1f, 1f, 1f, 0.75f));
         else
-        {
-            BuildRow("Remove All Ads", "No more ads. Unlimited hints. Forever.",
-                     noAdsPrice, new Color(0.92f, 0.68f, 0.08f, 1f), onBuyNoAds, card.transform, y);
-        }
+            BuildPackCard(nextSlot++, "No Ads", "+ Unlimited Hints", noAdsPrice, adWhite, Color.white, 70f,
+                "FOREVER", gold, true, gold, onBuyNoAds,
+                noAdsNavy, Color.white, new Color(1f, 1f, 1f, 0.75f));
 
-        // Resize card to content
-        float contentHeight = Mathf.Abs(y) + rowH + 24f;
-        cardRect.sizeDelta = new Vector2(700f, contentHeight + 128f + 8f);
-        shadowRect.sizeDelta = new Vector2(726f, cardRect.sizeDelta.y + 24f);
+        // Free hint via rewarded ad — same tile style as the packs
+        if (!isNoAdsPurchased)
+            BuildPackCard(nextSlot++, "+1 Hint", "Watch a short ad", "Watch Ad",
+                LoadIconSprite("icons/ad_white"), Color.white, 72f,
+                "FREE", accent, false, new Color(0.17f, 0.47f, 0.22f, 1f), onWatchAd,
+                green, Color.white, new Color(1f, 1f, 1f, 0.85f));
+
+        y -= gridH + 4f;
+
+        // Resize card to fit content (content is top-anchored; grow downward)
+        float used = Mathf.Abs(y) + pad;
+        cardRect.sizeDelta = new Vector2(cardW, used);
+        shadowRect.sizeDelta = new Vector2(cardW + 26f, used + 26f);
     }
 
-    private void BuildStarterRow(string price, Action onTap, Transform parent, float yPos)
+    private System.Collections.IEnumerator FeaturedPackPulse(RectTransform target, Image glow)
     {
-        const float rowH = 100f;
-        // Outer card
-        var row = new GameObject("Row_StarterPack");
-        row.transform.SetParent(parent, false);
-        var rRT = row.AddComponent<RectTransform>();
-        rRT.anchorMin = new Vector2(0f, 1f); rRT.anchorMax = new Vector2(1f, 1f);
-        rRT.pivot = new Vector2(0.5f, 1f);
-        rRT.anchoredPosition = new Vector2(0f, yPos);
-        rRT.sizeDelta = new Vector2(-32f, rowH);
-
-        // Deep violet background
-        var rImg = row.AddComponent<Image>();
-        rImg.sprite = SpriteGenerator.RoundedRect;
-        rImg.color = new Color(0.30f, 0.18f, 0.58f, 1f); // deep violet
-        var rBtn = row.AddComponent<Button>();
-        rBtn.targetGraphic = rImg;
-        var rc = rBtn.colors;
-        rc.highlightedColor = new Color(0.36f, 0.22f, 0.66f, 1f);
-        rc.pressedColor     = new Color(0.24f, 0.14f, 0.48f, 1f);
-        rBtn.colors = rc;
-        rBtn.onClick.AddListener(() => { HideHintPromoPopup(); onTap?.Invoke(); });
-
-        // Subtle shimmer stripe across full width (top third)
-        var shimmer = new GameObject("Shimmer");
-        shimmer.transform.SetParent(row.transform, false);
-        var shRT = shimmer.AddComponent<RectTransform>();
-        shRT.anchorMin = new Vector2(0f, 0.6f); shRT.anchorMax = new Vector2(1f, 1f);
-        shRT.offsetMin = Vector2.zero; shRT.offsetMax = Vector2.zero;
-        var shImg = shimmer.AddComponent<Image>();
-        shImg.color = new Color(1f, 1f, 1f, 0.07f);
-
-        // Lightbulb icon (left)
-        var iconGo = new GameObject("Icon");
-        iconGo.transform.SetParent(row.transform, false);
-        var iconRT = iconGo.AddComponent<RectTransform>();
-        iconRT.anchorMin = new Vector2(0f, 0.5f); iconRT.anchorMax = new Vector2(0f, 0.5f);
-        iconRT.pivot = new Vector2(0f, 0.5f);
-        iconRT.anchoredPosition = new Vector2(16f, 0f);
-        iconRT.sizeDelta = new Vector2(54f, 54f);
-        var iconImg = iconGo.AddComponent<Image>();
-        var lbSpr = LoadIconSprite("icons/lightbulb_white") ?? LoadIconSprite("icons/lightbulb");
-        if (lbSpr != null) { iconImg.sprite = lbSpr; iconImg.preserveAspect = true; }
-        iconImg.color = new Color(1f, 0.92f, 0.40f, 1f); // golden tint
-
-        // Main text
-        var lbl = new GameObject("Label");
-        lbl.transform.SetParent(row.transform, false);
-        var lblRT = lbl.AddComponent<RectTransform>();
-        lblRT.anchorMin = new Vector2(0f, 0.5f); lblRT.anchorMax = new Vector2(1f, 0.5f);
-        lblRT.pivot = new Vector2(0f, 0.5f);
-        lblRT.anchoredPosition = new Vector2(84f, 12f);
-        lblRT.sizeDelta = new Vector2(-248f, 36f);
-        var lt = lbl.AddComponent<Text>();
-        lt.font = defaultFont; lt.text = "Welcome Deal  ·  25 Hints";
-        lt.fontSize = 30; lt.fontStyle = FontStyle.Bold;
-        lt.color = Color.white; lt.alignment = TextAnchor.MiddleLeft;
-
-        // Sub text
-        var sub = new GameObject("Sub");
-        sub.transform.SetParent(row.transform, false);
-        var sRT = sub.AddComponent<RectTransform>();
-        sRT.anchorMin = new Vector2(0f, 0.5f); sRT.anchorMax = new Vector2(1f, 0.5f);
-        sRT.pivot = new Vector2(0f, 0.5f);
-        sRT.anchoredPosition = new Vector2(84f, -14f);
-        sRT.sizeDelta = new Vector2(-248f, 28f);
-        var st = sub.AddComponent<Text>();
-        st.font = defaultFont; st.text = "One-time offer · shown once only";
-        st.fontSize = 23; st.color = new Color(0.82f, 0.76f, 1.0f); st.alignment = TextAnchor.MiddleLeft;
-
-        // Golden price pill (right)
-        var pill = new GameObject("PricePill");
-        pill.transform.SetParent(row.transform, false);
-        var pRT = pill.AddComponent<RectTransform>();
-        pRT.anchorMin = new Vector2(1f, 0.5f); pRT.anchorMax = new Vector2(1f, 0.5f);
-        pRT.pivot = new Vector2(1f, 0.5f);
-        pRT.anchoredPosition = new Vector2(-14f, 0f);
-        pRT.sizeDelta = new Vector2(140f, 54f);
-        var pImg = pill.AddComponent<Image>();
-        pImg.sprite = SpriteGenerator.RoundedRect;
-        pImg.color = new Color(1.0f, 0.82f, 0.08f, 1f); // gold
-        var pTxtObj = new GameObject("PriceTxt");
-        pTxtObj.transform.SetParent(pill.transform, false);
-        var ptRT = pTxtObj.AddComponent<RectTransform>();
-        ptRT.anchorMin = Vector2.zero; ptRT.anchorMax = Vector2.one;
-        ptRT.offsetMin = Vector2.zero; ptRT.offsetMax = Vector2.zero;
-        var pt = pTxtObj.AddComponent<Text>();
-        pt.font = defaultFont; pt.text = price;
-        pt.fontSize = 30; pt.fontStyle = FontStyle.Bold;
-        pt.color = new Color(0.20f, 0.10f, 0.02f); pt.alignment = TextAnchor.MiddleCenter;
+        float t = 0f;
+        while (target != null)
+        {
+            t += Time.unscaledDeltaTime;
+            float s = (Mathf.Sin(t * 3.2f) + 1f) * 0.5f;   // 0..1
+            target.localScale = Vector3.one * (1f + 0.035f * s);
+            if (glow != null)
+            {
+                var c = glow.color; c.a = 0.15f + 0.35f * s; glow.color = c;
+            }
+            yield return null;
+        }
     }
 
     public void HideHintPromoPopup()
@@ -1717,313 +1631,6 @@ public class UIManager : MonoBehaviour
             Destroy(hintPromoPopup);
             hintPromoPopup = null;
         }
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────────
-    // --- Online Mode Popup ---
-    // ─────────────────────────────────────────────────────────────────────────────
-
-    public void ShowOnlineModePopup()
-    {
-        if (onlineModePopup != null) return;
-
-        onlineModePopup = new GameObject("OnlineModePopup");
-        onlineModePopup.transform.SetParent(canvas.transform, false);
-        onlineModePopup.transform.SetAsLastSibling();
-
-        var popupRect = onlineModePopup.AddComponent<RectTransform>();
-        popupRect.anchorMin = Vector2.zero; popupRect.anchorMax = Vector2.one;
-        popupRect.offsetMin = Vector2.zero; popupRect.offsetMax = Vector2.zero;
-
-        var overlay = onlineModePopup.AddComponent<Image>();
-        overlay.color = new Color(0.08f, 0.10f, 0.18f, 0.68f);
-
-        // Shadow
-        var shadowObj = new GameObject("Shadow");
-        shadowObj.transform.SetParent(onlineModePopup.transform, false);
-        var shadowRect = shadowObj.AddComponent<RectTransform>();
-        shadowRect.anchorMin = new Vector2(0.5f, 0.5f); shadowRect.anchorMax = new Vector2(0.5f, 0.5f);
-        shadowRect.pivot = new Vector2(0.5f, 0.5f);
-        shadowRect.sizeDelta = new Vector2(716f, 696f);
-        shadowRect.anchoredPosition = new Vector2(4f, -8f);
-        var shadowImg = shadowObj.AddComponent<Image>();
-        shadowImg.sprite = SpriteGenerator.RoundedRect;
-        shadowImg.color = new Color(0f, 0f, 0f, 0.18f);
-
-        // Card — 680px tall so title/subtitle/buttons don't overlap
-        var card = new GameObject("Card");
-        card.transform.SetParent(onlineModePopup.transform, false);
-        var cardRect = card.AddComponent<RectTransform>();
-        cardRect.anchorMin = new Vector2(0.5f, 0.5f); cardRect.anchorMax = new Vector2(0.5f, 0.5f);
-        cardRect.pivot = new Vector2(0.5f, 0.5f);
-        cardRect.sizeDelta = new Vector2(700f, 680f);
-        var cardImg = card.AddComponent<Image>();
-        cardImg.sprite = SpriteGenerator.RoundedRect;
-        cardImg.color = new Color(1f, 1f, 1f, 0.98f);
-
-        // ── Header ──────────────────────────────────────────────────────────────
-        var title = MakeCardText("Title", card.transform, new Vector2(0, 285), 44, FontStyle.Bold, TextDark);
-        title.text = "🎮  Online Mode";
-
-        var sub = MakeCardText("Sub", card.transform, new Vector2(0, 228), 26, FontStyle.Normal, TextMuted);
-        sub.text = "Anyone with the code can join!";
-        sub.GetComponent<RectTransform>().sizeDelta = new Vector2(600f, 44f);
-
-        // ── Main section (anchored BELOW subtitle — top at card y=165) ──────────
-        // Main: anchor (0,-15), height=360 → spans card y=165 down to y=-195
-        onlineMainSection = new GameObject("MainSection");
-        onlineMainSection.transform.SetParent(card.transform, false);
-        var mainRect = onlineMainSection.AddComponent<RectTransform>();
-        mainRect.anchorMin = new Vector2(0.5f, 0.5f); mainRect.anchorMax = new Vector2(0.5f, 0.5f);
-        mainRect.pivot = new Vector2(0.5f, 0.5f);
-        mainRect.anchoredPosition = new Vector2(0f, -15f);
-        mainRect.sizeDelta = new Vector2(620f, 360f);
-
-        // Find Opponent button (top action — orange)
-        onlineFindBtn = CreateCardButton("🔍  Find Opponent", onlineMainSection.transform, new Vector2(0, 155), new Color(0.88f, 0.38f, 0.18f));
-        onlineFindBtn.onClick.AddListener(() => OnlineManager.Instance?.FindMatch());
-
-        var dividerFind = MakeCardText("DividerFind", onlineMainSection.transform, new Vector2(0, 90), 24, FontStyle.Normal, TextMuted);
-        dividerFind.text = "— or create a room —";
-        dividerFind.GetComponent<RectTransform>().sizeDelta = new Vector2(440f, 34f);
-
-        // Create Room button (blue)
-        onlineCreateBtn = CreateCardButton("🏠  Create Room", onlineMainSection.transform, new Vector2(0, 30), new Color(0.22f, 0.40f, 0.72f, 1f));
-        onlineCreateBtn.onClick.AddListener(() => OnlineManager.Instance?.CreateRoom());
-
-        var divider = MakeCardText("Divider", onlineMainSection.transform, new Vector2(0, -40), 24, FontStyle.Normal, TextMuted);
-        divider.text = "— or join with a code —";
-        divider.GetComponent<RectTransform>().sizeDelta = new Vector2(440f, 34f);
-
-        // InputField row (input + join button side by side) — local y=-110
-        var rowGo = new GameObject("JoinRow");
-        rowGo.transform.SetParent(onlineMainSection.transform, false);
-        var rowRect = rowGo.AddComponent<RectTransform>();
-        rowRect.anchorMin = new Vector2(0.5f, 0.5f); rowRect.anchorMax = new Vector2(0.5f, 0.5f);
-        rowRect.pivot = new Vector2(0.5f, 0.5f);
-        rowRect.anchoredPosition = new Vector2(0f, -110f);
-        rowRect.sizeDelta = new Vector2(600f, 76f);
-
-        // InputField
-        var inputGo = new GameObject("CodeInput");
-        inputGo.transform.SetParent(rowGo.transform, false);
-        var inputRT = inputGo.AddComponent<RectTransform>();
-        inputRT.anchorMin = new Vector2(0f, 0f); inputRT.anchorMax = new Vector2(1f, 1f);
-        inputRT.offsetMin = Vector2.zero; inputRT.offsetMax = new Vector2(-144f, 0f);
-        var inputBg = inputGo.AddComponent<Image>();
-        inputBg.sprite = SpriteGenerator.RoundedRect;
-        inputBg.color = new Color(0.94f, 0.93f, 0.91f, 1f);
-        onlineCodeInput = inputGo.AddComponent<UnityEngine.UI.InputField>();
-
-        var inputTextGo = new GameObject("Text");
-        inputTextGo.transform.SetParent(inputGo.transform, false);
-        var itRect = inputTextGo.AddComponent<RectTransform>();
-        itRect.anchorMin = Vector2.zero; itRect.anchorMax = Vector2.one;
-        itRect.offsetMin = new Vector2(16f, 0f); itRect.offsetMax = new Vector2(-16f, 0f);
-        var inputText = inputTextGo.AddComponent<Text>();
-        inputText.font = defaultFont; inputText.fontSize = 30; inputText.color = TextDark;
-        inputText.alignment = TextAnchor.MiddleLeft;
-
-        var placeholderGo = new GameObject("Placeholder");
-        placeholderGo.transform.SetParent(inputGo.transform, false);
-        var phRect = placeholderGo.AddComponent<RectTransform>();
-        phRect.anchorMin = Vector2.zero; phRect.anchorMax = Vector2.one;
-        phRect.offsetMin = new Vector2(16f, 0f); phRect.offsetMax = new Vector2(-16f, 0f);
-        var placeholderTxt = placeholderGo.AddComponent<Text>();
-        placeholderTxt.font = defaultFont; placeholderTxt.fontSize = 28;
-        placeholderTxt.fontStyle = FontStyle.Italic;
-        placeholderTxt.color = TextMuted; placeholderTxt.alignment = TextAnchor.MiddleLeft;
-        placeholderTxt.text = "Enter code…";
-
-        onlineCodeInput.textComponent = inputText;
-        onlineCodeInput.placeholder = placeholderTxt;
-        onlineCodeInput.characterLimit = 6;
-        onlineCodeInput.characterValidation = UnityEngine.UI.InputField.CharacterValidation.Alphanumeric;
-
-        // Join button
-        var joinBtnGo = new GameObject("JoinBtn");
-        joinBtnGo.transform.SetParent(rowGo.transform, false);
-        var joinBtnRT = joinBtnGo.AddComponent<RectTransform>();
-        joinBtnRT.anchorMin = new Vector2(1f, 0f); joinBtnRT.anchorMax = new Vector2(1f, 1f);
-        joinBtnRT.pivot = new Vector2(1f, 0.5f);
-        joinBtnRT.offsetMin = Vector2.zero; joinBtnRT.offsetMax = Vector2.zero;
-        joinBtnRT.sizeDelta = new Vector2(132f, 0f);
-        joinBtnRT.anchoredPosition = Vector2.zero;
-        var joinBg = joinBtnGo.AddComponent<Image>();
-        joinBg.sprite = SpriteGenerator.RoundedRect;
-        joinBg.color = new Color(0.25f, 0.78f, 0.72f);
-        onlineJoinBtn = joinBtnGo.AddComponent<Button>();
-        var jc = onlineJoinBtn.colors;
-        jc.highlightedColor = new Color(0.30f, 0.85f, 0.79f);
-        jc.pressedColor = new Color(0.18f, 0.65f, 0.60f);
-        onlineJoinBtn.colors = jc;
-        onlineJoinBtn.targetGraphic = joinBg;
-        onlineJoinBtn.onClick.AddListener(() => OnlineManager.Instance?.JoinRoom(onlineCodeInput?.text ?? ""));
-        var joinTxtGo = new GameObject("Text");
-        joinTxtGo.transform.SetParent(joinBtnGo.transform, false);
-        var jtRect = joinTxtGo.AddComponent<RectTransform>();
-        jtRect.anchorMin = Vector2.zero; jtRect.anchorMax = Vector2.one;
-        jtRect.offsetMin = Vector2.zero; jtRect.offsetMax = Vector2.zero;
-        var joinTxt = joinTxtGo.AddComponent<Text>();
-        joinTxt.font = defaultFont; joinTxt.text = "Join"; joinTxt.fontSize = 30;
-        joinTxt.fontStyle = FontStyle.Bold; joinTxt.alignment = TextAnchor.MiddleCenter;
-        joinTxt.color = Color.white;
-
-        // ── Waiting section (shown after room created/joined) ────────────────────
-        // Centered in card, height=260 → spans y=130 to y=-130
-        onlineWaitingSection = new GameObject("WaitingSection");
-        onlineWaitingSection.transform.SetParent(card.transform, false);
-        var waitRect = onlineWaitingSection.AddComponent<RectTransform>();
-        waitRect.anchorMin = new Vector2(0.5f, 0.5f); waitRect.anchorMax = new Vector2(0.5f, 0.5f);
-        waitRect.pivot = new Vector2(0.5f, 0.5f);
-        waitRect.anchoredPosition = new Vector2(0f, 0f);
-        waitRect.sizeDelta = new Vector2(620f, 260f);
-        onlineWaitingSection.SetActive(false);
-
-        onlineRoomCodeText = MakeCardText("CodeLabel", onlineWaitingSection.transform, new Vector2(0, 90), 50, FontStyle.Bold, new Color(0.22f, 0.40f, 0.72f, 1f));
-        onlineRoomCodeText.text = "";
-        onlineRoomCodeText.GetComponent<RectTransform>().sizeDelta = new Vector2(620f, 70f);
-
-        var codeHint = MakeCardText("CodeHint", onlineWaitingSection.transform, new Vector2(0, 30), 26, FontStyle.Normal, TextMuted);
-        onlineCodeHintText = codeHint;
-        codeHint.text = "Share this code with your friends";
-        codeHint.GetComponent<RectTransform>().sizeDelta = new Vector2(600f, 40f);
-
-        onlinePlayerCountText = MakeCardText("PlayerCount", onlineWaitingSection.transform, new Vector2(0, -20), 28, FontStyle.Normal, TextMuted);
-        onlinePlayerCountText.text = "1 player in room";
-        onlinePlayerCountText.GetComponent<RectTransform>().sizeDelta = new Vector2(600f, 40f);
-
-        onlineStartBtn = CreateCardButton("▶  Start Game", onlineWaitingSection.transform, new Vector2(0, -90), new Color(0.18f, 0.72f, 0.40f));
-        onlineStartBtn.gameObject.SetActive(false);
-        onlineStartBtn.onClick.AddListener(() => OnlineManager.Instance?.StartGame());
-
-        // ── Status text ──────────────────────────────────────────────────────────
-        onlineStatusText = MakeCardText("Status", card.transform, new Vector2(0, -220), 26, FontStyle.Normal, TextMuted);
-        onlineStatusText.text = "Find an opponent or create a room for friends";
-        onlineStatusText.GetComponent<RectTransform>().sizeDelta = new Vector2(620f, 44f);
-
-        // ── Cancel button ────────────────────────────────────────────────────────
-        onlineCancelBtn = CreateCardButton("Cancel", card.transform, new Vector2(0, -285), new Color(0.88f, 0.86f, 0.84f));
-        var cancelTxt = onlineCancelBtn.GetComponentInChildren<Text>();
-        if (cancelTxt != null) cancelTxt.color = TextDark;
-        onlineCancelBtn.onClick.AddListener(() =>
-        {
-            OnlineManager.Instance?.LeaveMatch();
-            HideOnlineModePopup();
-        });
-
-        // Subscribe to OnlineManager events (unsubscribe first to prevent duplicates)
-        var om = OnlineManager.Instance;
-        if (om != null)
-        {
-            om.OnStatusMessage -= OnOnlineStatusMessage;   om.OnStatusMessage += OnOnlineStatusMessage;
-            om.OnRoomCodeReady -= OnOnlineRoomCodeReady;   om.OnRoomCodeReady += OnOnlineRoomCodeReady;
-            om.OnStateChanged -= OnOnlineStateChanged;     om.OnStateChanged += OnOnlineStateChanged;
-            om.OnMatchStarting -= OnOnlineMatchStarting;   om.OnMatchStarting += OnOnlineMatchStarting;
-            om.OnMatchResult -= OnOnlineMatchResult;       om.OnMatchResult += OnOnlineMatchResult;
-            om.OnPlayerCountChanged -= OnOnlinePlayerCountChanged; om.OnPlayerCountChanged += OnOnlinePlayerCountChanged;
-        }
-    }
-
-    public void HideOnlineModePopup()
-    {
-        if (onlineModePopup == null) return;
-
-        var om = OnlineManager.Instance;
-        if (om != null)
-        {
-            om.OnStatusMessage -= OnOnlineStatusMessage;
-            om.OnRoomCodeReady -= OnOnlineRoomCodeReady;
-            om.OnStateChanged -= OnOnlineStateChanged;
-            om.OnMatchStarting -= OnOnlineMatchStarting;
-            om.OnMatchResult -= OnOnlineMatchResult;
-            om.OnPlayerCountChanged -= OnOnlinePlayerCountChanged;
-        }
-
-        Destroy(onlineModePopup);
-        onlineModePopup = null;
-        onlineStatusText = null;
-        onlineRoomCodeText = null;
-        onlineCreateBtn = null;
-        onlineJoinBtn = null;
-        onlineCodeInput = null;
-        onlineCancelBtn = null;
-        onlineMainSection = null;
-        onlineWaitingSection = null;
-        onlinePlayerCountText = null;
-        onlineStartBtn = null;
-        onlineFindBtn = null;
-        onlineCodeHintText = null;
-    }
-
-    private void OnOnlineStatusMessage(string msg)
-    {
-        if (onlineStatusText != null) onlineStatusText.text = msg;
-    }
-
-    private void OnOnlineRoomCodeReady(string code)
-    {
-        if (onlineWaitingSection != null) onlineWaitingSection.SetActive(true);
-        if (onlineMainSection != null) onlineMainSection.SetActive(false);
-        bool mm = OnlineManager.Instance?.IsMatchmaking ?? false;
-        if (onlineRoomCodeText != null)
-            onlineRoomCodeText.text = mm ? "🔍 Searching…" : code;
-        if (onlineCodeHintText != null)
-            onlineCodeHintText.gameObject.SetActive(!mm);
-    }
-
-    private void OnOnlineStateChanged(OnlineManager.MatchState state)
-    {
-        bool idle = state == OnlineManager.MatchState.Idle;
-        bool busy = state == OnlineManager.MatchState.Connecting
-                 || state == OnlineManager.MatchState.CreatingRoom
-                 || state == OnlineManager.MatchState.JoiningRoom;
-
-        if (onlineCreateBtn != null) onlineCreateBtn.interactable = idle;
-        if (onlineJoinBtn != null) onlineJoinBtn.interactable = idle;
-        if (onlineCodeInput != null) onlineCodeInput.interactable = idle;
-        if (onlineFindBtn != null) onlineFindBtn.interactable = idle;
-
-        if (idle)
-        {
-            // Reset to initial state
-            if (onlineMainSection != null) onlineMainSection.SetActive(true);
-            if (onlineWaitingSection != null) onlineWaitingSection.SetActive(false);
-        }
-        if (state == OnlineManager.MatchState.WaitingForOpponent)
-        {
-            if (onlineMainSection != null) onlineMainSection.SetActive(false);
-            if (onlineWaitingSection != null) onlineWaitingSection.SetActive(true);
-        }
-    }
-
-    private void OnOnlinePlayerCountChanged(int count)
-    {
-        bool mm = OnlineManager.Instance?.IsMatchmaking ?? false;
-        if (onlinePlayerCountText != null)
-        {
-            if (mm && count >= 2)
-                onlinePlayerCountText.text = "Opponent found! Match starting…";
-            else
-                onlinePlayerCountText.text = count == 1 ? "1 player in room" : $"{count} players in room";
-        }
-        // Show Start Game button only for non-matchmaking host WITH at least 2 players
-        if (onlineStartBtn != null)
-        {
-#if PHOTON_UNITY_NETWORKING
-            bool isHost = !mm && Photon.Pun.PhotonNetwork.IsMasterClient && count >= 2;
-#else
-            bool isHost = false;
-#endif
-            onlineStartBtn.gameObject.SetActive(isHost);
-        }
-    }
-
-    private void OnOnlineMatchStarting(int levelIndex)
-    {
-        if (onlineStatusText != null) onlineStatusText.text = "Match starting! Get ready…";
-        // Give the user a moment to read, then close popup and start game
-        StartCoroutine(DelayedStartMatch(levelIndex));
     }
 
     private System.Collections.IEnumerator CartGlowCoroutine()
@@ -2058,276 +1665,341 @@ public class UIManager : MonoBehaviour
         }
     }
 
-    private System.Collections.IEnumerator DelayedStartMatch(int levelIndex)
-    {
-        yield return new WaitForSeconds(1.2f);
-        HideOnlineModePopup();   // unsubscribes all popup events
-        // Keep listening for match result while in-game (popup is gone)
-        var om = OnlineManager.Instance;
-        if (om != null) { om.OnMatchResult -= OnOnlineMatchResult; om.OnMatchResult += OnOnlineMatchResult; }
-        FindAnyObjectByType<GameManager>()?.StartOnlineMatch(levelIndex);
-    }
-
-    private void OnOnlineMatchResult(bool iWon, string winnerName)
-    {
-        ShowOnlineResultPopup(iWon, winnerName);
-    }
-
-    public void ShowOnlineResultPopup(bool iWon, string winnerName = "")
-    {
-        var existing = canvas.transform.Find("OnlineResultPopup");
-        if (existing != null) Destroy(existing.gameObject);
-
-        var popupGo = new GameObject("OnlineResultPopup");
-        popupGo.transform.SetParent(canvas.transform, false);
-        popupGo.transform.SetAsLastSibling();
-
-        var popupRect = popupGo.AddComponent<RectTransform>();
-        popupRect.anchorMin = Vector2.zero; popupRect.anchorMax = Vector2.one;
-        popupRect.offsetMin = Vector2.zero; popupRect.offsetMax = Vector2.zero;
-        var ovr = popupGo.AddComponent<Image>(); ovr.color = new Color(0f, 0f, 0f, 0.50f);
-
-        var accentColor = iWon ? new Color(0.22f, 0.40f, 0.72f) : new Color(0.85f, 0.25f, 0.25f);
-
-        // Shadow
-        var shadowObj = new GameObject("Shadow");
-        shadowObj.transform.SetParent(popupGo.transform, false);
-        var shRect = shadowObj.AddComponent<RectTransform>();
-        shRect.anchorMin = new Vector2(0.5f, 0.5f); shRect.anchorMax = new Vector2(0.5f, 0.5f);
-        shRect.pivot = new Vector2(0.5f, 0.5f);
-        shRect.sizeDelta = new Vector2(626f, 456f); shRect.anchoredPosition = new Vector2(4f, -8f);
-        var shImg = shadowObj.AddComponent<Image>(); shImg.sprite = SpriteGenerator.RoundedRect;
-        shImg.color = new Color(0f, 0f, 0f, 0.18f);
-
-        // Card — 440px tall, content vertically centered
-        var card = new GameObject("Card");
-        card.transform.SetParent(popupGo.transform, false);
-        var cRect = card.AddComponent<RectTransform>();
-        cRect.anchorMin = new Vector2(0.5f, 0.5f); cRect.anchorMax = new Vector2(0.5f, 0.5f);
-        cRect.pivot = new Vector2(0.5f, 0.5f); cRect.sizeDelta = new Vector2(610f, 440f);
-        var cImg = card.AddComponent<Image>(); cImg.sprite = SpriteGenerator.RoundedRect;
-        cImg.color = Color.white;
-
-        // Colored accent bar at top
-        var accentGo = new GameObject("Accent");
-        accentGo.transform.SetParent(card.transform, false);
-        var accentRT = accentGo.AddComponent<RectTransform>();
-        accentRT.anchorMin = new Vector2(0f, 1f); accentRT.anchorMax = new Vector2(1f, 1f);
-        accentRT.pivot = new Vector2(0.5f, 1f);
-        accentRT.offsetMin = new Vector2(0f, -8f); accentRT.offsetMax = Vector2.zero;
-        accentGo.AddComponent<Image>().color = accentColor;
-
-        // Title — upper area
-        var title = MakeCardText("Title", card.transform, new Vector2(0, 120), 50, FontStyle.Bold, accentColor);
-        title.text = iWon ? "You Win!" : "You Lose!";
-        title.GetComponent<RectTransform>().sizeDelta = new Vector2(560f, 64f);
-
-        // Subtitle
-        var sub = MakeCardText("Sub", card.transform, new Vector2(0, 48), 28, FontStyle.Normal, TextMuted);
-        sub.text = iWon ? "You solved the puzzle first!" : $"{winnerName} finished first!";
-        sub.GetComponent<RectTransform>().sizeDelta = new Vector2(560f, 44f);
-
-        // Play Again button
-        var rematchBtn = CreateCardButton("Play Again", card.transform, new Vector2(0, -55), accentColor);
-        rematchBtn.onClick.AddListener(() =>
-        {
-            Destroy(popupGo);
-            OnlineManager.Instance?.StartRematch();
-            ShowOnlineModePopup();
-        });
-
-        // Back to Menu button
-        var closeBtn = CreateCardButton("Back to Menu", card.transform, new Vector2(0, -145), new Color(0.88f, 0.86f, 0.84f));
-        var closeTxt = closeBtn.GetComponentInChildren<Text>(); if (closeTxt != null) closeTxt.color = TextDark;
-        closeBtn.onClick.AddListener(() =>
-        {
-            Destroy(popupGo);
-            OnlineManager.Instance?.LeaveMatch();
-        });
-    }
-
     // ─────────────────────────────────────────────────────────────────────────────
 
     // --- Free Hint Badge ---
 
-    public void UpdateHintBadge(int count)
+    public void UpdateHintBadge(int count) => UpdateHintBadge(count.ToString());
+
+    public void UpdateHintBadge(string label)
     {
         if (hintFreeBadgeObj == null) return;
         hintFreeBadgeObj.SetActive(true);
         if (hintFreeBadgeText != null)
-            hintFreeBadgeText.text = count.ToString();
+            hintFreeBadgeText.text = label;
     }
 
 
     // --- Daily Reward Popup ---
 
+    private bool dailyRewardCollecting;
+
     public void ShowDailyRewardPopup(int streak, int hintsGranted, bool isStreakBonus)
     {
-        // Dark overlay
+        dailyRewardCollecting = false;
+        var tm = ThemeManager.Instance;
+        bool dark = tm?.IsDarkMode ?? false;
+        Color green    = new Color(0.28f, 0.68f, 0.32f);
+        Color teal     = new Color(0.13f, 0.59f, 0.63f);
+        Color gold     = new Color(0.96f, 0.68f, 0.10f);
+        Color coral    = new Color(0.93f, 0.35f, 0.30f);
+        Color purple   = new Color(0.36f, 0.21f, 0.68f);
+        Color brown    = new Color(0.22f, 0.11f, 0.02f);
+        Color cardCol  = dark ? new Color(0.15f, 0.145f, 0.19f, 1f) : new Color(0.972f, 0.965f, 0.955f, 1f);
+        Color tileCol  = dark ? new Color(0.22f, 0.21f, 0.27f, 1f) : Color.white;
+        Color textCol  = tm != null ? tm.TextPrimary : TextDark;
+        Color mutedCol = dark ? new Color(0.62f, 0.60f, 0.66f) : new Color(0.55f, 0.53f, 0.58f);
+
+        // Dark overlay (absorbs touches)
         var overlay = new GameObject("DailyRewardOverlay");
         overlay.transform.SetParent(safeAreaRect, false);
+        overlay.transform.SetAsLastSibling();
         var oRect = overlay.AddComponent<RectTransform>();
-        oRect.anchorMin = Vector2.zero; oRect.anchorMax = Vector2.one;
-        oRect.offsetMin = Vector2.zero; oRect.offsetMax = Vector2.zero;
+        oRect.anchorMin = new Vector2(0f, 0f); oRect.anchorMax = Vector2.one;
+        oRect.offsetMin = new Vector2(-400f, -400f); oRect.offsetMax = new Vector2(400f, 400f); // bleed past the safe area
         var oImg = overlay.AddComponent<Image>();
-        oImg.color = new Color(0f, 0f, 0f, 0.6f);
-        overlay.AddComponent<Button>(); // absorb touches outside
+        oImg.color = new Color(0.05f, 0.06f, 0.10f, 0.78f);
+        overlay.AddComponent<Button>().transition = Selectable.Transition.None;
 
-        // Card
+        float canvasW = ((RectTransform)canvas.transform).rect.width;
+        float cardW = canvasW > 0f ? Mathf.Min(760f, canvasW - 60f) : 740f;
+        const float pad = 40f;
+        float rowW = cardW - pad * 2f;
+
+        // Shadow + card (height set at the end)
+        var shadow = new GameObject("Shadow");
+        shadow.transform.SetParent(overlay.transform, false);
+        var shRT = shadow.AddComponent<RectTransform>();
+        shRT.anchorMin = shRT.anchorMax = new Vector2(0.5f, 0.5f);
+        shRT.anchoredPosition = new Vector2(5f, -10f);
+        var shImg = shadow.AddComponent<Image>();
+        shImg.sprite = SpriteGenerator.RoundedRectSliced; shImg.type = Image.Type.Sliced;
+        shImg.color = new Color(0f, 0f, 0f, 0.24f);
+
         var card = new GameObject("DailyRewardCard");
         card.transform.SetParent(overlay.transform, false);
         var cRect = card.AddComponent<RectTransform>();
-        cRect.anchorMin = new Vector2(0.5f, 0.5f); cRect.anchorMax = new Vector2(0.5f, 0.5f);
+        cRect.anchorMin = cRect.anchorMax = new Vector2(0.5f, 0.5f);
         cRect.pivot = new Vector2(0.5f, 0.5f);
-        cRect.anchoredPosition = Vector2.zero;
-        cRect.sizeDelta = new Vector2(540f, isStreakBonus ? 580f : 520f);
         var cImg = card.AddComponent<Image>();
-        cImg.sprite = SpriteGenerator.RoundedRect;
-        cImg.color = new Color(0.12f, 0.10f, 0.18f, 1f); // deep dark purple
+        cImg.sprite = SpriteGenerator.RoundedRectSliced; cImg.type = Image.Type.Sliced;
+        cImg.color = cardCol;
 
-        // Top ribbon
-        var ribbon = new GameObject("Ribbon");
-        ribbon.transform.SetParent(card.transform, false);
-        var rRect2 = ribbon.AddComponent<RectTransform>();
-        rRect2.anchorMin = new Vector2(0f, 1f); rRect2.anchorMax = new Vector2(1f, 1f);
-        rRect2.pivot = new Vector2(0.5f, 1f);
-        rRect2.anchoredPosition = Vector2.zero;
-        rRect2.sizeDelta = new Vector2(0f, 100f);
-        var rImg = ribbon.AddComponent<Image>();
-        rImg.sprite = SpriteGenerator.RoundedRect;
-        rImg.color = isStreakBonus ? new Color(0.85f, 0.62f, 0.08f) : new Color(0.18f, 0.55f, 0.62f);
+        RectTransform MakeRect(string n, Transform parent, float x, float yTop, float w, float h)
+        {
+            var go = new GameObject(n);
+            go.transform.SetParent(parent, false);
+            var r = go.AddComponent<RectTransform>();
+            r.anchorMin = r.anchorMax = new Vector2(0.5f, 1f);
+            r.pivot = new Vector2(0.5f, 0.5f);
+            r.anchoredPosition = new Vector2(x, yTop - h * 0.5f);
+            r.sizeDelta = new Vector2(w, h);
+            return r;
+        }
+        Image MakeImg(RectTransform r, Sprite spr, Color c, bool sliced = true)
+        {
+            var img = r.gameObject.AddComponent<Image>();
+            img.sprite = spr; img.color = c; img.raycastTarget = false;
+            if (sliced) img.type = Image.Type.Sliced;
+            return img;
+        }
+        Text MakeTxt(RectTransform r, string s, int size, FontStyle st, Color c)
+        {
+            var t = r.gameObject.AddComponent<Text>();
+            t.font = defaultFont; t.text = s; t.fontSize = size; t.fontStyle = st;
+            t.color = c; t.alignment = TextAnchor.MiddleCenter; t.raycastTarget = false;
+            t.horizontalOverflow = HorizontalWrapMode.Overflow;
+            t.verticalOverflow = VerticalWrapMode.Overflow;
+            return t;
+        }
+        Text FillTxt(Transform parent, string s, int size, FontStyle st, Color c)
+        {
+            var go = new GameObject("Txt");
+            go.transform.SetParent(parent, false);
+            var r = go.AddComponent<RectTransform>();
+            r.anchorMin = Vector2.zero; r.anchorMax = Vector2.one;
+            r.offsetMin = Vector2.zero; r.offsetMax = Vector2.zero;
+            return MakeTxt(r, s, size, st, c);
+        }
 
-        var titleTxt = new GameObject("Title");
-        titleTxt.transform.SetParent(ribbon.transform, false);
-        var ttRect = titleTxt.AddComponent<RectTransform>();
-        ttRect.anchorMin = Vector2.zero; ttRect.anchorMax = Vector2.one;
-        ttRect.offsetMin = Vector2.zero; ttRect.offsetMax = Vector2.zero;
-        var tt = titleTxt.AddComponent<Text>();
-        tt.font = defaultFont;
-        tt.text = isStreakBonus ? "🎉  7-Day Streak Bonus!" : "🎁  Daily Reward";
-        tt.fontSize = 34; tt.fontStyle = FontStyle.Bold;
-        tt.color = Color.white; tt.alignment = TextAnchor.MiddleCenter;
+        float y = -36f;
 
-        // Hint amount
-        var amtGo = new GameObject("Amount");
-        amtGo.transform.SetParent(card.transform, false);
-        var amtRect = amtGo.AddComponent<RectTransform>();
-        amtRect.anchorMin = new Vector2(0.5f, 1f); amtRect.anchorMax = new Vector2(0.5f, 1f);
-        amtRect.pivot = new Vector2(0.5f, 1f);
-        amtRect.anchoredPosition = new Vector2(0f, -116f);
-        amtRect.sizeDelta = new Vector2(500f, 100f);
-        var amtTxt = amtGo.AddComponent<Text>();
-        amtTxt.font = defaultFont;
-        amtTxt.text = isStreakBonus ? "+10 Hints" : "+1 Hint";
-        amtTxt.fontSize = isStreakBonus ? 64 : 72; amtTxt.fontStyle = FontStyle.Bold;
-        amtTxt.color = isStreakBonus ? new Color(1f, 0.85f, 0.20f) : new Color(0.35f, 0.92f, 0.78f);
-        amtTxt.alignment = TextAnchor.MiddleCenter;
-        amtTxt.horizontalOverflow = HorizontalWrapMode.Overflow;
-        amtTxt.verticalOverflow = VerticalWrapMode.Overflow;
+        // Title
+        MakeTxt(MakeRect("Title", card.transform, 0f, y, rowW, 60f),
+            isStreakBonus ? "7-Day Streak Bonus!" : "Daily Reward", 48, FontStyle.Bold, textCol);
+        y -= 60f + 16f;
 
-        // Sub label
-        var subGo = new GameObject("Sub");
-        subGo.transform.SetParent(card.transform, false);
-        var subRect2 = subGo.AddComponent<RectTransform>();
-        subRect2.anchorMin = new Vector2(0.5f, 1f); subRect2.anchorMax = new Vector2(0.5f, 1f);
-        subRect2.pivot = new Vector2(0.5f, 1f);
-        subRect2.anchoredPosition = new Vector2(0f, -222f);
-        subRect2.sizeDelta = new Vector2(460f, 48f);
-        var subTxt2 = subGo.AddComponent<Text>();
-        subTxt2.font = defaultFont;
-        subTxt2.text = isStreakBonus
-            ? "Amazing! You played 7 days in a row!"
-            : $"Come back tomorrow for day {(streak < 7 ? streak + 1 : 1)}!";
-        subTxt2.fontSize = 26; subTxt2.color = new Color(0.72f, 0.68f, 0.82f);
-        subTxt2.alignment = TextAnchor.MiddleCenter;
-        subTxt2.horizontalOverflow = HorizontalWrapMode.Overflow;
-        subTxt2.verticalOverflow   = VerticalWrapMode.Overflow;
+        // Streak badge (highlighted, pulses)
+        string streakLabel = streak == 1 ? "DAY 1 · START YOUR STREAK" : $"{streak}-DAY STREAK";
+        float badgeW = Mathf.Min(rowW, streakLabel.Length * 19f + 90f);
+        var badge = MakeRect("StreakBadge", card.transform, 0f, y, badgeW, 60f);
+        MakeImg(badge, SpriteGenerator.RoundedRectSliced, isStreakBonus ? purple : coral);
+        var flame = new GameObject("Flame"); flame.transform.SetParent(badge, false);
+        var fRT = flame.AddComponent<RectTransform>();
+        fRT.anchorMin = fRT.anchorMax = new Vector2(0f, 0.5f);
+        fRT.anchoredPosition = new Vector2(34f, 0f); fRT.sizeDelta = new Vector2(40f, 40f);
+        MakeTxt(fRT, "★", 34, FontStyle.Bold, new Color(1f, 0.88f, 0.35f));
+        var bTxt = FillTxt(badge, streakLabel, 28, FontStyle.Bold, Color.white);
+        ((RectTransform)bTxt.transform).offsetMin = new Vector2(40f, 0f);
+        y -= 60f + 26f;
 
-        // 7-day progress dots
-        float dotsY = -278f;
-        float dotSpacing = 68f;
-        float dotsStartX = -(dotSpacing * 3);
+        // Gift with a soft glow
+        const float giftSize = 210f;
+        var glow = MakeRect("GiftGlow", card.transform, 0f, y - 10f, giftSize + 70f, giftSize + 70f);
+        var glowImg = MakeImg(glow, SpriteGenerator.Circle, new Color(gold.r, gold.g, gold.b, 0.25f), false);
+        var gift = MakeRect("Gift", card.transform, 0f, y + 25f, giftSize, giftSize);
+        gift.anchoredPosition = glow.anchoredPosition;
+        var giftSpr = LoadIconSprite("gift");
+        if (giftSpr != null) { var gImg = MakeImg(gift, giftSpr, Color.white, false); gImg.preserveAspect = true; }
+        else MakeTxt(gift, "🎁", 150, FontStyle.Normal, Color.white);
+        y -= giftSize + 70f + 6f;
+
+        // Amount
+        var amt = MakeRect("Amount", card.transform, 0f, y, rowW, 84f);
+        MakeTxt(amt, hintsGranted == 1 ? "+1 Hint" : $"+{hintsGranted} Hints", 70, FontStyle.Bold,
+            isStreakBonus ? purple : green);
+        y -= 84f + 26f;
+
+        // 7-day streak track
+        const float dayGap = 12f;
+        const float dayH = 112f;
+        float dayW = (rowW - dayGap * 6f) / 7f;
+        RectTransform currentDay = null;
+        Image currentGlow = null;
         for (int d = 1; d <= 7; d++)
         {
-            var dot = new GameObject($"Day{d}");
-            dot.transform.SetParent(card.transform, false);
-            var dRect = dot.AddComponent<RectTransform>();
-            dRect.anchorMin = new Vector2(0.5f, 1f); dRect.anchorMax = new Vector2(0.5f, 1f);
-            dRect.pivot = new Vector2(0.5f, 1f);
-            dRect.anchoredPosition = new Vector2(dotsStartX + (d - 1) * dotSpacing, dotsY);
-            dRect.sizeDelta = new Vector2(52f, 52f);
-            var dImg = dot.AddComponent<Image>();
-            dImg.sprite = SpriteGenerator.Circle;
-
             bool completed = d < streak || (isStreakBonus && d <= 7);
             bool current   = d == streak && !isStreakBonus;
-            if (completed)      dImg.color = new Color(0.18f, 0.72f, 0.58f);       // teal filled
-            else if (current)   dImg.color = new Color(1.00f, 0.82f, 0.10f);       // gold current
-            else                dImg.color = new Color(0.30f, 0.26f, 0.40f);       // dark empty
+            float x = -rowW * 0.5f + dayW * 0.5f + (d - 1) * (dayW + dayGap);
 
-            var dTxt = new GameObject("Num");
-            dTxt.transform.SetParent(dot.transform, false);
-            var dtRect = dTxt.AddComponent<RectTransform>();
-            dtRect.anchorMin = Vector2.zero; dtRect.anchorMax = Vector2.one;
-            dtRect.offsetMin = Vector2.zero; dtRect.offsetMax = Vector2.zero;
-            var dt = dTxt.AddComponent<Text>();
-            dt.font = defaultFont; dt.text = d == 7 ? "★" : d.ToString();
-            dt.fontSize = d == 7 ? 28 : 24; dt.fontStyle = FontStyle.Bold;
-            dt.color = (completed || current) ? Color.white : new Color(0.55f, 0.50f, 0.65f);
-            dt.alignment = TextAnchor.MiddleCenter;
-            dt.horizontalOverflow = HorizontalWrapMode.Overflow;
-            dt.verticalOverflow   = VerticalWrapMode.Overflow;
-        }
+            var holder = MakeRect($"Day{d}", card.transform, x, y, dayW, dayH);
+            Color bg, fg;
+            if (completed)      { bg = teal;  fg = Color.white; }
+            else if (current)   { bg = gold;  fg = brown; }
+            else if (d == 7)    { bg = purple; fg = Color.white; }
+            else                { bg = tileCol; fg = mutedCol; }
 
-        // "Day X" label row below dots
-        float lblY = dotsY - 56f;
-        for (int d = 1; d <= 7; d++)
-        {
-            var lbl = new GameObject($"DayLbl{d}");
-            lbl.transform.SetParent(card.transform, false);
-            var lRect = lbl.AddComponent<RectTransform>();
-            lRect.anchorMin = new Vector2(0.5f, 1f); lRect.anchorMax = new Vector2(0.5f, 1f);
-            lRect.pivot = new Vector2(0.5f, 1f);
-            lRect.anchoredPosition = new Vector2(dotsStartX + (d - 1) * dotSpacing, lblY);
-            lRect.sizeDelta = new Vector2(60f, 28f);
-            var lt = lbl.AddComponent<Text>();
-            lt.font = defaultFont;
-            lt.text = d == 7 ? "+10" : "+1";
-            lt.fontSize = 18; lt.fontStyle = FontStyle.Bold;
-            lt.color = d <= streak ? new Color(0.35f, 0.90f, 0.72f) : new Color(0.45f, 0.40f, 0.55f);
-            lt.alignment = TextAnchor.MiddleCenter;
-            lt.horizontalOverflow = HorizontalWrapMode.Overflow;
-            lt.verticalOverflow   = VerticalWrapMode.Overflow;
+            if (current)
+            {
+                var g = new GameObject("Glow"); g.transform.SetParent(holder, false);
+                var gRT = g.AddComponent<RectTransform>();
+                gRT.anchorMin = Vector2.zero; gRT.anchorMax = Vector2.one;
+                gRT.offsetMin = new Vector2(-7f, -7f); gRT.offsetMax = new Vector2(7f, 7f);
+                currentGlow = MakeImg(gRT, SpriteGenerator.RoundedRectSliced, new Color(gold.r, gold.g, gold.b, 0.35f));
+                currentDay = holder;
+            }
+            var tile = new GameObject("Tile"); tile.transform.SetParent(holder, false);
+            var tRT = tile.AddComponent<RectTransform>();
+            tRT.anchorMin = Vector2.zero; tRT.anchorMax = Vector2.one;
+            tRT.offsetMin = Vector2.zero; tRT.offsetMax = Vector2.zero;
+            MakeImg(tRT, SpriteGenerator.RoundedRectSliced, bg);
+            if (!completed && !current && d != 7)
+            {
+                // subtle outline for future days
+                var ol = tile.GetComponent<Image>();
+                ol.color = dark ? tileCol : new Color(0.93f, 0.92f, 0.90f, 1f);
+            }
+
+            var dayLbl = MakeRect("Day", tRT, 0f, -10f, dayW, 26f);
+            MakeTxt(dayLbl, $"Day {d}", 19, FontStyle.Bold, new Color(fg.r, fg.g, fg.b, 0.85f));
+            var val = MakeRect("Val", tRT, 0f, -44f, dayW, 50f);
+            MakeTxt(val, completed ? "✓" : (d == 7 ? "+10" : "+1"),
+                completed ? 38 : 30, FontStyle.Bold, fg);
         }
+        y -= dayH + 24f;
+
+        // Sub label
+        MakeTxt(MakeRect("Sub", card.transform, 0f, y, rowW, 34f),
+            isStreakBonus ? "Amazing! You played 7 days in a row!"
+                          : (streak >= 6 ? "Come back tomorrow for the +10 bonus!"
+                                         : $"Come back tomorrow for day {streak + 1}!"),
+            26, FontStyle.Normal, mutedCol);
+        y -= 34f + 28f;
 
         // Collect button
-        float btnY = isStreakBonus ? -520f : -460f;
-        var collectGo = new GameObject("CollectBtn");
-        collectGo.transform.SetParent(card.transform, false);
-        var cbRect = collectGo.AddComponent<RectTransform>();
-        cbRect.anchorMin = new Vector2(0.5f, 1f); cbRect.anchorMax = new Vector2(0.5f, 1f);
-        cbRect.pivot = new Vector2(0.5f, 0.5f);
-        cbRect.anchoredPosition = new Vector2(0f, btnY);
-        cbRect.sizeDelta = new Vector2(360f, 72f);
-        var cbImg = collectGo.AddComponent<Image>();
-        cbImg.sprite = SpriteGenerator.RoundedRect;
-        cbImg.color = isStreakBonus ? new Color(0.85f, 0.62f, 0.08f) : new Color(0.18f, 0.62f, 0.55f);
-        var cbBtn = collectGo.AddComponent<Button>();
-        cbBtn.targetGraphic = cbImg;
-        var cbc = cbBtn.colors;
-        cbc.highlightedColor = isStreakBonus ? new Color(1f, 0.75f, 0.15f) : new Color(0.22f, 0.75f, 0.65f);
-        cbc.pressedColor     = isStreakBonus ? new Color(0.70f, 0.50f, 0.05f) : new Color(0.12f, 0.48f, 0.42f);
-        cbBtn.colors = cbc;
-        cbBtn.onClick.AddListener(() => Destroy(overlay));
-        var cbTxt = new GameObject("Txt");
-        cbTxt.transform.SetParent(collectGo.transform, false);
-        var ctRect = cbTxt.AddComponent<RectTransform>();
-        ctRect.anchorMin = Vector2.zero; ctRect.anchorMax = Vector2.one;
-        ctRect.offsetMin = Vector2.zero; ctRect.offsetMax = Vector2.zero;
-        var ct = cbTxt.AddComponent<Text>();
-        ct.font = defaultFont; ct.text = "Collect";
-        ct.fontSize = 34; ct.fontStyle = FontStyle.Bold;
-        ct.color = Color.white; ct.alignment = TextAnchor.MiddleCenter;
+        var btnRT = MakeRect("CollectBtn", card.transform, 0f, y, Mathf.Min(460f, rowW), 88f);
+        var btnImg = btnRT.gameObject.AddComponent<Image>();
+        btnImg.sprite = SpriteGenerator.RoundedRectSliced; btnImg.type = Image.Type.Sliced;
+        btnImg.color = isStreakBonus ? purple : green;
+        var btn = btnRT.gameObject.AddComponent<Button>();
+        btn.targetGraphic = btnImg;
+        FillTxt(btnRT, "Collect", 38, FontStyle.Bold, Color.white);
+        y -= 88f;
+
+        float cardH = Mathf.Abs(y) + pad;
+        cRect.sizeDelta = new Vector2(cardW, cardH);
+        shRT.sizeDelta = new Vector2(cardW + 26f, cardH + 26f);
+
+        var confettiColors = new[] { gold, coral, teal, green, purple, new Color(0.98f, 0.55f, 0.75f) };
+        bool collected = false;
+        btn.onClick.AddListener(() =>
+        {
+            if (collected) return;
+            collected = true;
+            btn.interactable = false;
+            StartCoroutine(DailyRewardCollect(overlay, card.transform, gift, amt, confettiColors));
+        });
+
+        StartCoroutine(DailyRewardIdle(overlay, card.transform, gift, glow, glowImg, badge, currentDay, currentGlow));
+    }
+
+    private IEnumerator DailyRewardIdle(GameObject overlay, Transform card, RectTransform gift, RectTransform glow,
+                                        Image glowImg, RectTransform badge, RectTransform currentDay, Image currentGlow)
+    {
+        // Pop-in
+        float t = 0f;
+        while (t < 0.35f && card != null)
+        {
+            t += Time.unscaledDeltaTime;
+            float k = Mathf.Clamp01(t / 0.35f);
+            float e = 1f + 2.2f * Mathf.Pow(k - 1f, 3f) + 1.2f * Mathf.Pow(k - 1f, 2f);
+            card.localScale = Vector3.one * Mathf.LerpUnclamped(0.7f, 1f, e);
+            yield return null;
+        }
+        if (card != null) card.localScale = Vector3.one;
+
+        t = 0f;
+        while (overlay != null && gift != null)
+        {
+            t += Time.unscaledDeltaTime;
+            float s = (Mathf.Sin(t * 3.2f) + 1f) * 0.5f;
+            if (!dailyRewardCollecting)
+            {
+                gift.localRotation = Quaternion.Euler(0f, 0f, Mathf.Sin(t * 5f) * 6f * (0.6f + 0.4f * Mathf.Sin(t * 1.3f)));
+                gift.localScale = Vector3.one * (1f + 0.04f * s);
+            }
+            if (glow != null) glow.localScale = Vector3.one * (0.92f + 0.12f * s);
+            if (glowImg != null) { var c = glowImg.color; c.a = 0.15f + 0.2f * s; glowImg.color = c; }
+            if (badge != null) badge.localScale = Vector3.one * (1f + 0.05f * s);
+            if (currentDay != null) currentDay.localScale = Vector3.one * (1f + 0.06f * s);
+            if (currentGlow != null) { var c = currentGlow.color; c.a = 0.2f + 0.4f * s; currentGlow.color = c; }
+            yield return null;
+        }
+    }
+
+    private IEnumerator DailyRewardCollect(GameObject overlay, Transform card, RectTransform gift,
+                                           RectTransform amount, Color[] colors)
+    {
+        if (overlay == null) yield break;
+        dailyRewardCollecting = true;   // idle animation stops touching the gift
+        HapticManager.Instance?.LevelComplete();
+        AudioManager.Instance?.OnLevelComplete();
+
+        // Confetti burst from the gift
+        const int count = 90;
+        var pieces = new RectTransform[count];
+        var vel = new Vector2[count];
+        var spin = new float[count];
+        var imgs = new Image[count];
+        Vector2 origin = gift != null ? gift.anchoredPosition : Vector2.zero;
+        for (int i = 0; i < count; i++)
+        {
+            var go = new GameObject("Confetti");
+            go.transform.SetParent(card, false);
+            var r = go.AddComponent<RectTransform>();
+            r.anchorMin = r.anchorMax = new Vector2(0.5f, 1f);
+            r.pivot = new Vector2(0.5f, 0.5f);
+            r.anchoredPosition = origin;
+            bool round = UnityEngine.Random.value < 0.3f;
+            float w = UnityEngine.Random.Range(12f, 20f);
+            r.sizeDelta = round ? new Vector2(w, w) : new Vector2(w, w * UnityEngine.Random.Range(1.6f, 2.4f));
+            r.localRotation = Quaternion.Euler(0f, 0f, UnityEngine.Random.Range(0f, 360f));
+            var img = go.AddComponent<Image>();
+            img.sprite = round ? SpriteGenerator.Circle : SpriteGenerator.RoundedRect;
+            img.color = colors[UnityEngine.Random.Range(0, colors.Length)];
+            img.raycastTarget = false;
+            float ang = UnityEngine.Random.Range(20f, 160f) * Mathf.Deg2Rad;
+            float spd = UnityEngine.Random.Range(700f, 1500f);
+            vel[i] = new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * spd;
+            spin[i] = UnityEngine.Random.Range(-720f, 720f);
+            pieces[i] = r; imgs[i] = img;
+        }
+
+        const float dur = 1.7f;
+        float t = 0f;
+        while (t < dur)
+        {
+            if (overlay == null) yield break;
+            float dt = Time.unscaledDeltaTime;
+            t += dt;
+
+            // Gift: quick squash-pop then shrink away
+            if (gift != null)
+            {
+                float g = Mathf.Clamp01(t / 0.45f);
+                float sc = g < 0.35f ? Mathf.Lerp(1f, 1.35f, g / 0.35f) : Mathf.Lerp(1.35f, 0f, (g - 0.35f) / 0.65f);
+                gift.localScale = Vector3.one * sc;
+                gift.localRotation = Quaternion.Euler(0f, 0f, g * 25f);
+            }
+            // Amount: bounce
+            if (amount != null)
+            {
+                float a = Mathf.Clamp01(t / 0.5f);
+                amount.localScale = Vector3.one * (1f + 0.35f * Mathf.Sin(a * Mathf.PI));
+            }
+            // Confetti physics
+            float fade = Mathf.Clamp01((dur - t) / 0.5f);
+            for (int i = 0; i < count; i++)
+            {
+                if (pieces[i] == null) continue;
+                vel[i] += new Vector2(-vel[i].x * 1.2f * dt, -2200f * dt);
+                pieces[i].anchoredPosition += vel[i] * dt;
+                pieces[i].localRotation = Quaternion.Euler(0f, 0f, pieces[i].localEulerAngles.z + spin[i] * dt);
+                var c = imgs[i].color; c.a = fade; imgs[i].color = c;
+            }
+            yield return null;
+        }
+        if (overlay != null) Destroy(overlay);
     }
 
     // --- Rate App Popup ---
@@ -2491,7 +2163,7 @@ public class UIManager : MonoBehaviour
             title.text = "Remove Ads";
 
             var sub = MakeCardText("Subtitle", card.transform, new Vector2(0, 15), 30, FontStyle.Normal, TextMuted);
-            sub.text = "Enjoy the full game, ad-free forever";
+            sub.text = "Ad-free forever + unlimited hints";
             sub.GetComponent<RectTransform>().sizeDelta = new Vector2(560f, 60f);
 
             var buyBtn = CreateCardButton($"Remove Ads — {noAdsPriceLabel}", card.transform, new Vector2(0, -80), new Color(0.92f, 0.68f, 0.08f));
@@ -2628,8 +2300,18 @@ public class UIManager : MonoBehaviour
     private void ShowSettingsPopup()
     {
         var tm = ThemeManager.Instance;
-        Color cardColor   = tm != null ? tm.CardBg    : new Color(1f, 1f, 1f, 0.98f);
-        Color textColor   = tm != null ? tm.TextPrimary : TextDark;
+        bool dark = tm?.IsDarkMode ?? false;
+        Color accent    = new Color(0.16f, 0.62f, 0.66f);
+        Color cardColor = tm != null ? tm.CardBg : new Color(1f, 1f, 1f, 0.99f);
+        Color textColor = tm != null ? tm.TextPrimary : TextDark;
+        Color groupBg   = dark ? new Color(0.24f, 0.23f, 0.29f) : new Color(0.96f, 0.955f, 0.975f);
+        Color sectionCol= dark ? new Color(0.56f, 0.54f, 0.62f) : new Color(0.55f, 0.53f, 0.58f);
+        Color divCol    = dark ? new Color(0.31f, 0.29f, 0.37f) : new Color(0.90f, 0.89f, 0.92f);
+
+        const float cardW = 600f, cardH = 800f;
+        const float pad = 32f;
+        float leftX = -cardW * 0.5f + pad;     // left content edge (card-center coords)
+        float groupW = cardW - pad * 2f;
 
         var popup = new GameObject("SettingsPopup");
         popup.transform.SetParent(canvas.transform, false);
@@ -2642,66 +2324,78 @@ public class UIManager : MonoBehaviour
         popupRect.offsetMax = Vector2.zero;
 
         var overlay = popup.AddComponent<Image>();
-        overlay.color = new Color(0.10f, 0.08f, 0.14f, 0.62f);
+        overlay.color = new Color(0.08f, 0.07f, 0.11f, 0.66f);
         var overlayBtn = popup.AddComponent<Button>();
         overlayBtn.targetGraphic = overlay;
+        overlayBtn.transition = Selectable.Transition.None;
         overlayBtn.onClick.AddListener(() => Destroy(popup));
 
-        // Shadow
+        // Soft drop shadow
         var shadowObj = new GameObject("Shadow");
         shadowObj.transform.SetParent(popup.transform, false);
         var shadowRect = shadowObj.AddComponent<RectTransform>();
-        shadowRect.anchorMin = new Vector2(0.5f, 0.5f);
-        shadowRect.anchorMax = new Vector2(0.5f, 0.5f);
+        shadowRect.anchorMin = shadowRect.anchorMax = new Vector2(0.5f, 0.5f);
         shadowRect.pivot = new Vector2(0.5f, 0.5f);
-        shadowRect.sizeDelta = new Vector2(666f, 730f);
-        shadowRect.anchoredPosition = new Vector2(4f, -8f);
+        shadowRect.sizeDelta = new Vector2(cardW + 30f, cardH + 30f);
+        shadowRect.anchoredPosition = new Vector2(0f, -10f);
         var shadowImg = shadowObj.AddComponent<Image>();
-        shadowImg.sprite = SpriteGenerator.RoundedRect;
-        shadowImg.color = new Color(0f, 0f, 0f, 0.18f);
+        shadowImg.sprite = SpriteGenerator.RoundedRectSliced;
+        shadowImg.type = Image.Type.Sliced;
+        shadowImg.color = new Color(0f, 0f, 0f, 0.22f);
 
         // Card
         var card = new GameObject("Card");
         card.transform.SetParent(popup.transform, false);
         var cardRect = card.AddComponent<RectTransform>();
-        cardRect.anchorMin = new Vector2(0.5f, 0.5f);
-        cardRect.anchorMax = new Vector2(0.5f, 0.5f);
+        cardRect.anchorMin = cardRect.anchorMax = new Vector2(0.5f, 0.5f);
         cardRect.pivot = new Vector2(0.5f, 0.5f);
-        cardRect.sizeDelta = new Vector2(640f, 700f);
+        cardRect.sizeDelta = new Vector2(cardW, cardH);
         var cardImg = card.AddComponent<Image>();
-        cardImg.sprite = SpriteGenerator.RoundedRect;
+        cardImg.sprite = SpriteGenerator.RoundedRectSliced;
+        cardImg.type = Image.Type.Sliced;
         cardImg.color = cardColor;
+        var cardBlock = card.AddComponent<Button>();   // swallow taps on the card
+        cardBlock.targetGraphic = cardImg;
+        cardBlock.transition = Selectable.Transition.None;
 
-        // Title
-        var title = MakeCardText("Title", card.transform, new Vector2(0, 310), 44, FontStyle.Bold, textColor);
-        title.text = "⚙️  Settings";
+        float top = cardH * 0.5f;
 
-        // ─── Sound toggle ────────────────────────────────────────────────────
+        // ── Header: left-aligned title + close ──────────────────────────────────
+        var title = MakeLeftText(card.transform, new Vector2(leftX + 6f, top - 54f), new Vector2(420f, 50f),
+            "Settings", 38, FontStyle.Bold, textColor);
+        title.alignment = TextAnchor.MiddleLeft;
+        MakeCloseButton(card.transform, Vector2.zero, cardW, cardH, accent, () => Destroy(popup));
+
+        // ── Section: GENERAL ────────────────────────────────────────────────────
+        MakeSectionLabel(card.transform, top - 132f, leftX + 6f, groupW, "GENERAL", sectionCol);
+        var g1 = MakeListGroup(card.transform, 134f, groupW, 216f, groupBg);
+
         bool soundOn = !(AudioManager.Instance?.IsMuted ?? false);
-        CreateToggleRow(card.transform, "🔊  Sound", soundOn, new Vector2(0, 220), (val) =>
+        AddListToggleRow(g1.transform, 72f, groupW, "🔊  Sound", soundOn, textColor, dark, (val) =>
         {
             AudioManager.Instance?.SetMuted(!val);
         });
+        AddListDivider(g1.transform, 36f, groupW - 52f, divCol);
 
-        // ─── Haptic toggle ───────────────────────────────────────────────────
         bool hapticOn = HapticManager.Instance?.IsHapticsEnabled ?? true;
-        CreateToggleRow(card.transform, "📳  Haptics", hapticOn, new Vector2(0, 115), (val) =>
+        AddListToggleRow(g1.transform, 0f, groupW, "📳  Haptics", hapticOn, textColor, dark, (val) =>
         {
             if (HapticManager.Instance != null) HapticManager.Instance.IsHapticsEnabled = val;
         });
+        AddListDivider(g1.transform, -36f, groupW - 52f, divCol);
 
-        // ─── Dark Mode toggle ────────────────────────────────────────────────
-        bool darkOn = tm?.IsDarkMode ?? false;
-        CreateToggleRow(card.transform, "🌙  Dark Mode", darkOn, new Vector2(0, 10), (val) =>
+        AddListToggleRow(g1.transform, -72f, groupW, "🌙  Dark Mode", dark, textColor, dark, (val) =>
         {
             if (ThemeManager.Instance != null) ThemeManager.Instance.IsDarkMode = val;
-            cardImg.color = ThemeManager.Instance != null ? ThemeManager.Instance.CardBg : cardColor;
+            // Rebuild so every element re-reads the new palette.
+            Destroy(popup);
+            ShowSettingsPopup();
         });
 
-        // ─── Invite Friends button ───────────────────────────────────────────
-        var inviteBtn = CreateCardButton("🤝  Invite Friends — Get Free Hints", card.transform, new Vector2(0, -98), new Color(0.18f, 0.55f, 0.62f));
-        inviteBtn.GetComponent<RectTransform>().sizeDelta = new Vector2(560f, 68f);
-        inviteBtn.onClick.AddListener(() =>
+        // ── Section: MORE ───────────────────────────────────────────────────────
+        MakeSectionLabel(card.transform, -8f, leftX + 6f, groupW, "MORE", sectionCol);
+        var g2 = MakeListGroup(card.transform, -108f, groupW, 156f, groupBg);
+        AddListNavRow(g2.transform, 39f, groupW, "🤝  Invite Friends", textColor, sectionCol, () =>
         {
             Destroy(popup);
             var gm = FindAnyObjectByType<GameManager>();
@@ -2711,142 +2405,306 @@ public class UIManager : MonoBehaviour
                 (code) => gm.ClaimReferralCode(code, (ok, msg) => ShowToast(msg))
             );
         });
+        AddListDivider(g2.transform, 0f, groupW - 52f, divCol);
+        AddListNavRow(g2.transform, -39f, groupW, "Restore Purchases", textColor, sectionCol, () =>
+        {
+            Destroy(popup);
+            FindAnyObjectByType<GameManager>()?.RestoreNoAdsPurchases();
+        });
 
-        // ─── Daily Streak ────────────────────────────────────────────────────
+        // ── Section: DAILY STREAK ───────────────────────────────────────────────
         int streak = PlayerPrefs.GetInt("daily.streak", 0);
         if (streak == 0) streak = 1; // show at least day 1
         string lastClaim = PlayerPrefs.GetString("daily.lastClaim", "");
         string today = System.DateTime.Now.ToString("yyyy-MM-dd");
         bool claimedToday = lastClaim == today;
 
-        var streakSection = new GameObject("StreakSection");
-        streakSection.transform.SetParent(card.transform, false);
-        var ssR = streakSection.AddComponent<RectTransform>();
-        ssR.anchorMin = new Vector2(0.5f, 0.5f); ssR.anchorMax = new Vector2(0.5f, 0.5f);
-        ssR.pivot = new Vector2(0.5f, 0.5f);
-        ssR.anchoredPosition = new Vector2(0f, -238f);
-        ssR.sizeDelta = new Vector2(580f, 140f);
-        var ssBg = streakSection.AddComponent<Image>(); ssBg.sprite = SpriteGenerator.RoundedRect;
-        ssBg.color = new Color(0.18f, 0.15f, 0.26f);
+        MakeSectionLabel(card.transform, -218f, leftX + 6f, groupW,
+            claimedToday ? $"DAILY STREAK · DAY {streak}/7 ✓" : $"DAILY STREAK · DAY {streak}/7", sectionCol);
+        var g3 = MakeListGroup(card.transform, -300f, groupW, 120f, groupBg);
 
-        // Streak title row
-        var stTitleGo = new GameObject("StreakTitle"); stTitleGo.transform.SetParent(streakSection.transform, false);
-        var stTR = stTitleGo.AddComponent<RectTransform>();
-        stTR.anchorMin = new Vector2(0f, 1f); stTR.anchorMax = new Vector2(1f, 1f);
-        stTR.pivot = new Vector2(0.5f, 1f); stTR.anchoredPosition = new Vector2(0f, -8f);
-        stTR.sizeDelta = new Vector2(-24f, 32f);
-        var stT = stTitleGo.AddComponent<Text>();
-        stT.font = defaultFont;
-        stT.text = claimedToday ? $"📅  Daily Streak — Day {streak} / 7  ✓" : $"📅  Daily Streak — Day {streak} / 7";
-        stT.fontSize = 24; stT.fontStyle = FontStyle.Bold;
-        stT.color = claimedToday ? new Color(0.35f, 0.92f, 0.78f) : new Color(0.80f, 0.76f, 0.92f);
-        stT.alignment = TextAnchor.MiddleLeft;
-        stT.horizontalOverflow = HorizontalWrapMode.Overflow;
-
-        // 7 dots
-        float dotSpacing = 74f;
+        float dotSpacing = 70f;
         float dotsStartX = -(dotSpacing * 3);
         for (int d = 1; d <= 7; d++)
         {
-            var dot = new GameObject($"D{d}"); dot.transform.SetParent(streakSection.transform, false);
+            var dot = new GameObject($"D{d}"); dot.transform.SetParent(g3.transform, false);
             var dR = dot.AddComponent<RectTransform>();
-            dR.anchorMin = new Vector2(0.5f, 0f); dR.anchorMax = new Vector2(0.5f, 0f);
-            dR.pivot = new Vector2(0.5f, 0f);
-            dR.anchoredPosition = new Vector2(dotsStartX + (d - 1) * dotSpacing, 10f);
-            dR.sizeDelta = new Vector2(54f, 54f);
+            dR.anchorMin = dR.anchorMax = new Vector2(0.5f, 0.5f);
+            dR.pivot = new Vector2(0.5f, 0.5f);
+            dR.anchoredPosition = new Vector2(dotsStartX + (d - 1) * dotSpacing, 0f);
+            dR.sizeDelta = new Vector2(48f, 48f);
             var dI = dot.AddComponent<Image>(); dI.sprite = SpriteGenerator.Circle;
             bool done    = claimedToday ? d <= streak : d < streak;
             bool current = !claimedToday && d == streak;
-            dI.color = done    ? new Color(0.18f, 0.72f, 0.58f) :
-                       current ? new Color(1.00f, 0.82f, 0.10f) :
-                                 new Color(0.28f, 0.24f, 0.38f);
+            dI.color = done    ? new Color(0.16f, 0.70f, 0.56f) :
+                       current ? new Color(1.00f, 0.78f, 0.12f) :
+                                 (dark ? new Color(0.32f, 0.30f, 0.38f) : new Color(0.86f, 0.84f, 0.90f));
             var dTGo = new GameObject("N"); dTGo.transform.SetParent(dot.transform, false);
             var dTR = dTGo.AddComponent<RectTransform>();
             dTR.anchorMin = Vector2.zero; dTR.anchorMax = Vector2.one;
             dTR.offsetMin = Vector2.zero; dTR.offsetMax = Vector2.zero;
             var dT = dTGo.AddComponent<Text>();
             dT.font = defaultFont; dT.text = d == 7 ? "★" : d.ToString();
-            dT.fontSize = d == 7 ? 26 : 22; dT.fontStyle = FontStyle.Bold;
-            dT.color = (done || current) ? Color.white : new Color(0.50f, 0.46f, 0.58f);
+            dT.fontSize = d == 7 ? 24 : 21; dT.fontStyle = FontStyle.Bold;
+            dT.color = (done || current) ? Color.white
+                       : (dark ? new Color(0.52f, 0.48f, 0.58f) : new Color(0.60f, 0.56f, 0.66f));
             dT.alignment = TextAnchor.MiddleCenter;
             dT.horizontalOverflow = HorizontalWrapMode.Overflow;
             dT.verticalOverflow   = VerticalWrapMode.Overflow;
         }
     }
 
-    // Creates a labeled toggle row (label on left, ON/OFF button on right)
-    private void CreateToggleRow(Transform parent, string label, bool initialState, Vector2 position, System.Action<bool> onChange)
+    // ── Shared popup chrome ────────────────────────────────────────────────────
+    // Circular "✕" close button anchored to the card's top-right corner.
+    private Button MakeCloseButton(Transform card, Vector2 _ignored, float cardW, float cardH, Color accent, System.Action onClose)
     {
-        const float rowW = 560f, rowH = 74f;
+        var go = new GameObject("CloseBtn");
+        go.transform.SetParent(card, false);
+        var r = go.AddComponent<RectTransform>();
+        r.anchorMin = r.anchorMax = new Vector2(1f, 1f);
+        r.pivot = new Vector2(1f, 1f);
+        r.anchoredPosition = new Vector2(-22f, -22f);
+        r.sizeDelta = new Vector2(52f, 52f);
+        var img = go.AddComponent<Image>();
+        img.sprite = SpriteGenerator.Circle;
+        img.color = new Color(accent.r, accent.g, accent.b, 0.16f);
+        var btn = go.AddComponent<Button>();
+        btn.targetGraphic = img;
+        btn.onClick.AddListener(() => onClose?.Invoke());
 
-        var row = new GameObject("ToggleRow_" + label);
-        row.transform.SetParent(parent, false);
-        var rowRect = row.AddComponent<RectTransform>();
-        rowRect.anchorMin = new Vector2(0.5f, 0.5f);
-        rowRect.anchorMax = new Vector2(0.5f, 0.5f);
-        rowRect.pivot = new Vector2(0.5f, 0.5f);
-        rowRect.anchoredPosition = position;
-        rowRect.sizeDelta = new Vector2(rowW, rowH);
+        var x = new GameObject("X"); x.transform.SetParent(go.transform, false);
+        var xr = x.AddComponent<RectTransform>();
+        xr.anchorMin = Vector2.zero; xr.anchorMax = Vector2.one;
+        xr.offsetMin = Vector2.zero; xr.offsetMax = Vector2.zero;
+        var xt = x.AddComponent<Text>();
+        xt.font = defaultFont; xt.text = "✕";
+        xt.fontSize = 30; xt.fontStyle = FontStyle.Bold;
+        xt.color = accent; xt.alignment = TextAnchor.MiddleCenter;
+        return btn;
+    }
 
-        // Row background
-        var rowBg = row.AddComponent<Image>();
-        rowBg.sprite = SpriteGenerator.RoundedRect;
-        rowBg.color = ThemeManager.Instance != null ? ThemeManager.Instance.ToggleRowBg : new Color(0.96f, 0.94f, 0.90f, 1f);
+    // ── Candy / game-theme building blocks ──────────────────────────────────────
+    // The game board is made of chunky, softly-shadowed rounded tiles. These helpers
+    // give popups the same tactile look: constant-radius corners (9-slice) + a soft
+    // drop shadow + a subtle press-down tint.
 
-        // Label
-        var labelObj = new GameObject("Label");
-        labelObj.transform.SetParent(row.transform, false);
-        var labelRect = labelObj.AddComponent<RectTransform>();
-        labelRect.anchorMin = new Vector2(0f, 0f);
-        labelRect.anchorMax = new Vector2(1f, 1f);
-        labelRect.offsetMin = new Vector2(20f, 0f);
-        labelRect.offsetMax = new Vector2(-110f, 0f);
-        var labelTxt = labelObj.AddComponent<Text>();
-        labelTxt.font = defaultFont;
-        labelTxt.text = label;
-        labelTxt.fontSize = 34;
-        labelTxt.alignment = TextAnchor.MiddleLeft;
-        labelTxt.color = ThemeManager.Instance != null ? ThemeManager.Instance.TextPrimary : TextDark;
+    private static readonly Color CandyBlue   = new Color(0.39f, 0.52f, 0.88f);
+    private static readonly Color CandyCoral  = new Color(0.91f, 0.57f, 0.39f);
+    private static readonly Color CandyGreen  = new Color(0.42f, 0.71f, 0.44f);
+    private static readonly Color CandyPurple = new Color(0.64f, 0.40f, 0.71f);
+    private static readonly Color CandyTeal   = new Color(0.20f, 0.72f, 0.68f);
+    private static readonly Color CandyCream  = new Color(0.975f, 0.965f, 0.94f);
+    private static readonly Color CandyInk    = new Color(0.22f, 0.22f, 0.28f);
 
-        // Toggle button
-        var togObj = new GameObject("Toggle");
-        togObj.transform.SetParent(row.transform, false);
-        var togRect = togObj.AddComponent<RectTransform>();
-        togRect.anchorMin = new Vector2(1f, 0.5f);
-        togRect.anchorMax = new Vector2(1f, 0.5f);
-        togRect.pivot = new Vector2(1f, 0.5f);
-        togRect.anchoredPosition = new Vector2(-12f, 0f);
-        togRect.sizeDelta = new Vector2(86f, 50f);
+    // Apply the 9-sliced rounded sprite (constant chunky corners) to an Image.
+    private Image Sliced(Image img, Color c)
+    {
+        img.sprite = SpriteGenerator.RoundedRectSliced;
+        img.type = Image.Type.Sliced;
+        img.color = c;
+        return img;
+    }
 
-        var togImg = togObj.AddComponent<Image>();
-        togImg.sprite = SpriteGenerator.RoundedRect;
-        togImg.color = initialState ? BtnTeal : new Color(0.72f, 0.70f, 0.65f);
+    // A rounded, softly-shadowed "candy" button matching the game tiles.
+    // Self-contained: a container holds a shadow + coloured face + label, so toggling
+    // the returned Button's GameObject (SetActive) or .interactable affects the whole
+    // thing. targetGraphic is the face, so it tints on press.
+    private Button CreateCandyButton(string label, Transform parent, Vector2 pos, Vector2 size,
+                                     Color color, int fontSize = 30, Color? textColor = null)
+    {
+        var go = new GameObject(label + "Btn");
+        go.transform.SetParent(parent, false);
+        var rt = go.AddComponent<RectTransform>();
+        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+        rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.anchoredPosition = pos;
+        rt.sizeDelta = size;
 
-        var togLabelObj = new GameObject("TogLabel");
-        togLabelObj.transform.SetParent(togObj.transform, false);
-        var tlRect = togLabelObj.AddComponent<RectTransform>();
-        tlRect.anchorMin = Vector2.zero;
-        tlRect.anchorMax = Vector2.one;
-        tlRect.offsetMin = Vector2.zero;
-        tlRect.offsetMax = Vector2.zero;
-        var togTxt = togLabelObj.AddComponent<Text>();
-        togTxt.font = defaultFont;
-        togTxt.text = initialState ? "ON" : "OFF";
-        togTxt.fontSize = 26;
-        togTxt.fontStyle = FontStyle.Bold;
-        togTxt.alignment = TextAnchor.MiddleCenter;
-        togTxt.color = Color.white;
+        // Shadow (child 1 → behind the face), shifted down for a soft drop
+        var sh = new GameObject("Shadow");
+        sh.transform.SetParent(go.transform, false);
+        var shRT = sh.AddComponent<RectTransform>();
+        shRT.anchorMin = new Vector2(0f, 0f); shRT.anchorMax = new Vector2(1f, 1f);
+        shRT.offsetMin = new Vector2(0f, -7f); shRT.offsetMax = new Vector2(0f, -7f);
+        var shImg = sh.AddComponent<Image>();
+        shImg.sprite = SpriteGenerator.RoundedRectSliced;
+        shImg.type = Image.Type.Sliced;
+        shImg.color = new Color(0f, 0f, 0f, 0.14f);
+        shImg.raycastTarget = false;
+
+        // Face (child 2 → on top)
+        var face = new GameObject("Face");
+        face.transform.SetParent(go.transform, false);
+        var faceRT = face.AddComponent<RectTransform>();
+        faceRT.anchorMin = Vector2.zero; faceRT.anchorMax = Vector2.one;
+        faceRT.offsetMin = Vector2.zero; faceRT.offsetMax = Vector2.zero;
+        var img = face.AddComponent<Image>();
+        img.sprite = SpriteGenerator.RoundedRectSliced;
+        img.type = Image.Type.Sliced;
+        img.color = color;
+
+        var btn = go.AddComponent<Button>();
+        btn.targetGraphic = img;
+        var cb = btn.colors;
+        cb.normalColor      = Color.white;
+        cb.highlightedColor = new Color(0.95f, 0.95f, 0.95f);
+        cb.pressedColor     = new Color(0.86f, 0.86f, 0.86f);
+        cb.selectedColor    = Color.white;
+        cb.fadeDuration     = 0.08f;
+        btn.colors = cb;
+
+        var txtObj = new GameObject("Text");
+        txtObj.transform.SetParent(face.transform, false);
+        var tRect = txtObj.AddComponent<RectTransform>();
+        tRect.anchorMin = Vector2.zero; tRect.anchorMax = Vector2.one;
+        tRect.offsetMin = Vector2.zero; tRect.offsetMax = Vector2.zero;
+        var txt = txtObj.AddComponent<Text>();
+        txt.font = defaultFont; txt.text = label;
+        txt.fontSize = fontSize; txt.fontStyle = FontStyle.Bold;
+        txt.alignment = TextAnchor.MiddleCenter;
+        txt.color = textColor ?? Color.white;
+        txt.horizontalOverflow = HorizontalWrapMode.Overflow;
+        txt.verticalOverflow = VerticalWrapMode.Overflow;
+
+        return btn;
+    }
+
+    // ── List / sheet style helpers ─────────────────────────────────────────────
+    // Left-aligned text block (pivot on the left edge).
+    private Text MakeLeftText(Transform parent, Vector2 pos, Vector2 size, string text, int fontSize, FontStyle style, Color col)
+    {
+        var go = new GameObject("Txt"); go.transform.SetParent(parent, false);
+        var r = go.AddComponent<RectTransform>();
+        r.anchorMin = r.anchorMax = new Vector2(0.5f, 0.5f);
+        r.pivot = new Vector2(0f, 0.5f);
+        r.anchoredPosition = pos; r.sizeDelta = size;
+        var t = go.AddComponent<Text>();
+        t.font = defaultFont; t.text = text; t.fontSize = fontSize; t.fontStyle = style;
+        t.color = col; t.alignment = TextAnchor.MiddleLeft;
+        t.horizontalOverflow = HorizontalWrapMode.Overflow;
+        t.verticalOverflow = VerticalWrapMode.Overflow;
+        return t;
+    }
+
+    // Small uppercase section label.
+    private void MakeSectionLabel(Transform parent, float y, float leftX, float width, string text, Color col)
+    {
+        var go = new GameObject("Section"); go.transform.SetParent(parent, false);
+        var r = go.AddComponent<RectTransform>();
+        r.anchorMin = r.anchorMax = new Vector2(0.5f, 0.5f);
+        r.pivot = new Vector2(0f, 0.5f);
+        r.anchoredPosition = new Vector2(leftX, y); r.sizeDelta = new Vector2(width, 26f);
+        var t = go.AddComponent<Text>();
+        t.font = defaultFont; t.text = text; t.fontSize = 20; t.fontStyle = FontStyle.Bold;
+        t.color = col; t.alignment = TextAnchor.MiddleLeft;
+        t.horizontalOverflow = HorizontalWrapMode.Overflow;
+    }
+
+    // Rounded container that backs a group of list rows.
+    private GameObject MakeListGroup(Transform parent, float centerY, float width, float height, Color color)
+    {
+        var go = new GameObject("Group"); go.transform.SetParent(parent, false);
+        var r = go.AddComponent<RectTransform>();
+        r.anchorMin = r.anchorMax = new Vector2(0.5f, 0.5f);
+        r.pivot = new Vector2(0.5f, 0.5f);
+        r.anchoredPosition = new Vector2(0f, centerY); r.sizeDelta = new Vector2(width, height);
+        var img = go.AddComponent<Image>();
+        img.sprite = SpriteGenerator.RoundedRectSliced; img.type = Image.Type.Sliced; img.color = color;
+        return go;
+    }
+
+    // Hairline divider between rows (inset from the left to align under labels).
+    private void AddListDivider(Transform group, float localY, float width, Color col)
+    {
+        var go = new GameObject("Div"); go.transform.SetParent(group, false);
+        var r = go.AddComponent<RectTransform>();
+        r.anchorMin = r.anchorMax = new Vector2(0.5f, 0.5f);
+        r.pivot = new Vector2(0.5f, 0.5f);
+        r.anchoredPosition = new Vector2(20f, localY); r.sizeDelta = new Vector2(width, 2f);
+        go.AddComponent<Image>().color = col;
+    }
+
+    // A list row: label on the left, iOS-style sliding switch on the right. No row background.
+    private void AddListToggleRow(Transform group, float localY, float rowW, string label, bool initialState,
+                                  Color labelCol, bool dark, System.Action<bool> onChange)
+    {
+        const float rowH = 72f;
+        Color onCol  = CandyTeal;
+        Color offCol = dark ? new Color(0.40f, 0.38f, 0.46f) : new Color(0.80f, 0.78f, 0.74f);
+
+        var row = new GameObject("Row_" + label); row.transform.SetParent(group, false);
+        var rr = row.AddComponent<RectTransform>();
+        rr.anchorMin = rr.anchorMax = new Vector2(0.5f, 0.5f); rr.pivot = new Vector2(0.5f, 0.5f);
+        rr.anchoredPosition = new Vector2(0f, localY); rr.sizeDelta = new Vector2(rowW, rowH);
+        var rbg = row.AddComponent<Image>(); rbg.color = new Color(0f, 0f, 0f, 0f); // transparent hit area
+
+        var lo = new GameObject("L"); lo.transform.SetParent(row.transform, false);
+        var lr = lo.AddComponent<RectTransform>();
+        lr.anchorMin = new Vector2(0f, 0f); lr.anchorMax = new Vector2(1f, 1f);
+        lr.offsetMin = new Vector2(26f, 0f); lr.offsetMax = new Vector2(-120f, 0f);
+        var lt = lo.AddComponent<Text>();
+        lt.font = defaultFont; lt.text = label; lt.fontSize = 31;
+        lt.alignment = TextAnchor.MiddleLeft; lt.color = labelCol;
+
+        var track = new GameObject("Track"); track.transform.SetParent(row.transform, false);
+        var tr = track.AddComponent<RectTransform>();
+        tr.anchorMin = tr.anchorMax = new Vector2(1f, 0.5f); tr.pivot = new Vector2(1f, 0.5f);
+        tr.anchoredPosition = new Vector2(-22f, 0f); tr.sizeDelta = new Vector2(90f, 50f);
+        var ti = track.AddComponent<Image>(); ti.sprite = SpriteGenerator.RoundedRectSliced; ti.type = Image.Type.Sliced;
+        ti.color = initialState ? onCol : offCol;
+
+        var knob = new GameObject("Knob"); knob.transform.SetParent(track.transform, false);
+        var kr = knob.AddComponent<RectTransform>();
+        kr.anchorMin = kr.anchorMax = new Vector2(0f, 0.5f); kr.pivot = new Vector2(0.5f, 0.5f);
+        kr.sizeDelta = new Vector2(40f, 40f);
+        const float knobOn = 64f, knobOff = 26f;
+        kr.anchoredPosition = new Vector2(initialState ? knobOn : knobOff, 0f);
+        var ki = knob.AddComponent<Image>(); ki.sprite = SpriteGenerator.Circle; ki.color = Color.white;
 
         bool state = initialState;
-        var togBtn = togObj.AddComponent<Button>();
-        togBtn.targetGraphic = togImg;
-        togBtn.onClick.AddListener(() =>
+        System.Action toggle = () =>
         {
             state = !state;
-            togImg.color = state ? BtnTeal : new Color(0.72f, 0.70f, 0.65f);
-            togTxt.text = state ? "ON" : "OFF";
+            ti.color = state ? onCol : offCol;
+            kr.anchoredPosition = new Vector2(state ? knobOn : knobOff, 0f);
             onChange(state);
-        });
+        };
+        var tb = track.AddComponent<Button>(); tb.targetGraphic = ti; tb.onClick.AddListener(() => toggle());
+        var rb = row.AddComponent<Button>(); rb.targetGraphic = rbg; rb.transition = Selectable.Transition.None;
+        rb.onClick.AddListener(() => toggle());
+    }
+
+    // A tappable list row with a trailing chevron (navigation affordance).
+    private void AddListNavRow(Transform group, float localY, float rowW, string label,
+                               Color labelCol, Color chevCol, System.Action onClick)
+    {
+        const float rowH = 78f;
+        var row = new GameObject("Nav_" + label); row.transform.SetParent(group, false);
+        var rr = row.AddComponent<RectTransform>();
+        rr.anchorMin = rr.anchorMax = new Vector2(0.5f, 0.5f); rr.pivot = new Vector2(0.5f, 0.5f);
+        rr.anchoredPosition = new Vector2(0f, localY); rr.sizeDelta = new Vector2(rowW, rowH);
+        var rbg = row.AddComponent<Image>(); rbg.color = new Color(0f, 0f, 0f, 0f);
+
+        var lo = new GameObject("L"); lo.transform.SetParent(row.transform, false);
+        var lr = lo.AddComponent<RectTransform>();
+        lr.anchorMin = new Vector2(0f, 0f); lr.anchorMax = new Vector2(1f, 1f);
+        lr.offsetMin = new Vector2(26f, 0f); lr.offsetMax = new Vector2(-58f, 0f);
+        var lt = lo.AddComponent<Text>();
+        lt.font = defaultFont; lt.text = label; lt.fontSize = 31;
+        lt.alignment = TextAnchor.MiddleLeft; lt.color = labelCol;
+        lt.horizontalOverflow = HorizontalWrapMode.Overflow;
+
+        var ch = new GameObject("Chev"); ch.transform.SetParent(row.transform, false);
+        var cr = ch.AddComponent<RectTransform>();
+        cr.anchorMin = cr.anchorMax = new Vector2(1f, 0.5f); cr.pivot = new Vector2(1f, 0.5f);
+        cr.anchoredPosition = new Vector2(-24f, 0f); cr.sizeDelta = new Vector2(40f, 44f);
+        var ct = ch.AddComponent<Text>();
+        ct.font = defaultFont; ct.text = "›"; ct.fontSize = 42; ct.fontStyle = FontStyle.Bold;
+        ct.color = chevCol; ct.alignment = TextAnchor.MiddleRight;
+        ct.horizontalOverflow = HorizontalWrapMode.Overflow; ct.verticalOverflow = VerticalWrapMode.Overflow;
+
+        var rb = row.AddComponent<Button>(); rb.targetGraphic = rbg; rb.transition = Selectable.Transition.None;
+        rb.onClick.AddListener(() => onClick?.Invoke());
     }
 
     private void ShowGameCenterMenu()
@@ -2869,12 +2727,195 @@ public class UIManager : MonoBehaviour
         if (_lsHeaderTitle != null)
             _lsHeaderTitle.text = $"Level {currentLevelIndex + 1} / {totalLevels}";
 
-        int targetGroup = Mathf.Clamp(currentLevelIndex / 300, 0, 3);
+        int targetGroup = LsGroupOf(currentLevelIndex);
         LsSwitchGroupTab(targetGroup);
 
         RefreshLevelSelectButtons(currentLevelIndex, highestUnlockedLevelIndex, totalLevels);
         levelSelectPanel.SetActive(true);
         StartCoroutine(ScrollToCurrentLevelButton(currentLevelIndex));
+    }
+
+    // ── Timed offer banner (slides down from the top) ─────────────────────────
+    private GameObject offerBanner;
+
+    public bool IsOfferBannerVisible => offerBanner != null;
+
+    /// <summary>True when any full-screen popup/panel/overlay is on screen (gameplay is not the focus).</summary>
+    public bool IsModalOpen
+    {
+        get
+        {
+            if (IsLevelSelectVisible) return true;
+            if (canvas == null) return false;
+            foreach (Transform child in canvas.transform)
+                if (IsModalChild(child)) return true;
+            if (safeAreaRect != null)
+                foreach (Transform child in safeAreaRect)
+                    if (IsModalChild(child)) return true;
+            return false;
+        }
+    }
+
+    private static bool IsModalChild(Transform child)
+    {
+        if (!child.gameObject.activeSelf) return false;
+        string n = child.name;
+        return n.EndsWith("Popup") || n.EndsWith("Panel") || n.EndsWith("Overlay");
+    }
+
+    public void ShowOfferBanner(string iconPath, Color iconTint, Color bg,
+                                string title, string sub, string priceText,
+                                Color pillCol, Color pillTextCol, Action onBuy)
+    {
+        HideOfferBanner();
+
+        const float bannerH = 132f;
+        const float margin = 24f;
+        Transform parent = safeAreaRect != null ? (Transform)safeAreaRect : canvas.transform;
+
+        offerBanner = new GameObject("OfferBanner");
+        offerBanner.transform.SetParent(parent, false);
+        offerBanner.transform.SetAsLastSibling();
+        var rt = offerBanner.AddComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0f, 1f); rt.anchorMax = new Vector2(1f, 1f);
+        rt.pivot = new Vector2(0.5f, 1f);
+        rt.offsetMin = new Vector2(margin, 0f); rt.offsetMax = new Vector2(-margin, 0f);
+        rt.sizeDelta = new Vector2(rt.sizeDelta.x, bannerH);
+        rt.anchoredPosition = new Vector2(0f, bannerH + 40f);   // start off-screen
+
+        // Shadow
+        var sh = new GameObject("Shadow");
+        sh.transform.SetParent(offerBanner.transform, false);
+        var shRT = sh.AddComponent<RectTransform>();
+        shRT.anchorMin = Vector2.zero; shRT.anchorMax = Vector2.one;
+        shRT.offsetMin = new Vector2(-4f, -12f); shRT.offsetMax = new Vector2(4f, 0f);
+        var shImg = sh.AddComponent<Image>();
+        shImg.sprite = SpriteGenerator.RoundedRectSliced; shImg.type = Image.Type.Sliced;
+        shImg.color = new Color(0f, 0f, 0f, 0.25f); shImg.raycastTarget = false;
+
+        // Body (tap anywhere = buy)
+        var body = new GameObject("Body");
+        body.transform.SetParent(offerBanner.transform, false);
+        var bRT = body.AddComponent<RectTransform>();
+        bRT.anchorMin = Vector2.zero; bRT.anchorMax = Vector2.one;
+        bRT.offsetMin = Vector2.zero; bRT.offsetMax = Vector2.zero;
+        var bImg = body.AddComponent<Image>();
+        bImg.sprite = SpriteGenerator.RoundedRectSliced; bImg.type = Image.Type.Sliced;
+        bImg.color = bg;
+        var bBtn = body.AddComponent<Button>();
+        bBtn.targetGraphic = bImg;
+        bBtn.onClick.AddListener(() => { HideOfferBanner(); onBuy?.Invoke(); });
+
+        var shine = new GameObject("Shine");
+        shine.transform.SetParent(body.transform, false);
+        var snRT = shine.AddComponent<RectTransform>();
+        snRT.anchorMin = new Vector2(0f, 0.55f); snRT.anchorMax = Vector2.one;
+        snRT.offsetMin = new Vector2(6f, 0f); snRT.offsetMax = new Vector2(-6f, -6f);
+        var snImg = shine.AddComponent<Image>();
+        snImg.sprite = SpriteGenerator.RoundedRectSliced; snImg.type = Image.Type.Sliced;
+        snImg.color = new Color(1f, 1f, 1f, 0.07f); snImg.raycastTarget = false;
+
+        // Icon
+        var icon = new GameObject("Icon");
+        icon.transform.SetParent(body.transform, false);
+        var iRT = icon.AddComponent<RectTransform>();
+        iRT.anchorMin = iRT.anchorMax = new Vector2(0f, 0.5f);
+        iRT.pivot = new Vector2(0f, 0.5f);
+        iRT.anchoredPosition = new Vector2(24f, 0f);
+        iRT.sizeDelta = new Vector2(64f, 64f);
+        var iSpr = LoadIconSprite(iconPath);
+        if (iSpr != null)
+        {
+            var iImg = icon.AddComponent<Image>();
+            iImg.sprite = iSpr; iImg.preserveAspect = true; iImg.color = iconTint;
+            iImg.raycastTarget = false;
+        }
+
+        // Title + subtitle
+        Text MakeLabel(string n, string txt, int size, FontStyle style, Color col, float yOff, float h)
+        {
+            var go = new GameObject(n);
+            go.transform.SetParent(body.transform, false);
+            var r = go.AddComponent<RectTransform>();
+            r.anchorMin = new Vector2(0f, 0.5f); r.anchorMax = new Vector2(1f, 0.5f);
+            r.pivot = new Vector2(0f, 0.5f);
+            r.offsetMin = new Vector2(108f, yOff - h * 0.5f); r.offsetMax = new Vector2(-196f, yOff + h * 0.5f);
+            var t = go.AddComponent<Text>();
+            t.font = defaultFont; t.text = txt; t.fontSize = size; t.fontStyle = style;
+            t.color = col; t.alignment = TextAnchor.MiddleLeft;
+            t.resizeTextForBestFit = true; t.resizeTextMinSize = size - 8; t.resizeTextMaxSize = size;
+            t.raycastTarget = false;
+            return t;
+        }
+        MakeLabel("Title", title, 32, FontStyle.Bold, Color.white, 17f, 40f);
+        MakeLabel("Sub", sub, 22, FontStyle.Normal, new Color(1f, 1f, 1f, 0.8f), -20f, 30f);
+
+        // Price pill
+        var pill = new GameObject("Pill");
+        pill.transform.SetParent(body.transform, false);
+        var pRT = pill.AddComponent<RectTransform>();
+        pRT.anchorMin = pRT.anchorMax = new Vector2(1f, 0.5f);
+        pRT.pivot = new Vector2(1f, 0.5f);
+        pRT.anchoredPosition = new Vector2(-22f, 0f);
+        pRT.sizeDelta = new Vector2(150f, 62f);
+        var pImg = pill.AddComponent<Image>();
+        pImg.sprite = SpriteGenerator.RoundedRectSliced; pImg.type = Image.Type.Sliced;
+        pImg.color = pillCol; pImg.raycastTarget = false;
+        var pTxt = new GameObject("Txt");
+        pTxt.transform.SetParent(pill.transform, false);
+        var ptRT = pTxt.AddComponent<RectTransform>();
+        ptRT.anchorMin = Vector2.zero; ptRT.anchorMax = Vector2.one;
+        ptRT.offsetMin = Vector2.zero; ptRT.offsetMax = Vector2.zero;
+        var pT = pTxt.AddComponent<Text>();
+        pT.font = defaultFont; pT.text = priceText; pT.fontSize = 28; pT.fontStyle = FontStyle.Bold;
+        pT.color = pillTextCol; pT.alignment = TextAnchor.MiddleCenter;
+        pT.horizontalOverflow = HorizontalWrapMode.Overflow; pT.raycastTarget = false;
+
+        var banner = offerBanner;
+        StartCoroutine(OfferBannerRoutine(banner));
+    }
+
+    public void HideOfferBanner()
+    {
+        if (offerBanner != null) Destroy(offerBanner);
+        offerBanner = null;
+    }
+
+    private IEnumerator OfferBannerRoutine(GameObject banner)
+    {
+        yield return OfferBannerSlide(banner, true);
+        float t = 0f;
+        while (banner != null && t < 8f) { t += Time.unscaledDeltaTime; yield return null; }
+        if (banner != null) yield return OfferBannerSlide(banner, false);
+    }
+
+    private IEnumerator OfferBannerSlide(GameObject banner, bool slideIn)
+    {
+        if (banner == null) yield break;
+        var rt = (RectTransform)banner.transform;
+        float hidden = rt.sizeDelta.y + 40f;
+        float shown = -16f;
+        float from = slideIn ? hidden : rt.anchoredPosition.y;
+        float to = slideIn ? shown : hidden;
+        float dur = slideIn ? 0.4f : 0.3f;
+        float t = 0f;
+        while (t < dur)
+        {
+            if (banner == null) yield break;
+            t += Time.unscaledDeltaTime;
+            float k = Mathf.Clamp01(t / dur);
+            // ease-out-back when entering, ease-in when leaving
+            float e = slideIn ? 1f + 2.2f * Mathf.Pow(k - 1f, 3f) + 1.2f * Mathf.Pow(k - 1f, 2f) : k * k;
+            rt.anchoredPosition = new Vector2(0f, Mathf.LerpUnclamped(from, to, e));
+            yield return null;
+        }
+        if (banner == null) yield break;
+        rt.anchoredPosition = new Vector2(0f, to);
+        if (!slideIn)
+        {
+            if (offerBanner == banner) offerBanner = null;
+            Destroy(banner);
+        }
     }
 
     // ── Toast notification ────────────────────────────────────────────────────
@@ -2926,131 +2967,100 @@ public class UIManager : MonoBehaviour
         overlay.AddComponent<Button>().onClick.AddListener(() => Destroy(overlay));
 
         // ── Card ─────────────────────────────────────────────────────────────────
+        const float cardW = 560f, cardH = 520f;
+        const float pad = 30f;
+        float leftX = -cardW * 0.5f + pad;
+        float groupW = cardW - pad * 2f;
+
+        Color accent     = new Color(0.16f, 0.62f, 0.66f);
+        Color cardCol    = dark ? new Color(0.18f, 0.17f, 0.22f, 1f) : new Color(1f, 1f, 1f, 1f);
+        Color groupBg    = dark ? new Color(0.24f, 0.23f, 0.29f) : new Color(0.96f, 0.955f, 0.975f);
+        Color sectionCol = dark ? new Color(0.56f, 0.54f, 0.62f) : new Color(0.55f, 0.53f, 0.58f);
+        Color mutedCol   = dark ? new Color(0.58f, 0.56f, 0.64f) : new Color(0.58f, 0.56f, 0.60f);
+        Color primaryCol = dark ? new Color(0.92f, 0.90f, 0.88f) : new Color(0.18f, 0.18f, 0.22f);
+        Color codeCol    = new Color(0.12f, 0.66f, 0.58f);
+
+        // Soft drop shadow
+        var shadowGo = new GameObject("Shadow"); shadowGo.transform.SetParent(overlay.transform, false);
+        var shR = shadowGo.AddComponent<RectTransform>();
+        shR.anchorMin = shR.anchorMax = new Vector2(0.5f, 0.5f); shR.pivot = new Vector2(0.5f, 0.5f);
+        shR.sizeDelta = new Vector2(cardW + 30f, cardH + 30f); shR.anchoredPosition = new Vector2(0f, -10f);
+        var shImg = shadowGo.AddComponent<Image>(); shImg.sprite = SpriteGenerator.RoundedRectSliced; shImg.type = Image.Type.Sliced;
+        shImg.color = new Color(0f, 0f, 0f, 0.22f);
+
         var card = new GameObject("Card");
         card.transform.SetParent(overlay.transform, false);
         var cRect = card.AddComponent<RectTransform>();
         cRect.anchorMin = new Vector2(0.5f, 0.5f); cRect.anchorMax = new Vector2(0.5f, 0.5f);
         cRect.pivot = new Vector2(0.5f, 0.5f);
         cRect.anchoredPosition = Vector2.zero;
-        cRect.sizeDelta = new Vector2(560f, 530f);
+        cRect.sizeDelta = new Vector2(cardW, cardH);
         var cImg = card.AddComponent<Image>();
-        cImg.sprite = SpriteGenerator.RoundedRect;
-        cImg.color = dark ? new Color(0.14f, 0.13f, 0.18f, 1f) : new Color(1f, 1f, 1f, 1f);
-        // block overlay clicks on card
+        cImg.sprite = SpriteGenerator.RoundedRectSliced;
+        cImg.type = Image.Type.Sliced;
+        cImg.color = cardCol;
         var cBlock = card.AddComponent<Button>(); cBlock.targetGraphic = cImg;
+        cBlock.transition = Selectable.Transition.None;
         cBlock.onClick.AddListener(() => {});
 
-        // ── Teal header strip (top of card, 90px) ───────────────────────────────
-        var hdr = new GameObject("Header"); hdr.transform.SetParent(card.transform, false);
-        var hR = hdr.AddComponent<RectTransform>();
-        hR.anchorMin = new Vector2(0f, 1f); hR.anchorMax = new Vector2(1f, 1f);
-        hR.pivot = new Vector2(0.5f, 1f); hR.anchoredPosition = Vector2.zero;
-        hR.sizeDelta = new Vector2(0f, 92f);
-        var hImg = hdr.AddComponent<Image>();
-        hImg.sprite = SpriteGenerator.RoundedRect;
-        hImg.color = new Color(0.18f, 0.55f, 0.62f);
-        var ht = new GameObject("Title"); ht.transform.SetParent(hdr.transform, false);
-        var htR = ht.AddComponent<RectTransform>();
-        htR.anchorMin = Vector2.zero; htR.anchorMax = Vector2.one;
-        htR.offsetMin = Vector2.zero; htR.offsetMax = Vector2.zero;
-        var htT = ht.AddComponent<Text>();
-        htT.font = defaultFont; htT.text = "🤝  Invite Friends";
-        htT.fontSize = 36; htT.fontStyle = FontStyle.Bold;
-        htT.color = Color.white; htT.alignment = TextAnchor.MiddleCenter;
+        float top = cardH * 0.5f;
 
-        // ── Local helper: label anchored to card center ──────────────────────────
-        Text Lbl(string name, string text, float y, int size, Color col, bool bold = false)
-        {
-            var go = new GameObject(name); go.transform.SetParent(card.transform, false);
-            var r = go.AddComponent<RectTransform>();
-            r.anchorMin = new Vector2(0.5f, 0.5f); r.anchorMax = new Vector2(0.5f, 0.5f);
-            r.pivot = new Vector2(0.5f, 0.5f); r.anchoredPosition = new Vector2(0f, y);
-            r.sizeDelta = new Vector2(500f, 40f);
-            var t = go.AddComponent<Text>();
-            t.font = defaultFont; t.text = text; t.fontSize = size;
-            t.fontStyle = bold ? FontStyle.Bold : FontStyle.Normal;
-            t.color = col; t.alignment = TextAnchor.MiddleCenter;
-            t.horizontalOverflow = HorizontalWrapMode.Overflow;
-            t.verticalOverflow = VerticalWrapMode.Overflow;
-            return t;
-        }
+        // ── Header: left title + close ──────────────────────────────────────────
+        MakeLeftText(card.transform, new Vector2(leftX + 6f, top - 50f), new Vector2(420f, 46f),
+            "Invite Friends", 34, FontStyle.Bold, primaryCol);
+        MakeCloseButton(card.transform, Vector2.zero, cardW, cardH, accent, () => Destroy(overlay));
 
-        Color labelCol  = dark ? new Color(0.60f, 0.58f, 0.76f) : new Color(0.50f, 0.46f, 0.60f);
-        Color mutedCol  = dark ? new Color(0.55f, 0.53f, 0.60f) : new Color(0.60f, 0.58f, 0.56f);
-        Color primaryCol = dark ? new Color(0.92f, 0.90f, 0.88f) : new Color(0.18f, 0.18f, 0.22f);
-        Color boxCol    = dark ? new Color(0.22f, 0.20f, 0.28f) : new Color(0.94f, 0.93f, 0.97f);
+        // ── Section: YOUR INVITE CODE ───────────────────────────────────────────
+        MakeSectionLabel(card.transform, top - 122f, leftX + 6f, groupW, "YOUR INVITE CODE", sectionCol);
+        var g1 = MakeListGroup(card.transform, 60f, groupW, 108f, groupBg);
 
-        // ── Section 1: Your code ─────────────────────────────────────────────────
-        //  "YOUR INVITE CODE"
-        Lbl("CodeLbl", "YOUR INVITE CODE", 175f, 21, labelCol);
-
-        // Code display pill
-        var codeBox = new GameObject("CodeBox"); codeBox.transform.SetParent(card.transform, false);
-        var cbR = codeBox.AddComponent<RectTransform>();
-        cbR.anchorMin = new Vector2(0.5f, 0.5f); cbR.anchorMax = new Vector2(0.5f, 0.5f);
-        cbR.pivot = new Vector2(0.5f, 0.5f); cbR.anchoredPosition = new Vector2(0f, 118f);
-        cbR.sizeDelta = new Vector2(460f, 76f);
-        var cbI = codeBox.AddComponent<Image>(); cbI.sprite = SpriteGenerator.RoundedRect;
-        cbI.color = new Color(0.18f, 0.55f, 0.62f, 0.15f);
-        // teal border via outline sibling
-        var border = new GameObject("Border"); border.transform.SetParent(card.transform, false);
-        var bR = border.AddComponent<RectTransform>();
-        bR.anchorMin = new Vector2(0.5f, 0.5f); bR.anchorMax = new Vector2(0.5f, 0.5f);
-        bR.pivot = new Vector2(0.5f, 0.5f); bR.anchoredPosition = new Vector2(0f, 118f);
-        bR.sizeDelta = new Vector2(464f, 80f);
-        border.transform.SetSiblingIndex(codeBox.transform.GetSiblingIndex()); // behind codebox
-        var bI = border.AddComponent<Image>(); bI.sprite = SpriteGenerator.RoundedRect;
-        bI.color = new Color(0.18f, 0.55f, 0.62f, 0.55f);
-
-        var codeTxtGo = new GameObject("CodeTxt"); codeTxtGo.transform.SetParent(codeBox.transform, false);
+        var codeTxtGo = new GameObject("CodeTxt"); codeTxtGo.transform.SetParent(g1.transform, false);
         var ctR = codeTxtGo.AddComponent<RectTransform>();
-        ctR.anchorMin = Vector2.zero; ctR.anchorMax = Vector2.one;
-        ctR.offsetMin = Vector2.zero; ctR.offsetMax = Vector2.zero;
+        ctR.anchorMin = ctR.anchorMax = new Vector2(0.5f, 0.5f); ctR.pivot = new Vector2(0.5f, 0.5f);
+        ctR.anchoredPosition = new Vector2(0f, 14f); ctR.sizeDelta = new Vector2(groupW - 20f, 56f);
         var ctT = codeTxtGo.AddComponent<Text>();
         ctT.font = defaultFont; ctT.text = myCode;
         ctT.fontSize = 46; ctT.fontStyle = FontStyle.Bold;
-        ctT.color = new Color(0.12f, 0.68f, 0.58f); ctT.alignment = TextAnchor.MiddleCenter;
+        ctT.color = codeCol; ctT.alignment = TextAnchor.MiddleCenter;
         ctT.horizontalOverflow = HorizontalWrapMode.Overflow;
         ctT.verticalOverflow = VerticalWrapMode.Overflow;
 
-        // reward note
-        Lbl("Reward", "Friends who use your code get +5 hints. You get +5 too!", 56f, 24, primaryCol);
+        var capGo = new GameObject("Caption"); capGo.transform.SetParent(g1.transform, false);
+        var capR = capGo.AddComponent<RectTransform>();
+        capR.anchorMin = capR.anchorMax = new Vector2(0.5f, 0.5f); capR.pivot = new Vector2(0.5f, 0.5f);
+        capR.anchoredPosition = new Vector2(0f, -30f); capR.sizeDelta = new Vector2(groupW - 20f, 28f);
+        var capT = capGo.AddComponent<Text>();
+        capT.font = defaultFont; capT.text = "Share it — friends get +5 hints, and so do you";
+        capT.fontSize = 20; capT.color = mutedCol; capT.alignment = TextAnchor.MiddleCenter;
+        capT.horizontalOverflow = HorizontalWrapMode.Overflow;
 
-        // ── Divider ──────────────────────────────────────────────────────────────
-        var divLine = new GameObject("DivLine"); divLine.transform.SetParent(card.transform, false);
-        var dlR = divLine.AddComponent<RectTransform>();
-        dlR.anchorMin = new Vector2(0.5f, 0.5f); dlR.anchorMax = new Vector2(0.5f, 0.5f);
-        dlR.pivot = new Vector2(0.5f, 0.5f); dlR.anchoredPosition = new Vector2(0f, 10f);
-        dlR.sizeDelta = new Vector2(480f, 1f);
-        divLine.AddComponent<Image>().color = dark ? new Color(0.30f, 0.28f, 0.35f) : new Color(0.88f, 0.86f, 0.84f);
-        Lbl("DivTxt", "— Enter a friend's code —", 10f, 22, mutedCol);
+        // ── Section: REDEEM A CODE ──────────────────────────────────────────────
+        MakeSectionLabel(card.transform, -28f, leftX + 6f, groupW, "REDEEM A FRIEND'S CODE", sectionCol);
 
-        // ── Section 2: Enter friend's code ──────────────────────────────────────
-        // Input field
         var inputGo = new GameObject("CodeInput"); inputGo.transform.SetParent(card.transform, false);
         var inR = inputGo.AddComponent<RectTransform>();
-        inR.anchorMin = new Vector2(0.5f, 0.5f); inR.anchorMax = new Vector2(0.5f, 0.5f);
-        inR.pivot = new Vector2(0.5f, 0.5f); inR.anchoredPosition = new Vector2(0f, -62f);
-        inR.sizeDelta = new Vector2(480f, 70f);
-        var inBg = inputGo.AddComponent<Image>(); inBg.sprite = SpriteGenerator.RoundedRect;
-        inBg.color = boxCol;
+        inR.anchorMin = inR.anchorMax = new Vector2(0.5f, 0.5f); inR.pivot = new Vector2(0.5f, 0.5f);
+        inR.anchoredPosition = new Vector2(0f, -89f);
+        inR.sizeDelta = new Vector2(groupW, 74f);
+        var inBg = inputGo.AddComponent<Image>(); inBg.sprite = SpriteGenerator.RoundedRectSliced; inBg.type = Image.Type.Sliced;
+        inBg.color = groupBg;
         var inputField = inputGo.AddComponent<InputField>();
         inputField.targetGraphic = inBg;
 
         var ph = new GameObject("PH"); ph.transform.SetParent(inputGo.transform, false);
         var phR = ph.AddComponent<RectTransform>();
         phR.anchorMin = Vector2.zero; phR.anchorMax = Vector2.one;
-        phR.offsetMin = new Vector2(18, 0); phR.offsetMax = new Vector2(-18, 0);
+        phR.offsetMin = new Vector2(22, 0); phR.offsetMax = new Vector2(-22, 0);
         var phT = ph.AddComponent<Text>();
-        phT.font = defaultFont; phT.text = "Paste or type friend's code";
-        phT.fontSize = 27; phT.fontStyle = FontStyle.Italic;
+        phT.font = defaultFont; phT.text = "Paste or type a code";
+        phT.fontSize = 26; phT.fontStyle = FontStyle.Italic;
         phT.color = mutedCol; phT.alignment = TextAnchor.MiddleCenter;
         phT.horizontalOverflow = HorizontalWrapMode.Overflow;
 
         var inTxtGo = new GameObject("IT"); inTxtGo.transform.SetParent(inputGo.transform, false);
         var inTxtR = inTxtGo.AddComponent<RectTransform>();
         inTxtR.anchorMin = Vector2.zero; inTxtR.anchorMax = Vector2.one;
-        inTxtR.offsetMin = new Vector2(18, 0); inTxtR.offsetMax = new Vector2(-18, 0);
+        inTxtR.offsetMin = new Vector2(22, 0); inTxtR.offsetMax = new Vector2(-22, 0);
         var inTxt = inTxtGo.AddComponent<Text>();
         inTxt.font = defaultFont; inTxt.fontSize = 32; inTxt.fontStyle = FontStyle.Bold;
         inTxt.color = primaryCol; inTxt.alignment = TextAnchor.MiddleCenter;
@@ -3060,12 +3070,9 @@ public class UIManager : MonoBehaviour
         inputField.characterLimit = 8;
         inputField.characterValidation = InputField.CharacterValidation.Alphanumeric;
 
-        // Claim button (gold)
-        var claimBtn = CreateCardButton("🎁  Get +5 Hints", card.transform, new Vector2(0f, -157f),
-            new Color(0.88f, 0.64f, 0.08f));
-        claimBtn.GetComponent<RectTransform>().sizeDelta = new Vector2(480f, 70f);
-        var claimTxtC = claimBtn.GetComponentInChildren<Text>();
-        if (claimTxtC != null) { claimTxtC.fontSize = 30; claimTxtC.color = Color.white; }
+        // Claim button (gold candy)
+        var claimBtn = CreateCandyButton("🎁  Get +5 Hints", card.transform, new Vector2(0f, -178f),
+            new Vector2(groupW, 70f), new Color(0.95f, 0.68f, 0.12f), 29);
         claimBtn.onClick.AddListener(() =>
         {
             if (!string.IsNullOrWhiteSpace(inputField.text))
@@ -3076,7 +3083,14 @@ public class UIManager : MonoBehaviour
         });
 
         // "Tap outside to close" hint
-        Lbl("CloseTip", "Tap outside to close", -225f, 22, new Color(0.65f, 0.63f, 0.70f));
+        var tipGo = new GameObject("CloseTip"); tipGo.transform.SetParent(card.transform, false);
+        var tipR = tipGo.AddComponent<RectTransform>();
+        tipR.anchorMin = tipR.anchorMax = new Vector2(0.5f, 0.5f); tipR.pivot = new Vector2(0.5f, 0.5f);
+        tipR.anchoredPosition = new Vector2(0f, -234f); tipR.sizeDelta = new Vector2(groupW, 28f);
+        var tipT = tipGo.AddComponent<Text>();
+        tipT.font = defaultFont; tipT.text = "Tap outside to close";
+        tipT.fontSize = 20; tipT.color = mutedCol; tipT.alignment = TextAnchor.MiddleCenter;
+        tipT.horizontalOverflow = HorizontalWrapMode.Overflow;
     }
 
     private IEnumerator ScrollToCurrentLevelButton(int idx)
@@ -3258,12 +3272,7 @@ public class UIManager : MonoBehaviour
         if (hintButton == null)
             return;
 
-#if UNITY_EDITOR
-        bool online = false;
-#else
-        bool online = FindAnyObjectByType<GameManager>()?.IsOnlineMode ?? false;
-#endif
-        bool enabled = isAvailable && !online;
+        bool enabled = isAvailable;
         hintButton.interactable = enabled;
         if (hintButtonIcon != null)
             hintButtonIcon.color = enabled ? Color.white : new Color(0.72f, 0.72f, 0.72f, 0.7f);

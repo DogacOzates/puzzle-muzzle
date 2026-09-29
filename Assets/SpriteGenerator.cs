@@ -4,6 +4,7 @@ using System.Collections.Generic;
 public static class SpriteGenerator
 {
     private static Sprite _roundedRect;
+    private static Sprite _roundedRectSliced;
     private static Sprite _circle;
     private static Sprite _pentagon;
     private static Sprite _hexagon;
@@ -47,6 +48,44 @@ public static class SpriteGenerator
                 _circle = CreateRoundedRect(256, 256, 127);
             return _circle;
         }
+    }
+
+    // 9-sliced rounded rectangle: the corner radius stays constant (~28px) no matter
+    // how the Image is stretched, so wide buttons/cards keep the chunky, tile-like look
+    // of the game board instead of flattening into near-rectangles.
+    // Use with Image.type = Image.Type.Sliced.
+    public static Sprite RoundedRectSliced
+    {
+        get
+        {
+            if (_roundedRectSliced == null)
+                _roundedRectSliced = CreateRoundedRectSliced(80, 28);
+            return _roundedRectSliced;
+        }
+    }
+
+    private static Sprite CreateRoundedRectSliced(int size, int r)
+    {
+        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        tex.filterMode = FilterMode.Bilinear;
+        tex.wrapMode = TextureWrapMode.Clamp;
+
+        var pixels = new Color32[size * size];
+        float hw = size * 0.5f, hh = size * 0.5f;
+        for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                float d = SdfRoundBox(x - hw, y - hh, hw - 0.5f, hh - 0.5f, r);
+                float a = Mathf.Clamp01(0.5f - d);
+                pixels[y * size + x] = new Color32(255, 255, 255, (byte)(a * 255));
+            }
+
+        tex.SetPixels32(pixels);
+        tex.Apply();
+        // PPU 100 → border of r texels renders at r px (Canvas reference PPU is 100).
+        var border = new Vector4(r, r, r, r);
+        return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f),
+                             100f, 0, SpriteMeshType.FullRect, border);
     }
 
     private static Sprite CreateRoundedRect(int w, int h, int r)

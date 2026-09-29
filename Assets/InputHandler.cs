@@ -152,7 +152,7 @@ public class InputHandler : MonoBehaviour
 
             case CellState.NumberTarget:
                 // If target number is 1, auto-complete immediately
-                if (cell.TargetNumber == 1)
+                if (!gridManager.IsSequenceMode && cell.TargetNumber == 1)
                 {
                     AudioManager.Instance?.OnChainStarted();
                     gridManager.TryCompleteTarget1(cell);
@@ -179,6 +179,14 @@ public class InputHandler : MonoBehaviour
             return;
         }
 
+        // Sequence mode: tap an earlier chain cell → rewind chain back to it
+        if (gridManager.IsSequenceMode && cell.State == CellState.Selecting)
+        {
+            if (gridManager.TruncateChainTo(cell))
+                AudioManager.Instance?.OnUndo();
+            return;
+        }
+
         // 2. Tap adjacent empty or matching target → extend chain
         if (cell.State == CellState.Empty || cell.State == CellState.NumberTarget)
         {
@@ -199,7 +207,8 @@ public class InputHandler : MonoBehaviour
 
             // Not adjacent or target didn't match count
             // If it's an empty cell, cancel current and start fresh there
-            if (cell.State == CellState.Empty)
+            // (sequence mode keeps its single chain — never restart implicitly)
+            if (cell.State == CellState.Empty && !gridManager.IsSequenceMode)
             {
                 gridManager.CancelSelection();
                 AudioManager.Instance?.OnChainStarted();

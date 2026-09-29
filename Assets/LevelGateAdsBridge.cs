@@ -17,8 +17,8 @@ public class LevelGateAdsBridge
     private const string TestRewardedAdUnitId     = "ca-app-pub-3940256099942544/1712485313";
 
     // Your real production ad unit IDs
-    private const string RealIosInterstitialAdUnitId = "ca-app-pub-2933494287812005/4279957716";
-    private const string RealIosRewardedAdUnitId     = "ca-app-pub-2933494287812005/7161258613";
+    private const string RealIosInterstitialAdUnitId = "ca-app-pub-8895029835368826/2284146816";
+    private const string RealIosRewardedAdUnitId     = "ca-app-pub-8895029835368826/6141743182";
 
     private const string AndroidInterstitialAdUnitId = "ca-app-pub-3940256099942544/1033173712";
     private const string AndroidRewardedAdUnitId     = "ca-app-pub-3940256099942544/5224354917";

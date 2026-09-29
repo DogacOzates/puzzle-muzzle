@@ -2070,15 +2070,27 @@ public static class LevelGenerator
 
         int interiorMaxX = Mathf.Max(1, config.width - 2);
         int interiorMaxY = Mathf.Max(1, config.height - 2);
-        int offset = Mathf.Abs(levelIndex * 3 + variantSeed * 5) % TriangleBlockedAnchorTemplates.Length;
-        bool mirrorX = ((levelIndex + variantSeed) & 1) != 0;
-        bool mirrorY = ((levelIndex + variantSeed) & 2) != 0;
+        // Hash-mix the level index so consecutive levels don't walk the template
+        // list in a short repeating cycle (which made blocked cells land in the
+        // same spots every few levels).
+        int mix = unchecked(levelIndex * 374761393 + variantSeed * 668265263);
+        mix = unchecked((mix ^ (mix >> 13)) * 1274126177);
+        int hash = Mathf.Abs(mix);
+        int offset = hash % TriangleBlockedAnchorTemplates.Length;
+        int stride = 1 + (hash / 7) % 5;
+        bool mirrorX = ((hash >> 3) & 1) != 0;
+        bool mirrorY = ((hash >> 4) & 1) != 0;
+        // Deterministic per-level jitter breaks the fixed 16-template grid into a
+        // continuous position space, so two levels rarely share exact anchor cells.
+        var jitterRng = new System.Random(unchecked(levelIndex * 48271 + variantSeed * 16807 + 977));
 
         for (int i = 0; i < count; i++)
         {
-            Vector2 normalized = TriangleBlockedAnchorTemplates[(offset + i * 2) % TriangleBlockedAnchorTemplates.Length];
+            Vector2 normalized = TriangleBlockedAnchorTemplates[(offset + i * stride) % TriangleBlockedAnchorTemplates.Length];
             float nx = mirrorX ? 1f - normalized.x : normalized.x;
             float ny = mirrorY ? 1f - normalized.y : normalized.y;
+            nx = Mathf.Clamp01(nx + ((float)jitterRng.NextDouble() - 0.5f) * 0.36f);
+            ny = Mathf.Clamp01(ny + ((float)jitterRng.NextDouble() - 0.5f) * 0.36f);
             float x = Mathf.Clamp(1f + nx * (interiorMaxX - 1), 1f, interiorMaxX);
             float y = Mathf.Clamp(1f + ny * (interiorMaxY - 1), 1f, interiorMaxY);
             anchors.Add(new Vector2(x, y));
@@ -2093,10 +2105,14 @@ public static class LevelGenerator
         HashSet<Vector2Int> blocked,
         CampaignConfig config)
     {
+        // Weak edge preference + loose spacing: on the small shrunken grids the
+        // old strong interior bias (×6) and min-manhattan-3 rule shrank the viable
+        // layout space to a handful of combos, so every level reused the same
+        // blocked positions.
         int edgeDistance = Mathf.Min(
             Mathf.Min(cell.x, config.width - 1 - cell.x),
             Mathf.Min(cell.y, config.height - 1 - cell.y));
-        float score = edgeDistance * 6f;
+        float score = edgeDistance * 2.5f;
         score -= (Mathf.Abs(cell.x - anchor.x) + Mathf.Abs(cell.y - anchor.y)) * 2.4f;
 
         foreach (Vector2Int existing in blocked)
@@ -2107,7 +2123,7 @@ public static class LevelGenerator
             int dx = Mathf.Abs(cell.x - existing.x);
             int dy = Mathf.Abs(cell.y - existing.y);
             int manhattan = dx + dy;
-            if (manhattan < 3)
+            if (manhattan < 2)
                 return float.NegativeInfinity;
 
             score += Mathf.Min(manhattan, 8) * 1.5f;
@@ -2136,6 +2152,18 @@ public static class LevelGenerator
                 allCells.Add(new Vector2Int(x, y));
         Shuffle(allCells, rng);
 
+        // Triangle adjacency is bipartite (every move alternates ▲/▽), so a
+        // Hamiltonian path only exists when removed cells keep |▲-▽| ≤ 1.
+        // Enforce the parity split up front instead of discovering the failure
+        // after hundreds of path attempts.
+        int upQuota = count / 2;
+        int downQuota = count / 2;
+        if ((count & 1) == 1)
+        {
+            if (rng.Next(2) == 0) upQuota++; else downQuota++;
+        }
+        int upPlaced = 0, downPlaced = 0;
+
         List<Vector2> anchors = BuildTriangleBlockedAnchors(config, count, levelIndex, variantSeed);
         foreach (Vector2 anchor in anchors)
         {
@@ -2148,7 +2176,17 @@ public static class LevelGenerator
                 if (blocked.Contains(candidate))
                     continue;
 
+                bool candUp = ((candidate.x + candidate.y) & 1) == 0;
+                if (candUp ? upPlaced >= upQuota : downPlaced >= downQuota)
+                    continue;
+
                 float score = ScoreTriangleBlockedAnchorCandidate(candidate, anchor, blocked, config);
+                if (float.IsNegativeInfinity(score))
+                    continue;
+                // Seeded noise on the same scale as the edge-distance term: on small
+                // grids the deterministic argmax otherwise collapses every level onto
+                // the same two or three layouts.
+                score += (float)rng.NextDouble() * 7f;
                 if (score <= bestScore)
                     continue;
 
@@ -2169,6 +2207,7 @@ public static class LevelGenerator
                 continue;
 
             blocked.Add(bestCell);
+            if (((bestCell.x + bestCell.y) & 1) == 0) upPlaced++; else downPlaced++;
         }
 
         if (blocked.Count < count)
@@ -2180,6 +2219,10 @@ public static class LevelGenerator
                 if (blocked.Contains(candidate))
                     continue;
 
+                bool candUp = ((candidate.x + candidate.y) & 1) == 0;
+                if (candUp ? upPlaced >= upQuota : downPlaced >= downQuota)
+                    continue;
+
                 float bestScore = float.NegativeInfinity;
                 for (int i = 0; i < anchors.Count; i++)
                     bestScore = Mathf.Max(bestScore, ScoreTriangleBlockedAnchorCandidate(candidate, anchors[i], blocked, config));
@@ -2188,7 +2231,11 @@ public static class LevelGenerator
 
                 blocked.Add(candidate);
                 if (!IsGridConnected(config.width, config.height, blocked, triMode: true))
+                {
                     blocked.Remove(candidate);
+                    continue;
+                }
+                if (candUp) upPlaced++; else downPlaced++;
             }
         }
 
@@ -2669,7 +2716,7 @@ public static class LevelGenerator
             bool prioritizeBlockedReliability = fastSingleLevelRequest && config.maxBlocked > 0 && !fastBundledMode;
             bool hardBlockedTier = config.maxBlocked >= 4;
             int pathAttemptLimit = prioritizeBlockedReliability ? 280 : (fastBundledMode ? (hardBlockedTier ? 80 : (config.maxBlocked > 0 ? 150 : 64)) : (fastSingleLevelRequest ? 48 : 280));
-            int initialCandidateAttempts = prioritizeBlockedReliability ? config.candidateCount : (fastBundledMode ? (hardBlockedTier ? Mathf.Min(config.candidateCount, 28) : (config.maxBlocked > 0 ? Mathf.Min(config.candidateCount, 16) : Mathf.Min(config.candidateCount, 8))) : (fastSingleLevelRequest ? Mathf.Min(config.candidateCount, 10) : config.candidateCount));
+            int initialCandidateAttempts = prioritizeBlockedReliability ? config.candidateCount : (fastBundledMode ? (hardBlockedTier ? Mathf.Min(config.candidateCount, 28) : (config.maxBlocked > 0 ? Mathf.Min(config.candidateCount, 32) : Mathf.Min(config.candidateCount, 8))) : (fastSingleLevelRequest ? Mathf.Min(config.candidateCount, 10) : config.candidateCount));
             int blockedRecoveryAttempts = prioritizeBlockedReliability ? config.candidateCount * 24 : (fastBundledMode ? (hardBlockedTier ? Mathf.Max(config.candidateCount * 12, 96) : Mathf.Max(config.candidateCount * 6, 40)) : (fastSingleLevelRequest ? Mathf.Max(config.candidateCount * 4, 28) : config.candidateCount * 24));
             int easierBlockedAttempts = prioritizeBlockedReliability ? Mathf.Max(config.candidateCount * 18, 160) : (fastBundledMode ? (hardBlockedTier ? Mathf.Max(config.candidateCount * 10, 80) : Mathf.Max(config.candidateCount * 4, 32)) : (fastSingleLevelRequest ? Mathf.Max(config.candidateCount * 3, 24) : Mathf.Max(config.candidateCount * 18, 160)));
             int guaranteedBlockedAttempts = prioritizeBlockedReliability ? Mathf.Max(config.candidateCount * 28, 240) : (fastBundledMode ? (hardBlockedTier ? Mathf.Max(config.candidateCount * 14, 120) : Mathf.Max(config.candidateCount * 6, 60)) : (fastSingleLevelRequest ? Mathf.Max(config.candidateCount * 4, 32) : Mathf.Max(config.candidateCount * 28, 240)));
@@ -2768,7 +2815,7 @@ public static class LevelGenerator
                 usedBlockedRegions.TryGetValue(bestBlockedRegion, out bestBlockedRegionUses);
 
             int extraAttempts = fastBundledMode
-                ? (config.maxBlocked > 0 ? 8 : 5)
+                ? (config.maxBlocked > 0 ? 60 : 5)
                 : prioritizeBlockedReliability
                 ? 100
                 : (fastSingleLevelRequest
@@ -2906,12 +2953,14 @@ public static class LevelGenerator
                 recentSignatures, usedSignatures, allFingerprints, usedValueSetsByTier, recentRegionSets);
             score += ComputeTriangleBlockedScatterScore(blockedList, config);
             score += ComputeTriangleBlockedAnchorScore(blockedList, config, levelIndex);
+            // Effectively a hard reject: any candidate with a fresh blocked layout
+            // must beat any candidate reusing one.
             string blockedLayout = BuildBlockedLayoutFingerprint(blockedList);
             if (!string.IsNullOrEmpty(blockedLayout) && usedBlockedLayouts.TryGetValue(blockedLayout, out int blockedLayoutUses))
-                score -= blockedLayoutUses * 18f;
+                score -= blockedLayoutUses * 500f;
             string blockedRegion = BuildBlockedRegionFingerprint(config, blockedList);
             if (!string.IsNullOrEmpty(blockedRegion) && usedBlockedRegions.TryGetValue(blockedRegion, out int blockedRegionUses))
-                score -= blockedRegionUses * 12f;
+                score -= blockedRegionUses * 40f;
 
             if (bestCandidate == null || score > bestCandidate.score)
             {
@@ -3067,9 +3116,9 @@ public static class LevelGenerator
     {
         CampaignConfig c = new CampaignConfig();
 
-        if (idx < 20)          // Tier 1: 7×6  Intro   (901-920)
+        if (idx < 20)          // Tier 1: 5×4  Intro
         {
-            c.width = 7; c.height = 6;
+            c.width = 5; c.height = 4;
             c.minSegment = 2; c.maxSegment = 6; c.candidateCount = 26;
             c.tierName = "3gen Intro";
             c.rectanglePenalty = 3.5f; c.densePenalty = 2.5f;
@@ -3077,9 +3126,9 @@ public static class LevelGenerator
             c.squarePenalty = 1.5f; c.lateRectangleBonus = 0f;
             c.minBlocked = 0; c.maxBlocked = 0;
         }
-        else if (idx < 45)     // Tier 2: 9×6  Easy    (921-945)
+        else if (idx < 45)     // Tier 2: 7×4  Easy
         {
-            c.width = 9; c.height = 6;
+            c.width = 7; c.height = 4;
             c.minSegment = 2; c.maxSegment = 7; c.candidateCount = 28;
             c.tierName = "3gen Easy";
             c.rectanglePenalty = 3.2f; c.densePenalty = 2.3f;
@@ -3087,9 +3136,9 @@ public static class LevelGenerator
             c.squarePenalty = 1.3f; c.lateRectangleBonus = 0f;
             c.minBlocked = 0; c.maxBlocked = 0;
         }
-        else if (idx < 75)     // Tier 3: 9×8  Easy+   (946-975)
+        else if (idx < 75)     // Tier 3: 7×6  Easy+
         {
-            c.width = 9; c.height = 8;
+            c.width = 7; c.height = 6;
             c.minSegment = 3; c.maxSegment = 7; c.candidateCount = 30;
             c.tierName = "3gen Easy";
             c.rectanglePenalty = 3.0f; c.densePenalty = 2.1f;
@@ -3097,9 +3146,9 @@ public static class LevelGenerator
             c.squarePenalty = 1.1f; c.lateRectangleBonus = 0f;
             c.minBlocked = 0; c.maxBlocked = 0;
         }
-        else if (idx < 100)    // Tier 4: 11×8  Normal  (976-1000)
+        else if (idx < 100)    // Tier 4: 9×6  Normal
         {
-            c.width = 11; c.height = 8;
+            c.width = 9; c.height = 6;
             c.minSegment = 3; c.maxSegment = 8; c.candidateCount = 32;
             c.tierName = "3gen Normal";
             c.rectanglePenalty = 2.6f; c.densePenalty = 1.9f;
@@ -3107,9 +3156,9 @@ public static class LevelGenerator
             c.squarePenalty = 0.9f; c.lateRectangleBonus = 0f;
             c.minBlocked = 0; c.maxBlocked = 0;
         }
-        else if (idx < 135)    // Tier 5: 11×8  Normal+ (1001-1035)
+        else if (idx < 135)    // Tier 5: 9×6  Normal+
         {
-            c.width = 11; c.height = 8;
+            c.width = 9; c.height = 6;
             c.minSegment = 3; c.maxSegment = 9; c.candidateCount = 34;
             c.tierName = "3gen Normal";
             c.rectanglePenalty = 2.2f; c.densePenalty = 1.7f;
@@ -3117,9 +3166,9 @@ public static class LevelGenerator
             c.squarePenalty = 0.75f; c.lateRectangleBonus = 0f;
             c.minBlocked = 1; c.maxBlocked = 2;
         }
-        else if (idx < 170)    // Tier 6: 13×8  Hard    (1036-1070)
+        else if (idx < 170)    // Tier 6: 11×6  Hard
         {
-            c.width = 13; c.height = 8;
+            c.width = 11; c.height = 6;
             c.minSegment = 4; c.maxSegment = 10; c.candidateCount = 36;
             c.tierName = "3gen Hard";
             c.rectanglePenalty = 1.9f; c.densePenalty = 1.5f;
@@ -3127,9 +3176,9 @@ public static class LevelGenerator
             c.squarePenalty = 0.65f; c.lateRectangleBonus = 0.05f;
             c.minBlocked = 2; c.maxBlocked = 3;
         }
-        else if (idx < 210)    // Tier 7: 13×8 Hard+   (1071-1110)
+        else if (idx < 210)    // Tier 7: 11×6 Hard+
         {
-            c.width = 13; c.height = 8;
+            c.width = 11; c.height = 6;
             c.minSegment = 4; c.maxSegment = 10; c.candidateCount = 38;
             c.tierName = "3gen Hard";
             c.rectanglePenalty = 1.6f; c.densePenalty = 1.3f;
@@ -3137,9 +3186,9 @@ public static class LevelGenerator
             c.squarePenalty = 0.55f; c.lateRectangleBonus = 0.1f;
             c.minBlocked = 3; c.maxBlocked = 3;
         }
-        else if (idx < 250)    // Tier 8: 13×8 Advanced (1111-1150)
+        else if (idx < 250)    // Tier 8: 11×6 Advanced
         {
-            c.width = 13; c.height = 8;
+            c.width = 11; c.height = 6;
             c.minSegment = 4; c.maxSegment = 11; c.candidateCount = 40;
             c.tierName = "3gen Advanced";
             c.rectanglePenalty = 1.3f; c.densePenalty = 1.0f;
@@ -3147,9 +3196,9 @@ public static class LevelGenerator
             c.squarePenalty = 0.45f; c.lateRectangleBonus = 0.15f;
             c.minBlocked = 3; c.maxBlocked = 3;
         }
-        else if (idx < 275)    // Tier 9: 13×8 Expert  (1151-1175)
+        else if (idx < 275)    // Tier 9: 11×6 Expert
         {
-            c.width = 13; c.height = 8;
+            c.width = 11; c.height = 6;
             c.minSegment = 5; c.maxSegment = 12; c.candidateCount = 42;
             c.tierName = "3gen Expert";
             c.rectanglePenalty = 1.0f; c.densePenalty = 0.8f;
@@ -3157,9 +3206,9 @@ public static class LevelGenerator
             c.squarePenalty = 0.35f; c.lateRectangleBonus = 0.2f;
             c.minBlocked = 3; c.maxBlocked = 3;
         }
-        else                   // Tier 10: 13×8 Master (1176-1200)
+        else                   // Tier 10: 11×6 Master
         {
-            c.width = 13; c.height = 8;
+            c.width = 11; c.height = 6;
             c.minSegment = 5; c.maxSegment = 12; c.candidateCount = 44;
             c.tierName = "3gen Master";
             c.rectanglePenalty = 0.8f; c.densePenalty = 0.6f;
@@ -3169,5 +3218,236 @@ public static class LevelGenerator
         }
 
         return c;
+    }
+
+    // --- Sequence campaigns (one continuous counting path) ---
+    // A single Hamiltonian path covers all non-blocked cells. Numbered cells are
+    // waypoints: their value is the 1-based position along the path, so the
+    // running count never resets. The final cell is always numbered with the
+    // total playable cell count. Stored solutions are the canonical path split
+    // at each waypoint (each segment ends on a numbered cell), which the hint
+    // system applies one segment at a time.
+    // Relative index layout: 0-299 square, 300-599 hexagon, 600-899 triangle.
+
+    private struct SequenceConfig
+    {
+        public CellShape shape;
+        public int width, height, minGap, maxGap, minBlocked, maxBlocked;
+    }
+
+    public static LevelData[] GenerateSequenceCampaign(int count)
+        => GenerateSequenceCampaign(0, count);
+
+    public static LevelData[] GenerateSequenceCampaign(int startIndex, int count)
+    {
+        var levels = new LevelData[count];
+        var usedFingerprints = new HashSet<string>();
+
+        for (int localIndex = 0; localIndex < count; localIndex++)
+        {
+            int i = startIndex + localIndex;
+            SequenceConfig config = GetSequenceConfig(i);
+            LevelData best = null;
+
+            for (int attempt = 0; attempt < 90 && best == null; attempt++)
+            {
+                var rng = new System.Random((i + 5000) * 6151 + attempt * 389 + 17);
+                int blockedCount = config.maxBlocked <= 0 ? 0
+                    : (config.minBlocked == config.maxBlocked
+                        ? config.minBlocked
+                        : rng.Next(config.minBlocked, config.maxBlocked + 1));
+                // Late attempts relax blocked count so every level always generates.
+                if (attempt >= 60) blockedCount = 0;
+                else if (attempt >= 35 && blockedCount > 1) blockedCount = 1;
+
+                HashSet<Vector2Int> blocked = BuildSequenceBlocked(config, blockedCount, rng);
+                if (blocked.Count != blockedCount) continue;
+
+                List<Vector2Int> path = BuildSequencePath(config, blocked, rng);
+                if (path == null) continue;
+
+                List<int> checkpoints = BuildSequenceCheckpoints(path.Count, config.minGap, config.maxGap, rng);
+                string fingerprint = BuildSequenceFingerprint(config.width, config.height, path, checkpoints, blocked);
+                if (usedFingerprints.Contains(fingerprint) && attempt < 89) continue;
+
+                usedFingerprints.Add(fingerprint);
+                best = BuildSequenceLevelData(config, path, checkpoints, blocked);
+            }
+
+            if (best == null)
+            {
+                var rng = new System.Random((i + 5000) * 6151 + 977);
+                List<Vector2Int> path = config.shape == CellShape.ThreeGen
+                    ? TriangleSnakePath(config.width, config.height)
+                    : SnakePath(config.width, config.height);
+                List<int> checkpoints = BuildSequenceCheckpoints(path.Count, config.minGap, config.maxGap, rng);
+                best = BuildSequenceLevelData(config, path, checkpoints, new HashSet<Vector2Int>());
+            }
+
+            levels[localIndex] = best;
+        }
+
+        return levels;
+    }
+
+    private static SequenceConfig GetSequenceConfig(int idx)
+    {
+        var c = new SequenceConfig();
+        int shapeIndex = idx / 300;   // 0 square, 1 hexagon, 2 triangle
+        int r = idx % 300;
+        c.shape = shapeIndex == 0 ? CellShape.Square
+                : shapeIndex == 1 ? CellShape.Hexagon
+                : CellShape.ThreeGen;
+
+        if (shapeIndex == 0)
+        {
+            if (r < 40)       { c.width = 4; c.height = 4; c.minGap = 2; c.maxGap = 4; }
+            else if (r < 100) { c.width = 5; c.height = 5; c.minGap = 2; c.maxGap = 5; }
+            else if (r < 160) { c.width = 6; c.height = 6; c.minGap = 3; c.maxGap = 6; }
+            else if (r < 220) { c.width = 7; c.height = 7; c.minGap = 3; c.maxGap = 7; c.minBlocked = 1; c.maxBlocked = 2; }
+            else              { c.width = 8; c.height = 7; c.minGap = 4; c.maxGap = 8; c.minBlocked = 2; c.maxBlocked = 3; }
+        }
+        else if (shapeIndex == 1)
+        {
+            if (r < 40)       { c.width = 4; c.height = 4; c.minGap = 2; c.maxGap = 4; }
+            else if (r < 100) { c.width = 5; c.height = 4; c.minGap = 2; c.maxGap = 5; }
+            else if (r < 160) { c.width = 5; c.height = 5; c.minGap = 3; c.maxGap = 6; }
+            else if (r < 220) { c.width = 6; c.height = 5; c.minGap = 3; c.maxGap = 6; c.minBlocked = 1; c.maxBlocked = 2; }
+            else              { c.width = 7; c.height = 5; c.minGap = 3; c.maxGap = 7; c.minBlocked = 2; c.maxBlocked = 3; }
+        }
+        else
+        {
+            if (r < 40)       { c.width = 5; c.height = 4; c.minGap = 2; c.maxGap = 4; }
+            else if (r < 100) { c.width = 7; c.height = 4; c.minGap = 2; c.maxGap = 5; }
+            else if (r < 160) { c.width = 7; c.height = 6; c.minGap = 3; c.maxGap = 6; }
+            else if (r < 220) { c.width = 9; c.height = 6; c.minGap = 3; c.maxGap = 7; c.minBlocked = 1; c.maxBlocked = 2; }
+            else              { c.width = 11; c.height = 6; c.minGap = 4; c.maxGap = 8; c.minBlocked = 2; c.maxBlocked = 3; }
+        }
+
+        return c;
+    }
+
+    private static List<Vector2Int> BuildSequencePath(SequenceConfig config, HashSet<Vector2Int> blocked, System.Random rng)
+    {
+        switch (config.shape)
+        {
+            case CellShape.Hexagon:  return HamiltonianPath(config.width, config.height, blocked, rng, colHexMode: true);
+            case CellShape.ThreeGen: return TriangleHamiltonianBacktrack(config.width, config.height, blocked, rng);
+            default:                 return HamiltonianPath(config.width, config.height, blocked, rng);
+        }
+    }
+
+    private static HashSet<Vector2Int> BuildSequenceBlocked(SequenceConfig config, int count, System.Random rng)
+    {
+        if (count <= 0) return new HashSet<Vector2Int>();
+
+        bool tri = config.shape == CellShape.ThreeGen;
+        bool hex = config.shape == CellShape.Hexagon;
+        // Square and triangle adjacency are bipartite ((x+y) parity), so a
+        // Hamiltonian path only exists when removal keeps |even-odd| ≤ 1.
+        bool bipartite = !hex;
+
+        for (int attempt = 0; attempt < 60; attempt++)
+        {
+            var blocked = new HashSet<Vector2Int>();
+            int guard = 0;
+            while (blocked.Count < count && guard++ < 200)
+            {
+                var cell = new Vector2Int(rng.Next(config.width), rng.Next(config.height));
+                if (blocked.Contains(cell)) continue;
+                bool tooClose = false;
+                foreach (Vector2Int b in blocked)
+                    if (Mathf.Abs(cell.x - b.x) + Mathf.Abs(cell.y - b.y) < 2) { tooClose = true; break; }
+                if (tooClose) continue;
+                blocked.Add(cell);
+            }
+            if (blocked.Count != count) continue;
+            if (!IsGridConnected(config.width, config.height, blocked, colHexMode: hex, triMode: tri)) continue;
+
+            if (bipartite)
+            {
+                int evenRemaining = 0, oddRemaining = 0;
+                for (int y = 0; y < config.height; y++)
+                    for (int x = 0; x < config.width; x++)
+                    {
+                        if (blocked.Contains(new Vector2Int(x, y))) continue;
+                        if (((x + y) & 1) == 0) evenRemaining++; else oddRemaining++;
+                    }
+                if (Mathf.Abs(evenRemaining - oddRemaining) > 1) continue;
+            }
+
+            return blocked;
+        }
+
+        return new HashSet<Vector2Int>();
+    }
+
+    // 1-based waypoint positions along the path; last is always the total count.
+    private static List<int> BuildSequenceCheckpoints(int total, int minGap, int maxGap, System.Random rng)
+    {
+        var positions = new List<int>();
+        int pos = 0;
+        while (true)
+        {
+            pos += rng.Next(minGap, maxGap + 1);
+            if (pos >= total - 1)
+                break;
+            positions.Add(pos);
+        }
+        positions.Add(total);
+        return positions;
+    }
+
+    private static string BuildSequenceFingerprint(int width, int height, List<Vector2Int> path, List<int> checkpoints, HashSet<Vector2Int> blocked)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.Append(width).Append('x').Append(height).Append('|');
+        foreach (Vector2Int p in path)
+            sb.Append(p.x).Append(',').Append(p.y).Append(';');
+        sb.Append('|');
+        foreach (int c in checkpoints)
+            sb.Append(c).Append(';');
+        sb.Append('|');
+        var blockedParts = new List<string>(blocked.Count);
+        foreach (Vector2Int b in blocked)
+            blockedParts.Add(b.x + "," + b.y);
+        blockedParts.Sort(System.StringComparer.Ordinal);
+        sb.Append(string.Join(";", blockedParts));
+        return sb.ToString();
+    }
+
+    private static LevelData BuildSequenceLevelData(SequenceConfig config, List<Vector2Int> path, List<int> checkpoints, HashSet<Vector2Int> blocked)
+    {
+        var numbers = new NumberCellData[checkpoints.Count];
+        for (int c = 0; c < checkpoints.Count; c++)
+        {
+            Vector2Int cell = path[checkpoints[c] - 1];
+            numbers[c] = new NumberCellData(cell.x, cell.y, checkpoints[c]);
+        }
+
+        var segments = new SolutionPath[checkpoints.Count];
+        int segStart = 0;
+        for (int c = 0; c < checkpoints.Count; c++)
+        {
+            int segEnd = checkpoints[c]; // exclusive index into path (1-based position)
+            var coords = new int[(segEnd - segStart) * 2];
+            for (int k = segStart; k < segEnd; k++)
+            {
+                coords[(k - segStart) * 2]     = path[k].x;
+                coords[(k - segStart) * 2 + 1] = path[k].y;
+            }
+            segments[c] = new SolutionPath(coords);
+            segStart = segEnd;
+        }
+
+        var blockedArr = new BlockedCellData[blocked.Count];
+        int bi = 0;
+        foreach (Vector2Int b in blocked)
+            blockedArr[bi++] = new BlockedCellData(b.x, b.y);
+
+        var level = new LevelData("Sequence", config.width, config.height, numbers, segments, blockedArr);
+        level.cellShape = config.shape;
+        level.sequenceMode = true;
+        return level;
     }
 }

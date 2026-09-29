@@ -6,8 +6,6 @@ public class GameManager : MonoBehaviour
 {
     private const string SavedLevelIndexKey = "progress.savedLevelIndex";
 
-    private enum GameMode { Regular, Online }
-
     public bool IsLevelComplete { get; private set; }
 
     private GridManager gridManager;
@@ -20,10 +18,8 @@ public class GameManager : MonoBehaviour
     private HapticManager hapticManager;
     private int currentLevelIndex = 0;
     private bool isLevelTransitionRunning;
-    private GameMode currentGameMode = GameMode.Regular;
 
     public bool IsTutorialRunning => tutorialController != null && tutorialController.IsRunning;
-    public bool IsOnlineMode => currentGameMode == GameMode.Online;
 
     private static readonly Color BgColor = new Color(0.97f, 0.95f, 0.92f);
     private const float CompletedLevelPreviewDuration   = 0.6f;
@@ -89,20 +85,22 @@ public class GameManager : MonoBehaviour
         themeObj.AddComponent<ThemeManager>();
         ThemeManager.OnThemeChanged += OnThemeChanged;
 
-        var onlineObj = new GameObject("OnlineManager");
-        onlineObj.AddComponent<OnlineManager>();   // DontDestroyOnLoad handled internally
-
         var uiObj = new GameObject("UIManager");
         uiObj.transform.SetParent(transform);
         uiManager = uiObj.AddComponent<UIManager>();
         uiManager.Initialize();
         monetizationManager.NoAdsStateChanged += RefreshMonetizationUI;
+        monetizationManager.NoAdsStateChanged += () =>
+        {
+            if (monetizationManager.IsNoAdsPurchased) uiManager?.HideOfferBanner();
+            RefreshHintBadge();
+        };
         monetizationManager.NoAdsPriceChanged += RefreshMonetizationUI;
         monetizationManager.HintPackGranted   += OnHintPackGranted;
         RefreshMonetizationUI();
 
         // Restore free hint badge if any hints were accumulated
-        uiManager.UpdateHintBadge(GetFreeHints());
+        RefreshHintBadge();
 
         StartCoroutine(CheckDailyRewardCoroutine());
 
@@ -232,8 +230,7 @@ public class GameManager : MonoBehaviour
         uiManager.HideLevelComplete();
         uiManager.HideLevelSelect();
 
-        if (currentGameMode == GameMode.Regular)
-            LevelDatabase.PrefetchLevel(index + 1);
+        LevelDatabase.PrefetchLevel(index + 1);
 
         if (index == 0)
             StartTutorial(true);
@@ -244,16 +241,35 @@ public class GameManager : MonoBehaviour
             && PlayerPrefs.GetInt("tutorial.v2.done", 0) == 0)
 #endif
             StartTutorial(false);
+        else if (index == SequenceTutorialLevelIndex
+#if UNITY_EDITOR
+            )
+#else
+            && PlayerPrefs.GetInt(SequenceTutorialDoneKey, 0) == 0)
+#endif
+            StartTutorial(false, true);
     }
 
-    private void StartTutorial(bool isPreTutorial = false)
+    private void StartTutorial(bool isPreTutorial = false, bool isSequenceTutorial = false)
     {
         if (tutorialController != null) tutorialController.Cleanup();
         var obj = new GameObject("TutorialController");
         obj.transform.SetParent(transform);
         tutorialController = obj.AddComponent<TutorialController>();
         uiManager.SetTutorialMode(true);
-        tutorialController.Run(gridManager, this, isPreTutorial);
+        tutorialController.Run(gridManager, this, isPreTutorial, isSequenceTutorial);
+    }
+
+    // First level of the Sequence campaigns (level 901 for the player)
+    public const int SequenceTutorialLevelIndex = 900;
+    private const string SequenceTutorialDoneKey = "tutorial.sequence.done";
+
+    public void OnSequenceTutorialComplete()
+    {
+        PlayerPrefs.SetInt(SequenceTutorialDoneKey, 1);
+        PlayerPrefs.Save();
+        SaveProgressTo(SequenceTutorialLevelIndex + 1);
+        OnTutorialComplete();
     }
 
     public void OnTutorialComplete()
@@ -289,29 +305,11 @@ public class GameManager : MonoBehaviour
         AudioManager.Instance?.OnLevelComplete();
         HapticManager.Instance?.LevelComplete();
 
-        if (currentGameMode == GameMode.Online)
-        {
-            // Don't save progress or advance campaign — notify online manager
-            currentGameMode = GameMode.Regular;
-            uiManager.HideLevelComplete();
-            TransitionToLevel(currentLevelIndex, false);  // stay on same level visually
-            OnlineManager.Instance?.NotifyLevelFinished();
-            return;
-        }
-
-        // Regular campaign completion
         SaveProgressForNextLevel();
         gameCenterManager?.ReportCampaignLevelCompleted(GetHighestUnlockedLevelIndex());
         TryRequestReview();
         uiManager.HideLevelComplete();
         NextLevel();
-    }
-
-    public void StartOnlineMatch(int levelIndex)
-    {
-        currentGameMode = GameMode.Online;
-        uiManager?.HideLevelSelect();
-        TransitionToLevel(levelIndex, false);
     }
 
     private void TryRequestReview()
@@ -359,6 +357,7 @@ public class GameManager : MonoBehaviour
 
     public void RetryLevel()
     {
+        AudioManager.Instance?.OnRestart();
         TransitionToLevel(currentLevelIndex, false);
     }
 
@@ -373,15 +372,14 @@ public class GameManager : MonoBehaviour
             return;
         }
 
-        uiManager.ShowLevelSelect(currentLevelIndex, GetHighestUnlockedLevelIndex(), LevelDatabase.TotalLevels);
+        uiManager.ShowLevelSelect(currentLevelIndex, GetLevelSelectMaxIndex(), LevelDatabase.TotalLevels);
     }
 
     public void SelectLevel(int index)
     {
-        if (index < 0 || index > GetHighestUnlockedLevelIndex())
+        if (index < 0 || index > GetLevelSelectMaxIndex())
             return;
 
-        currentGameMode = GameMode.Regular;
         TransitionToLevel(index, false);
     }
 
@@ -431,7 +429,7 @@ public class GameManager : MonoBehaviour
     public void ShareReferralCode()
     {
         string code = GetReferralCode();
-        const string appStoreUrl = "https://apps.apple.com/app/id6739918641";
+        const string appStoreUrl = "https://apps.apple.com/app/id6763839953";
         string msg = $"Play Puzzle Muzzle with me! 🧩\nEnter code {code} to get 5 free hints!\nDownload: {appStoreUrl}";
         NativeShare.Share(msg);
     }
@@ -459,11 +457,21 @@ public class GameManager : MonoBehaviour
 
     private int GetFreeHints() => PlayerPrefs.GetInt("hints.free", 0);
 
+    // No Ads owners have unlimited hints → badge shows ∞
+    private void RefreshHintBadge()
+    {
+        if (uiManager == null) return;
+        if (monetizationManager != null && monetizationManager.IsNoAdsPurchased)
+            uiManager.UpdateHintBadge("∞");
+        else
+            uiManager.UpdateHintBadge(GetFreeHints().ToString());
+    }
+
     private void AddFreeHints(int amount)
     {
         PlayerPrefs.SetInt("hints.free", GetFreeHints() + amount);
         PlayerPrefs.Save();
-        uiManager?.UpdateHintBadge(GetFreeHints());
+        RefreshHintBadge();
     }
 
     private void ConsumeFreeHint()
@@ -473,7 +481,7 @@ public class GameManager : MonoBehaviour
         {
             PlayerPrefs.SetInt("hints.free", current - 1);
             PlayerPrefs.Save();
-            uiManager?.UpdateHintBadge(GetFreeHints());
+            RefreshHintBadge();
         }
     }
 
@@ -481,6 +489,13 @@ public class GameManager : MonoBehaviour
     {
         if (IsLevelComplete) return;
         if (monetizationManager == null) return;
+
+        // No Ads includes unlimited hints — never consumes the balance
+        if (monetizationManager.IsNoAdsPurchased)
+        {
+            GrantHint();
+            return;
+        }
 
         if (GetFreeHints() > 0)
         {
@@ -503,18 +518,90 @@ public class GameManager : MonoBehaviour
             onWatchAd:          onWatchAd,
             onBuyStarter:       () => PurchaseHintPack(MonetizationManager.HintStarterPackId),
             onBuyPack5:         () => PurchaseHintPack(MonetizationManager.HintPack5Id),
-            onBuyPack20:        () => PurchaseHintPack(MonetizationManager.HintPack20Id),
-            onBuyPack60:        () => PurchaseHintPack(MonetizationManager.HintPack60Id),
+            onBuyPack50:        () => PurchaseHintPack(MonetizationManager.HintPack50Id),
+            onBuyPack100:       () => PurchaseHintPack(MonetizationManager.HintPack100Id),
             onBuyNoAds:         () => PurchaseNoAds(),
             isNoAdsPurchased:   monetizationManager.IsNoAdsPurchased,
             noAdsPrice:         monetizationManager.NoAdsPrice,
             isStarterAvailable: monetizationManager.IsStarterPackAvailable,
             starterPrice:       monetizationManager.HintStarterPrice,
             price5:             monetizationManager.HintPack5Price,
-            price20:            monetizationManager.HintPack20Price,
-            price60:            monetizationManager.HintPack60Price,
+            price50:            monetizationManager.HintPack50Price,
+            price100:           monetizationManager.HintPack100Price,
             currentHints:       GetFreeHints()
         );
+    }
+
+    // ── Timed offer banner: every 3 min of active gameplay, suggest a random offer ──
+    private const float OfferIntervalSeconds = 180f;
+    private float offerTimer;
+    private string lastOfferId;
+
+    void Update()
+    {
+        if (monetizationManager == null || uiManager == null) return;
+        if (monetizationManager.IsNoAdsPurchased) return;          // No Ads buyers never see promos
+        if (!Application.isFocused) return;
+
+        // A menu/popup opened over the banner — get it out of the way
+        if (uiManager.IsOfferBannerVisible && uiManager.IsModalOpen) uiManager.HideOfferBanner();
+
+        // Only count time the player is actually playing a level
+        bool busy = IsTutorialRunning || isLevelTransitionRunning || IsLevelComplete
+                    || uiManager.IsModalOpen || uiManager.IsOfferBannerVisible;
+        if (busy) return;
+
+        offerTimer += Time.unscaledDeltaTime;
+        if (offerTimer < OfferIntervalSeconds) return;
+#if !UNITY_EDITOR
+        if (!monetizationManager.IsStoreReady) return;              // retry next frame once the store is up
+#endif
+
+        offerTimer = 0f;
+        ShowRandomOffer();
+    }
+
+    private void ShowRandomOffer()
+    {
+        var mm = monetizationManager;
+        var ids = new System.Collections.Generic.List<string>();
+        if (mm.IsStarterPackAvailable) ids.Add(MonetizationManager.HintStarterPackId);
+        ids.Add(MonetizationManager.HintPack5Id);
+        ids.Add(MonetizationManager.HintPack50Id);
+        ids.Add(MonetizationManager.HintPack100Id);
+        ids.Add(MonetizationManager.NoAdsProductId);
+        if (ids.Count > 1 && lastOfferId != null) ids.Remove(lastOfferId);   // don't repeat back-to-back
+
+        string id = ids[UnityEngine.Random.Range(0, ids.Count)];
+        lastOfferId = id;
+
+        Color purple = new Color(0.36f, 0.21f, 0.68f, 1f);
+        Color green  = new Color(0.24f, 0.60f, 0.30f, 1f);
+        Color navy   = new Color(0.17f, 0.20f, 0.29f, 1f);
+        Color gold   = new Color(0.96f, 0.68f, 0.10f, 1f);
+        Color brown  = new Color(0.22f, 0.11f, 0.02f, 1f);
+        Color bulb   = new Color(1f, 0.85f, 0.30f, 1f);
+
+        if (id == MonetizationManager.HintStarterPackId)
+            uiManager.ShowOfferBanner("icons/lightbulb_white", bulb, purple,
+                "Welcome Deal · 25 Hints", "One-time offer", mm.HintStarterPrice,
+                gold, brown, () => PurchaseHintPack(id));
+        else if (id == MonetizationManager.HintPack5Id)
+            uiManager.ShowOfferBanner("icons/lightbulb_white", bulb, green,
+                "5 Hints", "Stuck? Get a quick boost", mm.HintPack5Price,
+                Color.white, green, () => PurchaseHintPack(id));
+        else if (id == MonetizationManager.HintPack50Id)
+            uiManager.ShowOfferBanner("icons/lightbulb_white", bulb, green,
+                "50 Hints · Popular", "Plenty of help for tough levels", mm.HintPack50Price,
+                Color.white, green, () => PurchaseHintPack(id));
+        else if (id == MonetizationManager.HintPack100Id)
+            uiManager.ShowOfferBanner("icons/lightbulb_white", bulb, green,
+                "100 Hints · Best Value", "Stock up for the hardest levels", mm.HintPack100Price,
+                Color.white, green, () => PurchaseHintPack(id));
+        else
+            uiManager.ShowOfferBanner("icons/adblock_white", Color.white, navy,
+                "No Ads + Unlimited Hints", "One-time purchase · forever", mm.NoAdsPrice,
+                gold, brown, () => PurchaseNoAds());
     }
 
     public void PurchaseNoAds()
@@ -581,6 +668,8 @@ public class GameManager : MonoBehaviour
         LevelData level = LevelDatabase.GetLevel(currentLevelIndex);
         if (gridManager.SolveHint(level.solutions))
         {
+            AudioManager.Instance?.OnHintUsed();
+            HapticManager.Instance?.CellCollected();
             if (gridManager.IsLevelComplete())
                 OnLevelComplete();
         }
@@ -600,6 +689,18 @@ public class GameManager : MonoBehaviour
         return Mathf.Clamp(LoadSavedLevelIndex(), 0, maxLevelIndex);
     }
 
+    // Test builds with the UNLOCK_ALL_LEVELS define (Debug → Test Build: Unlock All Levels) unlock every level in the
+    // level select for device testing. Release builds are unaffected; saved progress,
+    // Game Center and iCloud still use the real progress.
+    private int GetLevelSelectMaxIndex()
+    {
+#if UNLOCK_ALL_LEVELS
+        return LevelDatabase.TotalLevels - 1;
+#else
+        return GetHighestUnlockedLevelIndex();
+#endif
+    }
+
     private void SaveProgressForNextLevel()
     {
         int maxLevelIndex = LevelDatabase.TotalLevels - 1;
@@ -610,7 +711,9 @@ public class GameManager : MonoBehaviour
 
         PlayerPrefs.SetInt(SavedLevelIndexKey, savedLevelIndex);
         PlayerPrefs.Save();
-        iCloudSyncManager.SyncProgress(savedLevelIndex);
+#if !UNLOCK_ALL_LEVELS
+        iCloudSyncManager.SyncProgress(savedLevelIndex);   // don't push test-build progress to the player's iCloud
+#endif
     }
 
     private void TransitionToLevel(int index, bool showCompletedPreview)

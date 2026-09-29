@@ -13,6 +13,8 @@ public class AudioManager : MonoBehaviour
     private AudioClip collectLongClip;
     private AudioClip undoClip;
     private AudioClip levelCompleteClip;
+    private AudioClip hintClip;
+    private AudioClip restartClip;
 
     private const float BasePitch = 1.0f;
     private const float PitchStep = 0.07f;
@@ -42,6 +44,8 @@ public class AudioManager : MonoBehaviour
         collectLongClip  = Resources.Load<AudioClip>("collect_long")   ?? GenerateCollectClip(true);
         undoClip         = Resources.Load<AudioClip>("undo")           ?? GenerateUndoClip();
         levelCompleteClip = Resources.Load<AudioClip>("level_complete") ?? GenerateLevelCompleteClip();
+        hintClip         = Resources.Load<AudioClip>("hint_used")      ?? GenerateHintClip();
+        restartClip      = Resources.Load<AudioClip>("restart")        ?? GenerateRestartClip();
     }
 
     // ── Public API ──────────────────────────────────────────────────────────
@@ -106,6 +110,22 @@ public class AudioManager : MonoBehaviour
         currentPitch = BasePitch;
     }
 
+    /// <summary>Call when a hint is applied (sparkly rising chime).</summary>
+    public void OnHintUsed()
+    {
+        audioSource.pitch = 1f;
+        audioSource.PlayOneShot(hintClip, 0.9f);
+    }
+
+    /// <summary>Call when the player restarts the level (quick rewind swoosh).</summary>
+    public void OnRestart()
+    {
+        audioSource.pitch = 1f;
+        audioSource.PlayOneShot(restartClip, 0.8f);
+        currentPitch = BasePitch;
+        chainLength  = 0;
+    }
+
     /// <summary>Call when chain is cancelled or level reloads.</summary>
     public void OnChainReset()
     {
@@ -162,6 +182,40 @@ public class AudioManager : MonoBehaviour
         AddTone(buf, sr,  659.25f, (int)(.36f * sr), 0.28f, 0.35f);
         AddTone(buf, sr,  783.99f, (int)(.36f * sr), 0.28f, 0.25f);
         return MakeClip("level_complete", NormBuf(buf, 0.92f), sr);
+    }
+
+    // Magic sparkle: fast rising arpeggio (E6-G#6-B6-E7) with a soft shimmer tail
+    private AudioClip GenerateHintClip()
+    {
+        int sr = 44100; int total = (int)(0.55f * sr);
+        float[] buf = new float[total];
+        AddTone(buf, sr, 1318.51f, 0,                 0.20f, 0.55f);
+        AddTone(buf, sr, 1661.22f, (int)(.06f * sr),  0.20f, 0.55f);
+        AddTone(buf, sr, 1975.53f, (int)(.12f * sr),  0.22f, 0.6f);
+        AddTone(buf, sr, 2637.02f, (int)(.18f * sr),  0.36f, 0.7f);
+        AddTone(buf, sr, 1318.51f, (int)(.18f * sr),  0.36f, 0.25f);
+        return MakeClip("hint_used", NormBuf(buf, 0.75f), sr);
+    }
+
+    // Rewind swoosh: short downward pitch sweep followed by a soft upward blip
+    private AudioClip GenerateRestartClip()
+    {
+        int sr = 44100; float dur = 0.30f; int n = (int)(sr * dur);
+        float[] d = new float[n];
+        int atk = (int)(0.004f * sr);
+        float phase = 0f;
+        for (int i = 0; i < n; i++)
+        {
+            float t = i / (float)sr;
+            // 0–0.18s: 700 → 260 Hz sweep, then 0.18–0.30s: 330 → 520 Hz blip
+            float f = t < 0.18f ? Mathf.Lerp(700f, 260f, t / 0.18f)
+                                : Mathf.Lerp(330f, 520f, (t - 0.18f) / 0.12f);
+            phase += 2f * Mathf.PI * f / sr;
+            float env = t < 0.18f ? Mathf.Exp(-t * 6f) : 0.55f * Mathf.Exp(-(t - 0.18f) * 22f);
+            env *= i < atk ? (float)i / atk : 1f;
+            d[i] = (Mathf.Sin(phase) + 0.18f * Mathf.Sin(2f * phase)) * env;
+        }
+        return MakeClip("restart", NormBuf(d, 0.7f), sr);
     }
 
     private static void AddTone(float[] buf, int sr, float freq, int startSample, float dur, float vol = 0.85f)

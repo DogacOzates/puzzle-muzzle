@@ -20,14 +20,16 @@ public class TutorialController : MonoBehaviour
 
     public bool IsRunning { get; private set; }
 
-    public void Run(GridManager grid, GameManager game, bool preMode = false)
+    public void Run(GridManager grid, GameManager game, bool preMode = false, bool sequenceMode = false)
     {
         gridManager = grid;
         gameManager = game;
         CreateHand();
         CreateHintText();
         IsRunning = true;
-        StartCoroutine(preMode ? PlayPreTutorial() : PlayMainTutorial());
+        StartCoroutine(sequenceMode ? PlaySequenceTutorial()
+                     : preMode      ? PlayPreTutorial()
+                                    : PlayMainTutorial());
     }
 
     // Load pointer.png and create the hand object
@@ -211,6 +213,59 @@ public class TutorialController : MonoBehaviour
         gameManager.NextLevel();
     }
 
+    // Sequence campaign intro (level index 900): one continuous path, numbers are checkpoints
+    private IEnumerator PlaySequenceTutorial()
+    {
+        LevelData level = LevelDatabase.GetLevel(GameManager.SequenceTutorialLevelIndex);
+
+        SetHintText("New mode! Draw ONE path\nthrough every cell.");
+        yield return new WaitForSeconds(1.6f);
+        SetHintText("Start where the hand points!");
+        yield return new WaitForSeconds(0.4f);
+
+        int segCount = level.solutions.Length;
+        for (int p = 0; p < segCount; p++)
+        {
+            var path = level.solutions[p];
+            for (int i = 0; i < path.Length; i++)
+            {
+                bool isFirstCell = p == 0 && i == 0;
+                bool isCheckpoint = i == path.Length - 1;
+                Cell cell = gridManager.GetCell(path.GetX(i), path.GetY(i));
+                Vector3 target = gridManager.GridToWorld(path.GetX(i), path.GetY(i));
+
+                if (p == 0 && i == 1)
+                    SetHintText("Keep going — follow the hand!");
+
+                if (isCheckpoint && cell != null)
+                {
+                    if (p == segCount - 1)
+                        SetHintText($"The last number is {cell.TargetNumber}:\nthe path must cover every cell!");
+                    else if (p == 0)
+                        SetHintText($"Numbers are checkpoints.\nReach this {cell.TargetNumber} on step {cell.TargetNumber}!");
+                    else
+                        SetHintText($"Step {cell.TargetNumber} lands on the {cell.TargetNumber}.\nThe count never resets!");
+                }
+
+                yield return StartCoroutine(MoveHand(target));
+                yield return StartCoroutine(WaitForPlayerTap(cell));
+                PerformTap(cell, isFirstCell);
+                yield return new WaitForSeconds(0.15f);
+            }
+            yield return new WaitForSeconds(0.3f);
+        }
+
+        handObj.SetActive(false);
+        SetHintText("Perfect! Tip: tap an earlier cell\nto rewind your path.");
+        yield return new WaitForSeconds(2.4f);
+
+        if (hintTextObj != null) Destroy(hintTextObj);
+        IsRunning = false;
+        gameManager.OnSequenceTutorialComplete();
+        yield return new WaitForSeconds(0.3f);
+        gameManager.NextLevel();
+    }
+
     // Phase 2: hand guides, player taps each cell
     private IEnumerator GuidedPhase(LevelData level)
     {
@@ -341,10 +396,6 @@ public class TutorialController : MonoBehaviour
 
         handObj.SetActive(false);
         yield return new WaitForSeconds(0.3f);
-
-        // 5. Online mode — text-only hint (button is inside level select)
-        SetHintText("Want a challenge?\nTap the level number to find 1v1 online battles!");
-        yield return new WaitForSeconds(2.5f);
     }
 
     private Vector3 ScreenToWorld(RectTransform uiElement)

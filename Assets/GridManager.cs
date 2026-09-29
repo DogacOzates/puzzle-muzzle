@@ -16,7 +16,10 @@ public class GridManager : MonoBehaviour
     private bool isPentagonMode;
     private bool isHexagonMode;
     private bool isThreeGenMode;
+    private bool isSequenceMode;
+    private int playableCellCount;
     public bool IsTriangleMode => isThreeGenMode;
+    public bool IsSequenceMode => isSequenceMode;
     // CellVisualSize = 2/√3 ≈ 1.1547: hexagon apothem = r*cos(30°) = 0.5*0.866; 2*apothem*CVS = 1.0 → no gaps
     private const float HexCellVisualSize = 1.1547f;
     // Pentagon in column-offset hex grid (r=126px, PPU=256):
@@ -76,6 +79,8 @@ public class GridManager : MonoBehaviour
         isPentagonMode = level.cellShape == CellShape.Pentagon;
         isThreeGenMode = level.cellShape == CellShape.ThreeGen;
         isHexagonMode  = level.cellShape == CellShape.Hexagon;
+        isSequenceMode = level.sequenceMode;
+        playableCellCount = GridWidth * GridHeight - (level.blockedCells?.Length ?? 0);
         CellVisualSize = isThreeGenMode ? TriangleCVS
                        : (isPentagonMode || isHexagonMode) ? HexCellVisualSize : 0.9f;
         if (isHexagonMode || isPentagonMode)
@@ -339,7 +344,12 @@ public class GridManager : MonoBehaviour
                 lastCell.SetAsLastSelected(false);
                 ActiveChain.Add(cell);
                 cell.SetState(CellState.Selecting, nextOrder);
-                CompleteSelection();
+                // Sequence mode: numbers are waypoints — the chain keeps going
+                // until the final number (== total cell count) is reached.
+                if (isSequenceMode && nextOrder < playableCellCount)
+                    cell.SetAsLastSelected(true);
+                else
+                    CompleteSelection();
                 return true;
             }
             // Count doesn't match - reject
@@ -388,6 +398,21 @@ public class GridManager : MonoBehaviour
             cell.ResetToOriginal();
         }
         ActiveChain.Clear();
+    }
+
+    // Sequence mode: tap an earlier chain cell to rewind the chain back to it.
+    public bool TruncateChainTo(Cell cell)
+    {
+        int index = ActiveChain.IndexOf(cell);
+        if (index < 0 || index >= ActiveChain.Count - 1) return false;
+
+        for (int i = ActiveChain.Count - 1; i > index; i--)
+        {
+            ActiveChain[i].ResetToOriginal();
+            ActiveChain.RemoveAt(i);
+        }
+        ActiveChain[index].SetAsLastSelected(true);
+        return true;
     }
 
     private void CompleteSelection()
@@ -469,6 +494,9 @@ public class GridManager : MonoBehaviour
     {
         if (solutions == null) return false;
 
+        if (isSequenceMode)
+            return SolveSequenceHint(solutions);
+
         CancelSelection();
 
         if (!IsSolvable(solutions))
@@ -517,6 +545,67 @@ public class GridManager : MonoBehaviour
         }
 
         return false;
+    }
+
+    // Sequence hint: solutions are the canonical path split at each waypoint.
+    // If the player's chain matches the canonical prefix, extend it to the next
+    // waypoint; otherwise reset and apply the canonical path from the start.
+    private bool SolveSequenceHint(SolutionPath[] solutions)
+    {
+        var canonical = new List<Vector2Int>();
+        foreach (var seg in solutions)
+            for (int i = 0; i < seg.Length; i++)
+                canonical.Add(new Vector2Int(seg.GetX(i), seg.GetY(i)));
+
+        if (canonical.Count == 0) return false;
+
+        bool onCanonical = ActiveChain.Count <= canonical.Count;
+        if (onCanonical)
+        {
+            for (int i = 0; i < ActiveChain.Count; i++)
+            {
+                if (ActiveChain[i].GridX != canonical[i].x || ActiveChain[i].GridY != canonical[i].y)
+                {
+                    onCanonical = false;
+                    break;
+                }
+            }
+        }
+
+        if (!onCanonical)
+            CancelSelection();
+
+        int currentLength = ActiveChain.Count;
+        if (currentLength >= canonical.Count) return false;
+
+        // Extend to the first waypoint position beyond the current length.
+        int targetLength = canonical.Count;
+        int runningEnd = 0;
+        foreach (var seg in solutions)
+        {
+            runningEnd += seg.Length;
+            if (runningEnd > currentLength)
+            {
+                targetLength = runningEnd;
+                break;
+            }
+        }
+
+        for (int i = currentLength; i < targetLength; i++)
+        {
+            Cell cell = GetCell(canonical[i].x, canonical[i].y);
+            if (cell == null) return false;
+            if (ActiveChain.Count > 0)
+                ActiveChain[ActiveChain.Count - 1].SetAsLastSelected(false);
+            ActiveChain.Add(cell);
+            cell.SetState(CellState.Selecting, i + 1);
+            cell.SetAsLastSelected(true);
+        }
+
+        if (targetLength >= playableCellCount)
+            CompleteSelection();
+
+        return true;
     }
 
     // Triangle hint: Voronoi-partition all empty cells among segments, apply the largest

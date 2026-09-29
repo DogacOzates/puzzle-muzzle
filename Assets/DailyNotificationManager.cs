@@ -86,7 +86,6 @@ public class DailyNotificationManager : MonoBehaviour
         // 72 h — re-engagement
         string[] engageMessages = {
             "A puzzle has been waiting 3 days… think you can solve it? 🧩",
-            "Challenge someone to a 1v1 battle — online mode is live! ⚔️",
             "Invite a friend and get +5 hints free 👫 Share your code now!",
             "Brain workout time! Your hints are piling up 🧠",
         };
